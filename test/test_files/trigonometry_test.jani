@@ -1,0 +1,274 @@
+{
+    "jani-version": 1,
+    "name": "",
+    "type": "mdp",
+    "metadata": {
+        "description": "Testing sin, cos and constants in Storm SMC tool."
+    },
+    "variables": [
+        {
+            "name": "orientation",
+            "type": "int",
+            "initial-value": 0,
+            "comment": "Orientation in degrees"
+        },
+        {
+            "name": "cos_orientation_zero",
+            "type": "bool",
+            "initial-value": false,
+            "comment": "Set to true if cos(orientation) is zero"
+        }
+    ],
+    "actions": [
+        {
+            "name": "move"
+        }
+    ],
+    "automata": [
+        {
+            "name": "test_automaton",
+            "locations": [
+                {
+                    "name": "loc"
+                }
+            ],
+            "initial-locations": [
+                "loc"
+            ],
+            "variables": [
+                {
+                    "name": "orientation_rad",
+                    "type": "real",
+                    "initial-value": 0.0,
+                    "transient": true
+                }
+            ],
+            "edges": [
+                {
+                    "location": "loc",
+                    "destinations": [
+                        {
+                            "location": "loc",
+                            "assignments": [
+                                {
+                                    "ref": "orientation",
+                                    "value": {
+                                        "op": "+",
+                                        "left": "orientation",
+                                        "right": 1
+                                    },
+                                    "index": 0
+                                },
+                                {
+                                    "ref": "orientation_rad",
+                                    "value": {
+                                        "op": "*",
+                                        "left": "orientation",
+                                        "right": {
+                                            "op": "/",
+                                            "left": {"constant": "π"},
+                                            "right": 180
+                                        }
+                                    },
+                                    "index": 1
+                                },
+                                {
+                                    "ref": "cos_orientation_zero",
+                                    "value": {
+                                        "op": "<",
+                                        "left": {
+                                            "op": "abs",
+                                            "exp": {
+                                                "op": "-",
+                                                "left": {
+                                                    "op": "cos",
+                                                    "exp": "orientation_rad"
+                                                },
+                                                "right": 0.0
+                                            }
+                                        },
+                                        "right": 0.001
+                                    },
+                                    "index": 2
+                                }
+                            ]
+                        }
+                    ],
+                    "action": "move"
+                }
+            ]
+        }
+    ],
+    "system": {
+        "elements": [
+            {
+                "automaton": "test_automaton"
+            }
+        ],
+        "syncs": [
+            {
+                "result": "move",
+                "synchronise": [
+                    "move"
+                ]
+            }
+        ]
+    },
+    "properties": [
+        {
+            "name": "destination_reached_cos",
+            "expression": {
+                "op": "filter",
+                "fun": "values",
+                "values": {
+                    "op": "Pmin",
+                    "exp": {
+                        "left": true,
+                        "op": "U",
+                        "right": {
+                            "op": "∧",
+                            "left": {
+                                "op": "=",
+                                "left": "orientation",
+                                "right": 90
+                            },
+                            "right": {
+                                "op": "<",
+                                "left": {
+                                    "op": "abs",
+                                    "exp": {
+                                        "op": "-",
+                                        "left": {
+                                            "op": "cos",
+                                            "exp": {
+                                                "op": "*",
+                                                "left": "orientation",
+                                                "right": {
+                                                    "op": "/",
+                                                    "left": {"constant": "π"},
+                                                    "right": 180
+                                                }
+                                            }
+                                        },
+                                        "right": 0.0
+                                    }
+                                },
+                                "right": 0.001
+                            }
+                        }
+                    }
+                },
+                "states": {
+                    "op": "initial"
+                }
+            }
+        },
+        {
+            "name": "destination_reached_cos_bool",
+            "expression": {
+                "op": "filter",
+                "fun": "values",
+                "values": {
+                    "op": "Pmin",
+                    "exp": {
+                        "left": {
+                            "op": "∧",
+                            "left": {
+                                "op": "<",
+                                "left": "orientation",
+                                "right": 90
+                            },
+                            "right": {
+                                "op": "¬",
+                                "exp": "cos_orientation_zero"
+                            }
+                        },
+                        "op": "U",
+                        "right": {
+                            "op": "∧",
+                            "left": {
+                                "op": "=",
+                                "left": "orientation",
+                                "right": 90
+                            },
+                            "right": "cos_orientation_zero"
+                        }
+                    }
+                },
+                "states": {
+                    "op": "initial"
+                }
+            }
+        },
+        {
+            "name": "destination_reached_sin",
+            "expression": {
+                "op": "filter",
+                "fun": "values",
+                "values": {
+                    "op": "Pmin",
+                    "exp": {
+                        "left": true,
+                        "op": "U",
+                        "right": {
+                            "op": "∧",
+                            "left": {
+                                "op": "=",
+                                "left": "orientation",
+                                "right": 90
+                            },
+                            "right": {
+                                "op": "<",
+                                "left": {
+                                    "op": "abs",
+                                    "exp": {
+                                        "op": "-",
+                                        "left": {
+                                            "op": "sin",
+                                            "exp": {
+                                                "op": "*",
+                                                "left": "orientation",
+                                                "right": {
+                                                    "op": "/",
+                                                    "left": {"constant": "π"},
+                                                    "right": 180
+                                                }
+                                            }
+                                        },
+                                        "right": 1.0
+                                    }
+                                },
+                                "right": 0.001
+                            }
+                        }
+                    }
+                },
+                "states": {
+                    "op": "initial"
+                }
+            }
+        },
+        {
+            "name": "destination_reached",
+            "expression": {
+                "op": "filter",
+                "fun": "values",
+                "values": {
+                    "op": "Pmin",
+                    "exp": {
+                        "left": true,
+                        "op": "U",
+                        "right": {
+                            "op": "=",
+                            "left": "orientation",
+                            "right": 90
+                        }
+                    }
+                },
+                "states": {
+                    "op": "initial"
+                }
+            }
+        }
+    ]
+}
