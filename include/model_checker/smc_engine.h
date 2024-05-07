@@ -60,16 +60,16 @@ class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractM
     typedef typename ModelType::ValueType ValueType;
     typedef StateType ActionType;
 
-    StatisticalExplorationModelChecker(storm::storage::SymbolicModelDescription const& inModel, const settings::SmcSettings& settings);
+    StatisticalExplorationModelChecker(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings);
 
-    virtual bool canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& checkTask) const override;
+    virtual bool canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const override;
 
-    static bool canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& checkTask);
+    static bool canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task);
 
-    virtual std::unique_ptr<storm::modelchecker::CheckResult> computeProbabilities(storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& checkTask) override;
+    virtual std::unique_ptr<storm::modelchecker::CheckResult> computeProbabilities(storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) override;
 
     virtual std::unique_ptr<storm::modelchecker::CheckResult> computeReachabilityRewards(
-        storm::Environment const& env, storm::logic::RewardMeasureType rewardType, storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& checkTask) override;
+        storm::Environment const& env, storm::logic::RewardMeasureType reward_type, storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task) override;
 
    private:
     bool verifyModelValid() const;
@@ -78,50 +78,49 @@ class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractM
 
     /*!
      * @brief Generates samples from a model and counts how many times a given property is satisfied
-     * @param checkTask The property we are evaluating on the loaded model
-     * @param optDir Optimization direction used when extracting the next action
-     * @param modelSampler Object used to randomly sample next action and states
-     * @param samplingResults Object keeping track of the previous sample results and defining if new samples are needed
+     * @param check_task The property we are evaluating on the loaded model
+     * @param model_sampler Object used to randomly sample next action and states
+     * @param sampling_results Object keeping track of the previous sample results and defining if new samples are needed
      */
     void performProbabilitySampling(
-        storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& checkTask,
-        samples::ModelSampling<StateType, ValueType> const& modelSampler, samples::SamplingResults& samplingResults) const;
+        storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task,
+        samples::ModelSampling<StateType, ValueType> const& model_sampler, samples::SamplingResults& sampling_results) const;
     
     /*!
      * @brief Generates samples from a model and evaluates rewards on them as long as it is needed
-     * @param checkTask The property and rewards we are evaluating on the loaded model
-     * @param optDir Optimization direction used when extracting the next action
-     * @param modelSampler Object used to randomly sample next action and states
-     * @param samplingResults Object keeping track of the previous sample results and defining if new samples are needed
+     * @param check_task The property and rewards we are evaluating on the loaded model
+     * @param model_sampler Object used to randomly sample next action and states
+     * @param sampling_results Object keeping track of the previous sample results and defining if new samples are needed
      */
     void performRewardSampling(
-        storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& checkTask,
-        samples::ModelSampling<StateType, ValueType> const& modelSampler, samples::SamplingResults& samplingResults) const;
+        storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task,
+        samples::ModelSampling<StateType, ValueType> const& model_sampler, samples::SamplingResults& sampling_results) const;
 
     /*!
      * @brief Sample a single path until we reach a state it doesn't make sense to expand further
-     * @param stateGeneration A representation of the model, to sample the states from
-     * @param explorationInformation Information about the previous explorations (to optimize computation)
+     * @param state_generation A representation of the model, to sample the states from
+     * @param exploration_information Information about the previous explorations (to optimize computation)
+     * @param model_sampler Object used to randomly sample next action and states
      * @return A pair with the Information attached to the reached state and the accumulated reward
      */
     samples::TraceInformation samplePathFromInitialState(
-        StateGeneration<StateType, ValueType>& stateGeneration, samples::ExplorationInformation<StateType, ValueType>& explorationInformation,
-        samples::ModelSampling<StateType, ValueType> const& modelSampler) const;
+        StateGeneration<StateType, ValueType>& state_generation, samples::ExplorationInformation<StateType, ValueType>& exploration_information,
+        samples::ModelSampling<StateType, ValueType> const& model_sampler) const;
 
     /*!
      * @brief Explore a single, unexplored state
-     * @param stateGeneration A representation of the model, to sample the states from
-     * @param currentStateId The ID of the state we are exploring
+     * @param state_generation A representation of the model, to sample the states from
+     * @param current_state_id The ID of the state we are exploring
      * @param currentState A compressed representation of the actual state
-     * @param explorationInformation Information about the previous explorations (to optimize computation)
+     * @param exploration_information Information about the previous explorations (to optimize computation)
      * @return A description of the input state for evaluation
      */
     properties::StateInfoType exploreState(
-        StateGeneration<StateType, ValueType>& stateGeneration, StateType const& currentStateId,
-        samples::ExplorationInformation<StateType, ValueType>& explorationInformation) const;
+        StateGeneration<StateType, ValueType>& state_generation, StateType const& current_state_id,
+        samples::ExplorationInformation<StateType, ValueType>& exploration_information) const;
 
     // The model to check.
-    const storm::storage::SymbolicModelDescription model;
+    const storm::storage::SymbolicModelDescription _model;
     const settings::SmcSettings _settings;
 };
 }  // namespace model_checker

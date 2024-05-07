@@ -41,42 +41,42 @@ public:
 
     /*!
      * @brief Property already epxressed in terms of condition and target expressions, for compatibility
-     * @param conditionExpr An expression
-     * @param targetExpr An expression
+     * @param condition_expr An expression
+     * @param target_expr An expression
      */
-    PropertyDescription(storm::expressions::Expression const& conditionExpr, storm::expressions::Expression const& targetExpr);
+    PropertyDescription(storm::expressions::Expression const& condition_expr, storm::expressions::Expression const& target_expr);
 
     /*!
      * @brief Convert the  loaded formulae to Expressions, that can be evaluated.
      * @param manager Expression Manager
-     * @param labelToExpressionMapping Mapping from variable names to actual expressions
+     * @param label_to_expression_mapping Mapping from variable names to actual expressions
      */
-    void generateExpressions(storm::expressions::ExpressionManager const& manager, LabelsMap const& labelToExpressionMapping);
+    void generateExpressions(storm::expressions::ExpressionManager const& manager, LabelsMap const& label_to_expression_mapping);
 
     // Various getters
     inline const storm::expressions::Expression& getConditionExpression() const
     {
-        return _conditionExpression;
+        return _condition_expression;
     }
 
     inline const storm::expressions::Expression& getTargetExpression() const
     {
-        return _targetExpression;
+        return _target_expression;
     }
 
     bool getIsTerminalVerified() const
     {
-        return _isTerminalVerified;
+        return _is_terminal_verified;
     }
 
     inline size_t getLowerBound() const
     {
-        return _lowerBoundValue;
+        return _lower_bound_value;
     }
 
     inline size_t getUpperBound() const
     {
-        return _upperBoundValue;
+        return _upper_bound_value;
     }
 
 private:
@@ -92,22 +92,22 @@ private:
     void processNextFormula(storm::logic::NextFormula const& formula);
     void processUnaryBooleanPathFormula(storm::logic::UnaryBooleanPathFormula const& formula);
 
-    bool _isTerminalVerified = false;
+    bool _is_terminal_verified = false;
 
     // Lower and upper bounds (Non strict)
-    size_t _lowerBoundValue = 0U;
-    size_t _upperBoundValue = std::numeric_limits<size_t>::max();
+    size_t _lower_bound_value = 0U;
+    size_t _upper_bound_value = std::numeric_limits<size_t>::max();
     
     // Reference to the extracted formulae
-    std::reference_wrapper<const storm::logic::Formula> _conditionFormulaRef{FalseFormula};
-    std::reference_wrapper<const storm::logic::Formula> _targetFormulaRef{FalseFormula};
+    std::reference_wrapper<const storm::logic::Formula> _condition_formula_ref{FalseFormula};
+    std::reference_wrapper<const storm::logic::Formula> _target_formula_ref{FalseFormula};
     // Flag telling wether we need to negate the expression at generation time.
-    bool _negateCondition = false;
-    bool _negateTarget = false;
+    bool _negate_condition = false;
+    bool _negate_target = false;
 
     // Converted expressions
-    storm::expressions::Expression _conditionExpression;
-    storm::expressions::Expression _targetExpression;
+    storm::expressions::Expression _condition_expression;
+    storm::expressions::Expression _target_expression;
 
 };
 }  // namespace smc_storm::properties

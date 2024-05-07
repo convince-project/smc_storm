@@ -41,22 +41,22 @@ class StateGeneration {
      * @brief Base constructor for StateGeneration class
      * @param model The model to generate the next states from
      * @param formula The formula to evaluate on the generated states
-     * @param explorationInformation Structure that keeps track of the already explored states
-     * @param buildRewards Whether to embed the rewards in the model we are building up
+     * @param exploration_information Structure that keeps track of the already explored states
+     * @param build_rewards Whether to embed the rewards in the model we are building up
      */
     StateGeneration(storm::storage::SymbolicModelDescription const& model, storm::logic::Formula const& formula,
-                    samples::ExplorationInformation<StateType, ValueType>& explorationInformation,
-                    bool const buildRewards = false);
+                    samples::ExplorationInformation<StateType, ValueType>& exploration_information,
+                    bool const build_rewards = false);
 
     /*!
      * @brief Extension of the constructor above, in case we evaluate Rewards
      * @param model The model to generate the next states from
      * @param formula The formula to evaluate on the generated states
-     * @param rewardModel Name of the reward model to use for assigning costs on states and actions
-     * @param explorationInformation Structure that keeps track of the already explored states
+     * @param reward_model Name of the reward model to use for assigning costs on states and actions
+     * @param exploration_information Structure that keeps track of the already explored states
      */
     StateGeneration(storm::storage::SymbolicModelDescription const& model, storm::logic::Formula const& formula,
-                    std::string const& rewardModel, samples::ExplorationInformation<StateType, ValueType>& explorationInformation);
+                    std::string const& reward_model, samples::ExplorationInformation<StateType, ValueType>& exploration_information);
 
     /*!
      * @brief Check if a reward model is loaded and therefore it needs to be evaluated
@@ -64,7 +64,7 @@ class StateGeneration {
      */
     inline bool rewardLoaded() const
     {
-        return std::numeric_limits<size_t>::max() != rewardModelIndex;
+        return std::numeric_limits<size_t>::max() != _reward_model_index;
     }
 
     /*!
@@ -73,7 +73,7 @@ class StateGeneration {
      */
     inline size_t getRewardIndex() const
     {
-        return rewardModelIndex;
+        return _reward_model_index;
     }
 
     void load(storm::generator::CompressedState const& state);
@@ -96,29 +96,29 @@ class StateGeneration {
 
     inline size_t getLowerBound() const
     {
-        return propertyDescription.getLowerBound();
+        return _property_description.getLowerBound();
     }
 
     inline size_t getUpperBound() const
     {
-        return propertyDescription.getUpperBound();
+        return _property_description.getUpperBound();
     }
 
     inline bool getIsTerminalVerified() const
     {
-        return propertyDescription.getIsTerminalVerified();
+        return _property_description.getIsTerminalVerified();
     }
 
    private:
-    void initStateToIdCallback(samples::ExplorationInformation<StateType, ValueType>& explorationInformation);
+    void initStateToIdCallback(samples::ExplorationInformation<StateType, ValueType>& exploration_information);
 
-    std::unique_ptr<storm::generator::NextStateGenerator<ValueType, StateType>> generatorPtr;
-    std::unique_ptr<storm::storage::sparse::StateStorage<StateType>> stateStoragePtr;
+    std::unique_ptr<storm::generator::NextStateGenerator<ValueType, StateType>> _generator_ptr;
+    std::unique_ptr<storm::storage::sparse::StateStorage<StateType>> _state_storage_ptr;
 
-    properties::PropertyDescription propertyDescription;
-    size_t rewardModelIndex = std::numeric_limits<size_t>::max();
+    properties::PropertyDescription _property_description;
+    size_t _reward_model_index = std::numeric_limits<size_t>::max();
 
-    std::function<StateType(storm::generator::CompressedState const&)> stateToIdCallback;
+    std::function<StateType(storm::generator::CompressedState const&)> _state_to_id_callback;
 };
 
 }  // namespace model_checker

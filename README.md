@@ -29,9 +29,9 @@ Open your terminal in the cloned repository and execute the following
 # Make smc_storm executable from anywhere
 export PATH=$PATH:<path-to-smc-storm-repo>/build
 # Example 1
-smc_storm --model <path-to-smc-storm-repo>/test/test_files/leader_sync/leader_sync.3-2.v1.jani --property-name eventually_elected
+smc_storm --model <path-to-smc-storm-repo>/test/test_files/leader_sync.3-2.v1.jani --property-name eventually_elected
 # Example 2
-smc_storm --model test/test_files/nand/nand.v1.jani --property-name reliable --constants "N=20,K=2" --epsilon 0.01 --confidence 0.95 --n-threads 5 --show-statistics
+smc_storm --model <path-to-smc-storm-repo>/test/test_files/nand.v1.jani --property-name reliable --constants "N=20,K=2" --epsilon 0.01 --confidence 0.95 --n-threads 5 --show-statistics
 ```
 
 ### Verifying sin and cos support
@@ -47,4 +47,4 @@ smc_storm --model <path-to-smc-storm-repo>/test/test_files/trigonometry_test.jan
 Available properties:
 * _destination_reached_cos_: Check if cos operator works as expected in the path property definition
 * _destination_reached_sin_: Check if sin operator works as expected in the path property definition
-* _destination_reached_cos_bool_: Check is the cos operator works in the automaton assignments
+* _destination_reached_cos_bool_: Check if the cos operator works in the automaton assignments

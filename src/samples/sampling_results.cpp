@@ -28,8 +28,8 @@
 #include "samples/sampling_results.h"
 
 namespace smc_storm::samples {
-SamplingResults::BatchResults::BatchResults(size_t const batchSize, const PropertyType prop_type) :
-        _batchSize{batchSize},
+SamplingResults::BatchResults::BatchResults(size_t const batch_size, const PropertyType prop_type) :
+        _batch_size{batch_size},
         _property_type{prop_type} {
     reset();
 }
@@ -39,25 +39,25 @@ void SamplingResults::BatchResults::addResult(const TraceInformation& res) {
     switch (res.outcome)
     {
         case TraceResult::VERIFIED:
-            _nVerified++;
+            _n_verified++;
             break;
         case TraceResult::NOT_VERIFIED:
-            _nNotVerified++;
+            _n_not_verified++;
             break;
         case TraceResult::NO_INFO:
-            _nNoInfo++;
+            _n_no_info++;
             break;
         default:
             STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "Unexpected Result value added");
             break;
     }
     // TODO: Consider having a structure to track min-max value and distinguish between verified and non-verified traces
-    _min_trace_length = std::min(_min_trace_length, res.traceLength);
-    _max_trace_length = std::max(_max_trace_length, res.traceLength);
+    _min_trace_length = std::min(_min_trace_length, res.trace_length);
+    _max_trace_length = std::max(_max_trace_length, res.trace_length);
     if (_property_type == PropertyType::R && res.outcome == TraceResult::VERIFIED) {
         _rewards.emplace_back(res.reward);
-        _minReward = std::min(res.reward, _minReward);
-        _maxReward = std::max(res.reward, _maxReward);
+        _min_reward = std::min(res.reward, _min_reward);
+        _max_reward = std::max(res.reward, _max_reward);
     }
 }
 
@@ -66,80 +66,80 @@ BatchStatistics SamplingResults::BatchResults::getBatchStatistics() const {
 }
 
 void SamplingResults::BatchResults::reset() {
-    _nVerified = 0U;
-    _nNotVerified = 0U;
-    _nNoInfo = 0U;
+    _n_verified = 0U;
+    _n_not_verified = 0U;
+    _n_no_info = 0U;
     _count = 0U;
     _rewards.clear();
-    _rewards.reserve(_batchSize);
-    _minReward = std::numeric_limits<double>::infinity();
-    _maxReward = -std::numeric_limits<double>::infinity();
+    _rewards.reserve(_batch_size);
+    _min_reward = std::numeric_limits<double>::infinity();
+    _max_reward = -std::numeric_limits<double>::infinity();
     _min_trace_length = std::numeric_limits<size_t>::max();
     _max_trace_length = 0U;
 }
 
 SamplingResults::SamplingResults(size_t const batch_size, PropertyType const& prop,  const double epsilon, const double confidence, const std::string& stat_method)
-: _propertyType{prop},
+: _property_type{prop},
   _stat_method{stat_method},
-  _maxAbsErr{epsilon},
+  _max_abs_err{epsilon},
   _confidence{confidence},
   _quantile{calculateQuantile(_confidence)},
-  _batchSize{batch_size},
-  _minIterations{50U} {
-    _nVerified = 0U;
-    _nNotVerified = 0U;
-    _nNoInfo = 0U;
-    _minReward = std::numeric_limits<double>::infinity();
-    _maxReward = -std::numeric_limits<double>::infinity();
+  _batch_size{batch_size},
+  _min_iterations{50U} {
+    _n_verified = 0U;
+    _n_not_verified = 0U;
+    _n_no_info = 0U;
+    _min_reward = std::numeric_limits<double>::infinity();
+    _max_reward = -std::numeric_limits<double>::infinity();
     _min_trace_length = std::numeric_limits<size_t>::max();
     _max_trace_length = 0U;
     initBoundFunction();
 }
 
 void SamplingResults::initBoundFunction() {
-    _boundFunction = nullptr;
+    _bound_function = nullptr;
     // Set the default method to evaluate the n. of iterations
     std::string stat_method = _stat_method;
     if (stat_method.empty()) {
-        stat_method = (PropertyType::R == _propertyType) ? "chow_robbins" : "adaptive";
+        stat_method = (PropertyType::R == _property_type) ? "chow_robbins" : "adaptive";
     }
     // Assign the correct bound function
-    if (_propertyType == PropertyType::R) {
+    if (_property_type == PropertyType::R) {
         // All iteration bounds related to Reward properties
         if ("chernoff" == stat_method) {
             updateChernoffBound();
-            _boundFunction = std::bind(&SamplingResults::evaluateChernoffBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
         } else if ("z_interval" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateZInterval, this);
+            _bound_function = std::bind(&SamplingResults::evaluateZInterval, this);
         } else if ("chow_robbins" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateChowRobbinsBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateChowRobbinsBound, this);
         }
     } else {
         if ("chernoff" == stat_method) {
             updateChernoffBound();
-            _boundFunction = std::bind(&SamplingResults::evaluateChernoffBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
         } else if ("wald" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateWaldBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateWaldBound, this);
         } else if ("agresti" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateAgrestiBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateAgrestiBound, this);
         } else if ("wilson" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateWilsonBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateWilsonBound, this);
         } else if ("wilson_corrected" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateWilsonCorrectedBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateWilsonCorrectedBound, this);
         } else if ("clopper_pearson" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateClopperPearsonBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateClopperPearsonBound, this);
         } else if ("adaptive" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateAdaptiveBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateAdaptiveBound, this);
         } else if ("arcsine" == stat_method) {
-            _boundFunction = std::bind(&SamplingResults::evaluateArcsineBound, this);
+            _bound_function = std::bind(&SamplingResults::evaluateArcsineBound, this);
         }
     }
-    STORM_LOG_THROW(_boundFunction, storm::exceptions::NotImplementedException, "Could not find bounds method " << stat_method);
+    STORM_LOG_THROW(_bound_function, storm::exceptions::NotImplementedException, "Could not find bounds method " << stat_method);
 }
 
 bool SamplingResults::evaluateChernoffBound()
 {
-    return (_nVerified + _nNotVerified) < _requiredSamples;
+    return (_n_verified + _n_not_verified) < _required_samples;
 }
 
 bool SamplingResults::evaluateWaldBound()
@@ -147,13 +147,13 @@ bool SamplingResults::evaluateWaldBound()
     if (!minIterationsReached()) {
         return true;
     }
-    const double successes = static_cast<double>(_nVerified);
-    const double failures = static_cast<double>(_nNotVerified);
+    const double successes = static_cast<double>(_n_verified);
+    const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
-    const double successProportion = successes / iterations;
-    double ciHalfWidth = _quantile * sqrt(successProportion * ( 1 - successProportion) / iterations);
+    const double success_proportion = successes / iterations;
+    double ci_half_width = _quantile * sqrt(success_proportion * ( 1 - success_proportion) / iterations);
     // Boolean to make sure the certainty bound computed with the Wald bound is inside the desired interval
-    return ciHalfWidth > _maxAbsErr; 
+    return ci_half_width > _max_abs_err; 
 }
 
 bool SamplingResults::evaluateAgrestiBound()
@@ -161,12 +161,12 @@ bool SamplingResults::evaluateAgrestiBound()
     if (!minIterationsReached()) {
         return true;
     }
-    const double successes = static_cast<double>(_nVerified);
-    const double failures = static_cast<double>(_nNotVerified);
+    const double successes = static_cast<double>(_n_verified);
+    const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
-    const double adjustedSuccessProportion=(successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
+    const double adjusted_success_proportion=(successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
     // Boolean to make sure the certainty bound computed with the Agresti bound is inside the desired interval
-    return _quantile * sqrt(adjustedSuccessProportion * (1.0 - adjustedSuccessProportion) / (iterations + _quantile * _quantile))>_maxAbsErr;
+    return _quantile * sqrt(adjusted_success_proportion * (1.0 - adjusted_success_proportion) / (iterations + _quantile * _quantile))>_max_abs_err;
 }
 
 bool SamplingResults::evaluateWilsonBound()
@@ -174,14 +174,14 @@ bool SamplingResults::evaluateWilsonBound()
     if (!minIterationsReached()) {
         return true;
     }
-    const double successes = static_cast<double>(_nVerified);
-    const double failures = static_cast<double>(_nNotVerified);
+    const double successes = static_cast<double>(_n_verified);
+    const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     const double z = _quantile;
     const double zSq = z * z;
-    const double ciHalfWidth = (z / (iterations + zSq)) * sqrt(successes * failures / iterations + zSq / 4.0);
+    const double ci_half_width = (z / (iterations + zSq)) * sqrt(successes * failures / iterations + zSq / 4.0);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
-    return ciHalfWidth > _maxAbsErr;
+    return ci_half_width > _max_abs_err;
 }
 
 bool SamplingResults::evaluateWilsonCorrectedBound()
@@ -189,15 +189,15 @@ bool SamplingResults::evaluateWilsonCorrectedBound()
     if (!minIterationsReached()) {
         return true;
     }
-    const double successes = static_cast<double>(_nVerified);
-    const double failures = static_cast<double>(_nNotVerified);
+    const double successes = static_cast<double>(_n_verified);
+    const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     const double p = (successes / iterations) - (1.0 / (2.0 * iterations));
     const double z = _quantile;
     const double zSq = z * z;
-    const double ciHalfWidth = (z / (2.0 * (iterations + zSq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + zSq);
+    const double ci_half_width = (z / (2.0 * (iterations + zSq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + zSq);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
-    return ciHalfWidth > _maxAbsErr;
+    return ci_half_width > _max_abs_err;
 }
 
 bool SamplingResults::evaluateClopperPearsonBound()
@@ -206,23 +206,23 @@ bool SamplingResults::evaluateClopperPearsonBound()
         return true;
     }
     const double alpha_half = (1 - _confidence) * 0.5;
-    const double successes = static_cast<double>(_nVerified);
-    const double failures = static_cast<double>(_nNotVerified);
+    const double successes = static_cast<double>(_n_verified);
+    const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
-    double lowerBound = 0.0;
-    double upperBound = 1.0;
-    if (_nVerified == 0) {
-        upperBound = 1.0 - pow(alpha_half, 1.0 / iterations);
-    } else if (_nNotVerified == 0) {
-        lowerBound = pow(alpha_half, 1.0 / iterations);
+    double lower_bound = 0.0;
+    double upper_bound = 1.0;
+    if (_n_verified == 0) {
+        upper_bound = 1.0 - pow(alpha_half, 1.0 / iterations);
+    } else if (_n_not_verified == 0) {
+        lower_bound = pow(alpha_half, 1.0 / iterations);
     } else {
-        boost::math::beta_distribution lowerDist(successes, failures + 1.0);
-        boost::math::beta_distribution upperDist(successes + 1.0, failures);
-        lowerBound = boost::math::quantile(lowerDist, alpha_half);
-        upperBound = boost::math::quantile(upperDist, 1.0 - alpha_half);
+        boost::math::beta_distribution lower_dist(successes, failures + 1.0);
+        boost::math::beta_distribution upper_dist(successes + 1.0, failures);
+        lower_bound = boost::math::quantile(lower_dist, alpha_half);
+        upper_bound = boost::math::quantile(upper_dist, 1.0 - alpha_half);
     }
-    const double ciHalfWidth = std::abs(upperBound - lowerBound) * 0.5;
-    return ciHalfWidth > _maxAbsErr;
+    const double ci_half_width = std::abs(upper_bound - lower_bound) * 0.5;
+    return ci_half_width > _max_abs_err;
 }
 
 bool SamplingResults::evaluateAdaptiveBound()
@@ -232,12 +232,12 @@ bool SamplingResults::evaluateAdaptiveBound()
         return true;
     }
     const double alpha = (1 - _confidence);
-    const double successes = static_cast<double>(_nVerified);
-    const double iterations = static_cast<double>(_nVerified + _nNotVerified);
-    const double successesProportion = successes / iterations;
-    const double correctedSuccessProb = abs(successesProportion - 0.5) - (_maxAbsErr * 2.0 / 3.0);
-    const double minExpectedIterations = (2.0 * log(2.0 / alpha) / (_maxAbsErr * _maxAbsErr)) * (0.25 - correctedSuccessProb * correctedSuccessProb);
-    return iterations < minExpectedIterations;
+    const double successes = static_cast<double>(_n_verified);
+    const double iterations = static_cast<double>(_n_verified + _n_not_verified);
+    const double successes_proportion = successes / iterations;
+    const double corrected_success_prob = abs(successes_proportion - 0.5) - (_max_abs_err * 2.0 / 3.0);
+    const double min_expected_iterations = (2.0 * log(2.0 / alpha) / (_max_abs_err * _max_abs_err)) * (0.25 - corrected_success_prob * corrected_success_prob);
+    return iterations < min_expected_iterations;
 }
 
 bool SamplingResults::evaluateArcsineBound()
@@ -245,26 +245,26 @@ bool SamplingResults::evaluateArcsineBound()
     if (!minIterationsReached()) {
         return true;
     }
-    const double successes = static_cast<double>(_nVerified);
-    const double failures = static_cast<double>(_nNotVerified);
+    const double successes = static_cast<double>(_n_verified);
+    const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
-    const double intervalModifier=_quantile / (2.0 * sqrt(iterations));
-    const double adjustedSuccessProportion = (successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
-    const double sqrtLowerBound = sin(asin(sqrt(adjustedSuccessProportion)) - intervalModifier);
-    const double sqrtUpperBound = sin(asin(sqrt(adjustedSuccessProportion)) + intervalModifier);
+    const double interval_modifier=_quantile / (2.0 * sqrt(iterations));
+    const double adjusted_success_proportion = (successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
+    const double sqrt_lower_bound = sin(asin(sqrt(adjusted_success_proportion)) - interval_modifier);
+    const double sqrt_upper_bound = sin(asin(sqrt(adjusted_success_proportion)) + interval_modifier);
     // Boolean to make sure the certainty bound computed with the Arcsine bound is inside the desired interval
-    return abs(sqrtLowerBound * sqrtLowerBound - sqrtUpperBound * sqrtUpperBound) > _maxAbsErr * 2.0;
+    return abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) > _max_abs_err * 2.0;
 }
 
 bool SamplingResults::evaluateZInterval()
 {
     // Following https://www.statisticshowto.com/probability-and-statistics/confidence-interval/#CIZ2
-    if (_rewardStats.dim == 0U) {
+    if (_reward_stats.dim == 0U) {
         // No sample yet! Keep getting samples!
         return true;
     }
-    const double ciHalfWidth = _quantile * _rewardStats.variance / sqrt(_rewardStats.dim);
-    return ciHalfWidth > _maxAbsErr;
+    const double ci_half_width = _quantile * _reward_stats.variance / sqrt(_reward_stats.dim);
+    return ci_half_width > _max_abs_err;
 }
 
 bool SamplingResults::evaluateChowRobbinsBound()
@@ -273,30 +273,30 @@ bool SamplingResults::evaluateChowRobbinsBound()
     if (!minIterationsReached()) {
         return true;
     }
-    const double ciHalfWidthSquared = _rewardStats.variance * _quantile * _quantile / static_cast<double>(_rewardStats.dim);
-    return (_maxAbsErr * _maxAbsErr) < ciHalfWidthSquared;
+    const double ci_half_width_squared = _reward_stats.variance * _quantile * _quantile / static_cast<double>(_reward_stats.dim);
+    return (_max_abs_err * _max_abs_err) < ci_half_width_squared;
 }
 
 void SamplingResults::addBatchResults(BatchResults const& res) {
-    const BatchStatistics batchStats = ((PropertyType::R == _propertyType) ? res.getBatchStatistics() : BatchStatistics());
+    const BatchStatistics batch_stats = ((PropertyType::R == _property_type) ? res.getBatchStatistics() : BatchStatistics());
     std::scoped_lock<std::mutex> lock(_mtx);
-    _nVerified += res._nVerified;
-    _nNotVerified += res._nNotVerified;
-    _nNoInfo += res._nNoInfo;
+    _n_verified += res._n_verified;
+    _n_not_verified += res._n_not_verified;
+    _n_no_info += res._n_no_info;
     _min_trace_length = std::min(_min_trace_length, res._min_trace_length);
     _max_trace_length = std::max(_max_trace_length, res._max_trace_length);
-    if (_propertyType == PropertyType::R) {
-        _rewardStats.updateStats(batchStats);
-        bool intervalChanged = false;
-        if (_minReward > res._minReward) {
-            intervalChanged = true;
-            _minReward = res._minReward;
+    if (_property_type == PropertyType::R) {
+        _reward_stats.updateStats(batch_stats);
+        bool is_interval_changed = false;
+        if (_min_reward > res._min_reward) {
+            is_interval_changed = true;
+            _min_reward = res._min_reward;
         }
-        if (_maxReward < res._maxReward) {
-            intervalChanged = true;
-            _maxReward = res._maxReward;
+        if (_max_reward < res._max_reward) {
+            is_interval_changed = true;
+            _max_reward = res._max_reward;
         }
-        if (intervalChanged) {
+        if (is_interval_changed) {
             // Recalculate the Chernoff bounds, since the interval got larger
             updateChernoffBound();
         }
@@ -308,77 +308,77 @@ size_t SamplingResults::getResultCount(TraceResult const res) const {
     switch (res)
     {
     case TraceResult::VERIFIED:
-        return _nVerified;
+        return _n_verified;
     case TraceResult::NOT_VERIFIED:
-        return _nNotVerified;
+        return _n_not_verified;
     case TraceResult::NO_INFO:
-        return _nNoInfo;
+        return _n_no_info;
     }
     STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "Unexpected Result value added");
 }
 
 double SamplingResults::getEstimatedReward() const {
-    if (_nNoInfo  > 0U || _nNotVerified > 0U) {
+    if (_n_no_info  > 0U || _n_not_verified > 0U) {
         STORM_LOG_WARN("Found samples not verifying the property. This results in infinite reward (cost).");
         return std::numeric_limits<double>::infinity();
     }
-    STORM_LOG_THROW(_nVerified > 0U, storm::exceptions::OutOfRangeException, "Computing rewards without samples!");    
-    return _rewardStats.mean;
+    STORM_LOG_THROW(_n_verified > 0U, storm::exceptions::OutOfRangeException, "Computing rewards without samples!");    
+    return _reward_stats.mean;
 }
 
 double SamplingResults::getProbabilityVerifiedProperty() const
 {
-    const size_t nSamples = _nVerified + _nNotVerified;
-    STORM_LOG_THROW(nSamples > 0U, storm::exceptions::OutOfRangeException, "No samples to use for evaluation.");
-    return static_cast<double>(_nVerified) / static_cast<double>(nSamples);
+    const size_t n_samples = _n_verified + _n_not_verified;
+    STORM_LOG_THROW(n_samples > 0U, storm::exceptions::OutOfRangeException, "No samples to use for evaluation.");
+    return static_cast<double>(_n_verified) / static_cast<double>(n_samples);
 }
 
 bool SamplingResults::newBatchNeeded() const {
     // Reward properties require always reaching the target state
-    if (_propertyType == PropertyType::R && (_nNoInfo  > 0U || _nNotVerified > 0U)) {
+    if (_property_type == PropertyType::R && (_n_no_info  > 0U || _n_not_verified > 0U)) {
         return false;
     }
     // Check if we never reached a terminal states
-    const size_t n_samples = _nNoInfo + _nNotVerified + _nVerified;
-    if (n_samples > _minIterations && _nNoInfo > n_samples * 0.5) {
+    const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
+    if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
         STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "More than half the generated traces do not reach the terminal state. Aborting.");
     }
-    return _boundFunction();
+    return _bound_function();
 }
 
 double SamplingResults::calculateQuantile(double const& confidence)
 {
-    boost::math::normal distributionNormal(0.0, 1.0);
-    return boost::math::quantile(distributionNormal, 1.0 - ((1.0-confidence) * 0.5));
+    boost::math::normal distribution_normal(0.0, 1.0);
+    return boost::math::quantile(distribution_normal, 1.0 - ((1.0-confidence) * 0.5));
 }
 
 void SamplingResults::updateChernoffBound()
 {
     // Use Chernoff bound for Bernoullian distribution
-    double resultIntervalWidth = 1.0;
-    if (_propertyType == PropertyType::R && !(std::isinf(_minReward) && std::isinf(_maxReward))) {
-        resultIntervalWidth = std::max(1.0, _maxReward - _minReward);
+    double result_interval_width = 1.0;
+    if (_property_type == PropertyType::R && !(std::isinf(_min_reward) && std::isinf(_max_reward))) {
+        result_interval_width = std::max(1.0, _max_reward - _min_reward);
     }
-    _requiredSamples = storm::utility::ceil(storm::utility::log(2.0 / (1.0 - _confidence)) * storm::utility::pow(resultIntervalWidth, 2) / (2.0 * storm::utility::pow(_maxAbsErr, 2)));
+    _required_samples = storm::utility::ceil(storm::utility::log(2.0 / (1.0 - _confidence)) * storm::utility::pow(result_interval_width, 2) / (2.0 * storm::utility::pow(_max_abs_err, 2)));
 }
 
 void SamplingResults::printResults() const
 {
-    const size_t nSamples = _nNoInfo + _nNotVerified + _nVerified;
+    const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
     STORM_PRINT("\n============= SMC Results =============\n");
-    STORM_PRINT("\tN. of times target reached:\t" << _nVerified << "\n");
-    STORM_PRINT("\tN. of times no termination:\t" << _nNoInfo << "\n");
-    STORM_PRINT("\tTot. n. of tries (samples):\t" << nSamples << "\n");
-    if (_propertyType == PropertyType::P) {
+    STORM_PRINT("\tN. of times target reached:\t" << _n_verified << "\n");
+    STORM_PRINT("\tN. of times no termination:\t" << _n_no_info << "\n");
+    STORM_PRINT("\tTot. n. of tries (samples):\t" << n_samples << "\n");
+    if (_property_type == PropertyType::P) {
         STORM_PRINT("\tEstimated success prob.:\t" << getProbabilityVerifiedProperty() << "\n");
     } else {
         STORM_PRINT("\tEstimated average reward.:\t" << getEstimatedReward() << "\n");
-        STORM_PRINT("\tRewards interval: [" << _minReward << ", " << _maxReward << "]\n");
+        STORM_PRINT("\tRewards interval: [" << _min_reward << ", " << _max_reward << "]\n");
     }
     STORM_PRINT("\tMin trace length:\t" << _min_trace_length << "\n");
     STORM_PRINT("\tMax trace length:\t" << _max_trace_length << "\n");
     STORM_PRINT("=========================================\n");
-    STORM_LOG_ASSERT(_nNoInfo < nSamples, "All sampled paths do not terminate. Check your input model.");
+    STORM_LOG_ASSERT(_n_no_info < n_samples, "All sampled paths do not terminate. Check your input model.");
 }
 
 }  // namespace smc_storm::samples

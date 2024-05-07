@@ -30,40 +30,40 @@ namespace smc_storm::samples {
 
 template<typename StateType, typename ValueType>
 ModelSampling<StateType, ValueType>::ModelSampling()
-: randomGenerator(std::chrono::system_clock::now().time_since_epoch().count()),
+: _random_generator(std::chrono::system_clock::now().time_since_epoch().count()),
   // TODO: Check if it makes sense to make this entry configurable. For now it isn't required
-  comparator(1e-06) {
+  _comparator(1e-06) {
     // Nothing to do
 }
 
 template<typename StateType, typename ValueType>
 ModelSampling<StateType, ValueType>::ModelSampling(uint_fast32_t const& seed)
-: randomGenerator(seed),
+: _random_generator(seed),
   // TODO: Check if it makes sense to make this entry configurable. For now it isn't required
-  comparator(1e-06) {
+  _comparator(1e-06) {
     // Nothing to do
 }
 
 // Methods used by Statistical Model Checking Engine
 template<typename StateType, typename ValueType>
 StateType ModelSampling<StateType, ValueType>::sampleActionOfState(
-    StateType const& currentStateId, ExplorationInformation<StateType, ValueType> const& explorationInformation) const {
+    StateType const& current_state_id, ExplorationInformation<StateType, ValueType> const& exploration_information) const {
     // TODO: For now we pick a random action leaving the current state, with uniform probability
     // For DTMCs this will make no difference (we only have one leaving action), for MDPs we can implement smarter strategies later on
-    const size_t rowGroupId = explorationInformation.getRowGroup(currentStateId);
-    const ActionType firstActionId = explorationInformation.getStartRowOfGroup(rowGroupId);
-    const size_t nActions = explorationInformation.getRowGroupSize(rowGroupId);
-    if (nActions == 1U) {
-        return firstActionId;
+    const size_t row_group_id = exploration_information.getRowGroup(current_state_id);
+    const ActionType first_action_id = exploration_information.getStartRowOfGroup(row_group_id);
+    const size_t n_actions = exploration_information.getRowGroupSize(row_group_id);
+    if (n_actions == 1U) {
+        return first_action_id;
     }
-    std::uniform_int_distribution<ActionType> distribution(firstActionId, firstActionId + nActions - 1U);
-    return distribution(randomGenerator);
+    std::uniform_int_distribution<ActionType> distribution(first_action_id, first_action_id + n_actions - 1U);
+    return distribution(_random_generator);
 }
 
 template<typename StateType, typename ValueType>
 StateType ModelSampling<StateType, ValueType>::sampleSuccessorFromAction(
-    ActionType const& chosenAction, ExplorationInformation<StateType, ValueType> const& explorationInformation) const {
-    std::vector<storm::storage::MatrixEntry<StateType, ValueType>> const& row = explorationInformation.getRowOfMatrix(chosenAction);
+    ActionType const& chosen_action, ExplorationInformation<StateType, ValueType> const& exploration_information) const {
+    std::vector<storm::storage::MatrixEntry<StateType, ValueType>> const& row = exploration_information.getRowOfMatrix(chosen_action);
     if (row.size() == 1) {
         return row.front().getColumn();
     }
@@ -71,7 +71,7 @@ StateType ModelSampling<StateType, ValueType>::sampleSuccessorFromAction(
     std::transform(row.begin(), row.end(), probabilities.begin(),
                    [](storm::storage::MatrixEntry<StateType, ValueType> const& entry) { return entry.getValue(); });
     std::discrete_distribution<StateType> distribution(probabilities.begin(), probabilities.end());
-        return row[distribution(randomGenerator)].getColumn();
+        return row[distribution(_random_generator)].getColumn();
 }
 
 template class ModelSampling<uint32_t, double>;

@@ -50,9 +50,9 @@ class ExplorationInformation {
 
     void removeUnexploredState(const_iterator it);
 
-    void addUnexploredState(StateType const& stateId, storm::generator::CompressedState const& compressedState);
+    void addUnexploredState(StateType const& state_id, storm::generator::CompressedState const& compressed_state);
 
-    void assignStateToRowGroup(StateType const& state, ActionType const& rowGroup);
+    void assignStateToRowGroup(StateType const& state, ActionType const& row_group);
 
     StateType assignStateToNextRowGroup(StateType const& state);
 
@@ -108,7 +108,7 @@ class ExplorationInformation {
      */
     void addStateInfo(StateType const& state, StateInfoType const info);
 
-    void addStateReward(StateType const& stateId, ValueType const& stateReward);
+    void addStateReward(StateType const& state_id, ValueType const& state_reward);
 
     /*!
      * @brief Used for compatibility: assigns the IS_TERMINAL label to the provided state
@@ -129,23 +129,23 @@ class ExplorationInformation {
    private:
     static constexpr ActionType _unexplored_marker{std::numeric_limits<ActionType>::max()};
     // Assigns to each actionId (row) a vector of (targetStateId, Likelihood) (of type MatrixEntry)
-    MatrixType actionToTargetStates;
+    MatrixType _action_to_target_states;
 
     // Assigns a reward to each action ID
-    std::vector<ValueType> actionToReward;
+    std::vector<ValueType> _action_to_reward;
 
-    // This maps a a rowGroupId (related to a stateId via stateToRowGroupMapping) to the 1st actionId leaving from that state.
-    // The last actionId associated to that rowGroupId will be (rowGroupIndices[rowGroupId+1] - 1)
-    std::vector<StateType> rowGroupIndices;
+    // This maps a a rowGroupId (related to a stateId via _state_to_row_group_mapping) to the 1st actionId leaving from that state.
+    // The last actionId associated to that rowGroupId will be (row_group_indices[rowGroupId+1] - 1)
+    std::vector<StateType> row_group_indices;
 
     // Map each StateId to a rowGroupId (or unexploredMarker, if no rowGroupId yet)
-    std::vector<StateType> stateToRowGroupMapping;
+    std::vector<StateType> _state_to_row_group_mapping;
 
     // Assigns for each explored state a reward. Unexplored states will have infinite reward
-    std::vector<ValueType> stateToReward;
+    std::vector<ValueType> _state_to_reward;
 
-    IdToStateMap unexploredStates;
+    IdToStateMap _unexplored_states;
 
-    StateInfoMap statesInfo;
+    StateInfoMap _states_info;
 };
 }  // namespace smc_storm::samples

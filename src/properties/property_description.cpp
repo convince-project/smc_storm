@@ -60,61 +60,61 @@ PropertyDescription::PropertyDescription(storm::logic::Formula const& formula) {
     STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "The provided formula is not supported");
 }
 
-PropertyDescription::PropertyDescription(storm::expressions::Expression const& conditionExpr, storm::expressions::Expression const& targetExpr)
-: _conditionExpression(conditionExpr), _targetExpression(targetExpr)
+PropertyDescription::PropertyDescription(storm::expressions::Expression const& condition_expr, storm::expressions::Expression const& target_expr)
+: _condition_expression(condition_expr), _target_expression(target_expr)
 {
     // Supposed to be empty
 }
 
-void PropertyDescription::generateExpressions(storm::expressions::ExpressionManager const& manager, LabelsMap const& labelToExpressionMapping)
+void PropertyDescription::generateExpressions(storm::expressions::ExpressionManager const& manager, LabelsMap const& label_to_expression_mapping)
 {
-    _conditionExpression = _conditionFormulaRef.get().toExpression(manager, labelToExpressionMapping);
-    _targetExpression = _targetFormulaRef.get().toExpression(manager, labelToExpressionMapping);
-    if (_negateCondition) {
-        _conditionExpression = !_conditionExpression;
+    _condition_expression = _condition_formula_ref.get().toExpression(manager, label_to_expression_mapping);
+    _target_expression = _target_formula_ref.get().toExpression(manager, label_to_expression_mapping);
+    if (_negate_condition) {
+        _condition_expression = !_condition_expression;
     }
-    if (_negateTarget) {
-        _targetExpression = !_targetExpression;
+    if (_negate_target) {
+        _target_expression = !_target_expression;
     }
 }
 
 void PropertyDescription::processEventuallyFormula(storm::logic::EventuallyFormula const& formula) {
-    _conditionFormulaRef = TrueFormula;
-    _targetFormulaRef = formula.getSubformula();
+    _condition_formula_ref = TrueFormula;
+    _target_formula_ref = formula.getSubformula();
 }
 
 void PropertyDescription::processUntilFormula(storm::logic::UntilFormula const& formula) {
-    _conditionFormulaRef = formula.getLeftSubformula();
-    _targetFormulaRef = formula.getRightSubformula();
+    _condition_formula_ref = formula.getLeftSubformula();
+    _target_formula_ref = formula.getRightSubformula();
 }
 
 void PropertyDescription::processBoundedUntilFormula(storm::logic::BoundedUntilFormula const& formula)
 {
     STORM_LOG_THROW(!formula.isMultiDimensional(), storm::exceptions::NotImplementedException, "We support only bounds in one dimension.");
-    _conditionFormulaRef = formula.getLeftSubformula();
-    _targetFormulaRef = formula.getRightSubformula();
+    _condition_formula_ref = formula.getLeftSubformula();
+    _target_formula_ref = formula.getRightSubformula();
     // TODO: Get the actual bounds
     if (formula.hasLowerBound()) {
-        _lowerBoundValue = formula.getNonStrictLowerBound<size_t>();
+        _lower_bound_value = formula.getNonStrictLowerBound<size_t>();
     }
     if (formula.hasUpperBound()) {
-        _upperBoundValue = formula.getNonStrictUpperBound<size_t>();
+        _upper_bound_value = formula.getNonStrictUpperBound<size_t>();
     }
 }
 
 void PropertyDescription::processGloballyFormula(storm::logic::GloballyFormula const& formula) {
     // For global formulae we want to ensure we reach a terminal state without breaking our condition
-    _isTerminalVerified = true;
-    _conditionFormulaRef = formula.getSubformula();
-    _targetFormulaRef = FalseFormula;
+    _is_terminal_verified = true;
+    _condition_formula_ref = formula.getSubformula();
+    _target_formula_ref = FalseFormula;
 }
 
 void PropertyDescription::processNextFormula(storm::logic::NextFormula const& formula) {
-    _conditionFormulaRef = TrueFormula;
-    _targetFormulaRef = formula.getSubformula();
+    _condition_formula_ref = TrueFormula;
+    _target_formula_ref = formula.getSubformula();
     // neXt is basically a Final with two bounds to make sure we check EXACTLY the second element on the path!
-    _lowerBoundValue = 1U;
-    _upperBoundValue = 1U;
+    _lower_bound_value = 1U;
+    _upper_bound_value = 1U;
 }
 
 void PropertyDescription::processUnaryBooleanPathFormula(storm::logic::UnaryBooleanPathFormula const& formula) {
@@ -123,24 +123,24 @@ void PropertyDescription::processUnaryBooleanPathFormula(storm::logic::UnaryBool
     const auto& subformula = formula.getSubformula();
     if (subformula.isNextFormula()) {
         processNextFormula(subformula.asNextFormula());
-        _negateTarget  = true;
+        _negate_target  = true;
         return;
     }
     if (subformula.isEventuallyFormula()) {
         // Eventually formulae can be negated converting them to Global formulae
         // TODO: Unify this block with the processGloballyFormula method
-        _isTerminalVerified = true;
-        _targetFormulaRef = FalseFormula;
-        _conditionFormulaRef = subformula.asEventuallyFormula().getSubformula();
-        _negateCondition = true;
+        _is_terminal_verified = true;
+        _target_formula_ref = FalseFormula;
+        _condition_formula_ref = subformula.asEventuallyFormula().getSubformula();
+        _negate_condition = true;
         return;
     }
     if (subformula.isGloballyFormula()) {
         // Globally formulae can be negated converting them to Eventually formulae
         // TODO: Unify this block with the processEventuallyFormula method
-        _targetFormulaRef = subformula.asGloballyFormula().getSubformula();
-        _conditionFormulaRef = TrueFormula;
-        _negateTarget = true;
+        _target_formula_ref = subformula.asGloballyFormula().getSubformula();
+        _condition_formula_ref = TrueFormula;
+        _negate_target = true;
         return;
     }
     // TODO: Bounded Eventually Formulae

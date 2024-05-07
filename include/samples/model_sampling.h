@@ -37,24 +37,24 @@ class ModelSampling {
 
     /*!
      * @brief Sample a single action leaving the current state depending on the sampling strategy (for StatisticalMC)
-     * @param currentStateId The state ID the action must start from
-     * @param explorationInformation Model-related data, associating state and action IDs together
+     * @param current_state_id The state ID the action must start from
+     * @param exploration_information Model-related data, associating state and action IDs together
      * @return The sampled action ID
      */
-    ActionType sampleActionOfState(StateType const& currentStateId, ExplorationInformation<StateType, ValueType> const& explorationInformation) const;
+    ActionType sampleActionOfState(StateType const& current_state_id, ExplorationInformation<StateType, ValueType> const& exploration_information) const;
 
     /*!
      * @brief Sample the state that will be reached by selecting a specific action (for StatisticalMC)
      * @param chosenAction The ID of the selected action
-     * @param explorationInformation Model-related data, associating state and action IDs together
+     * @param exploration_information Model-related data, associating state and action IDs together
      * @return The sampled state ID
      */
-    StateType sampleSuccessorFromAction(ActionType const& chosenAction, ExplorationInformation<StateType, ValueType> const& explorationInformation) const;
+    StateType sampleSuccessorFromAction(ActionType const& chosenAction, ExplorationInformation<StateType, ValueType> const& exploration_information) const;
 
    private:
     // A random number generator
-    mutable std::default_random_engine randomGenerator;
-    const storm::utility::ConstantsComparator<ValueType> comparator;
+    mutable std::default_random_engine _random_generator;
+    const storm::utility::ConstantsComparator<ValueType> _comparator;
 };
 
 }  // namespace smc_storm::samples

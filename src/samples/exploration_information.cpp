@@ -29,79 +29,79 @@ ExplorationInformation<StateType, ValueType>::ExplorationInformation() {
 template<typename StateType, typename ValueType>
 typename ExplorationInformation<StateType, ValueType>::const_iterator ExplorationInformation<StateType, ValueType>::findUnexploredState(
     StateType const& state) const {
-    return unexploredStates.find(state);
+    return _unexplored_states.find(state);
 }
 
 template<typename StateType, typename ValueType>
 typename ExplorationInformation<StateType, ValueType>::const_iterator ExplorationInformation<StateType, ValueType>::unexploredStatesEnd() const {
-    return unexploredStates.end();
+    return _unexplored_states.end();
 }
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::removeUnexploredState(const_iterator it) {
-    unexploredStates.erase(it);
+    _unexplored_states.erase(it);
 }
 
 template<typename StateType, typename ValueType>
-void ExplorationInformation<StateType, ValueType>::addUnexploredState(StateType const& stateId, storm::generator::CompressedState const& compressedState) {
-    stateToRowGroupMapping.push_back(_unexplored_marker);
-    unexploredStates[stateId] = compressedState;
+void ExplorationInformation<StateType, ValueType>::addUnexploredState(StateType const& state_id, storm::generator::CompressedState const& compressed_state) {
+    _state_to_row_group_mapping.push_back(_unexplored_marker);
+    _unexplored_states[state_id] = compressed_state;
 }
 
 template<typename StateType, typename ValueType>
-void ExplorationInformation<StateType, ValueType>::assignStateToRowGroup(StateType const& state, ActionType const& rowGroup) {
-    stateToRowGroupMapping[state] = rowGroup;
+void ExplorationInformation<StateType, ValueType>::assignStateToRowGroup(StateType const& state, ActionType const& row_group) {
+    _state_to_row_group_mapping[state] = row_group;
 }
 
 template<typename StateType, typename ValueType>
 StateType ExplorationInformation<StateType, ValueType>::assignStateToNextRowGroup(StateType const& state) {
-    stateToRowGroupMapping[state] = rowGroupIndices.size() - 1;
-    return stateToRowGroupMapping[state];
+    _state_to_row_group_mapping[state] = row_group_indices.size() - 1;
+    return _state_to_row_group_mapping[state];
 }
 
 template<typename StateType, typename ValueType>
 StateType ExplorationInformation<StateType, ValueType>::getNextRowGroup() const {
-    return rowGroupIndices.size() - 1;
+    return row_group_indices.size() - 1;
 }
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::newRowGroup(ActionType const& action) {
-    rowGroupIndices.push_back(action);
+    row_group_indices.push_back(action);
 }
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::newRowGroup() {
-    newRowGroup(actionToTargetStates.size());
+    newRowGroup(_action_to_target_states.size());
 }
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::terminateCurrentRowGroup() {
-    rowGroupIndices.push_back(actionToTargetStates.size());
+    row_group_indices.push_back(_action_to_target_states.size());
 }
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::moveActionToBackOfMatrix(ActionType const& action) {
-    actionToTargetStates.emplace_back(std::move(actionToTargetStates[action]));
+    _action_to_target_states.emplace_back(std::move(_action_to_target_states[action]));
 }
 
 template<typename StateType, typename ValueType>
 StateType ExplorationInformation<StateType, ValueType>::getActionCount() const {
-    return actionToTargetStates.size();
+    return _action_to_target_states.size();
 }
 
 template<typename StateType, typename ValueType>
 size_t ExplorationInformation<StateType, ValueType>::getNumberOfUnexploredStates() const {
-    return unexploredStates.size();
+    return _unexplored_states.size();
 }
 
 template<typename StateType, typename ValueType>
 size_t ExplorationInformation<StateType, ValueType>::getNumberOfDiscoveredStates() const {
-    return stateToRowGroupMapping.size();
+    return _state_to_row_group_mapping.size();
 }
 
 template<typename StateType, typename ValueType>
 StateType const& ExplorationInformation<StateType, ValueType>::getRowGroup(StateType const& state) const {
-    return stateToRowGroupMapping[state];
+    return _state_to_row_group_mapping[state];
 }
 
 template<typename StateType, typename ValueType>
@@ -111,21 +111,21 @@ StateType const& ExplorationInformation<StateType, ValueType>::getUnexploredMark
 
 template<typename StateType, typename ValueType>
 bool ExplorationInformation<StateType, ValueType>::isUnexplored(StateType const& state) const {
-    return stateToRowGroupMapping[state] == _unexplored_marker;
+    return _state_to_row_group_mapping[state] == _unexplored_marker;
 }
 
 template<typename StateType, typename ValueType>
 properties::StateInfoType ExplorationInformation<StateType, ValueType>::getStateInfo(StateType const& state) const {
-    const auto& stateInfoIt = statesInfo.find(state);
-    if (stateInfoIt != statesInfo.end()) {
-        return stateInfoIt->second;
+    const auto& state_info_it = _states_info.find(state);
+    if (state_info_it != _states_info.end()) {
+        return state_info_it->second;
     }
     return properties::state_info::NO_INFO;
 }
 
 template<typename StateType, typename ValueType>
-ValueType const& ExplorationInformation<StateType, ValueType>::getStateReward(StateType const& stateId) const {
-    return stateToReward.at(stateId);
+ValueType const& ExplorationInformation<StateType, ValueType>::getStateReward(StateType const& state_id) const {
+    return _state_to_reward.at(state_id);
 }
 
 template<typename StateType, typename ValueType>
@@ -137,12 +137,12 @@ bool ExplorationInformation<StateType, ValueType>::isTerminal(StateType const& s
 template<typename StateType, typename ValueType>
 typename ExplorationInformation<StateType, ValueType>::ActionType const& ExplorationInformation<StateType, ValueType>::getStartRowOfGroup(
     StateType const& group) const {
-    return rowGroupIndices[group];
+    return row_group_indices[group];
 }
 
 template<typename StateType, typename ValueType>
 size_t ExplorationInformation<StateType, ValueType>::getRowGroupSize(StateType const& group) const {
-    return rowGroupIndices[group + 1] - rowGroupIndices[group];
+    return row_group_indices[group + 1] - row_group_indices[group];
 }
 
 template<typename StateType, typename ValueType>
@@ -153,25 +153,25 @@ bool ExplorationInformation<StateType, ValueType>::onlyOneActionAvailable(StateT
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::addStateInfo(StateType const& state, StateInfoType const info) {
     if (properties::state_info::checkNoInfo(info)) {
-        statesInfo.erase(state);
+        _states_info.erase(state);
     }
-    statesInfo[state] = info;
-    auto stateInfoIt = statesInfo.find(state);
-    if (stateInfoIt == statesInfo.end()) {
+    _states_info[state] = info;
+    auto state_info_it = _states_info.find(state);
+    if (state_info_it == _states_info.end()) {
         if (!properties::state_info::checkNoInfo(info)) {
-            statesInfo.insert({state, info});
+            _states_info.insert({state, info});
         }
     } else {
-        stateInfoIt->second = stateInfoIt->second | info;
+        state_info_it->second = state_info_it->second | info;
     }
 }
 
 template<typename StateType, typename ValueType>
-void ExplorationInformation<StateType, ValueType>::addStateReward(StateType const& stateId, ValueType const& stateReward) {
-    if (stateToReward.size() <= stateId) {
-        stateToReward.resize(stateId + 1U, std::numeric_limits<ValueType>::infinity());
+void ExplorationInformation<StateType, ValueType>::addStateReward(StateType const& state_id, ValueType const& state_reward) {
+    if (_state_to_reward.size() <= state_id) {
+        _state_to_reward.resize(state_id + 1U, std::numeric_limits<ValueType>::infinity());
     }
-    stateToReward.at(stateId) = stateReward;
+    _state_to_reward.at(state_id) = state_reward;
 }
 
 template<typename StateType, typename ValueType>
@@ -181,31 +181,31 @@ void ExplorationInformation<StateType, ValueType>::addTerminalState(StateType co
 
 template<typename StateType, typename ValueType>
 std::vector<storm::storage::MatrixEntry<StateType, ValueType>>& ExplorationInformation<StateType, ValueType>::getRowOfMatrix(ActionType const& row) {
-    return actionToTargetStates[row];
+    return _action_to_target_states[row];
 }
 
 template<typename StateType, typename ValueType>
 std::vector<storm::storage::MatrixEntry<StateType, ValueType>> const& ExplorationInformation<StateType, ValueType>::getRowOfMatrix(
     ActionType const& row) const {
-    return actionToTargetStates[row];
+    return _action_to_target_states[row];
 }
 
 template<typename StateType, typename ValueType>
-ValueType const& ExplorationInformation<StateType, ValueType>::getActionReward(ActionType const& actionId) const {
-    return actionToReward.at(actionId);
+ValueType const& ExplorationInformation<StateType, ValueType>::getActionReward(ActionType const& action_id) const {
+    return _action_to_reward.at(action_id);
 }
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::addActionsToMatrix(size_t const& count) {
-    actionToTargetStates.resize(actionToTargetStates.size() + count);
+    _action_to_target_states.resize(_action_to_target_states.size() + count);
 }
 
 template<typename StateType, typename ValueType>
-void ExplorationInformation<StateType, ValueType>::addActionReward(ActionType const& actionId, ValueType const& actionReward) {
-    if (actionToReward.size() <= actionId) {
-        actionToReward.resize(actionToTargetStates.size(), std::numeric_limits<ValueType>::infinity());
+void ExplorationInformation<StateType, ValueType>::addActionReward(ActionType const& action_id, ValueType const& action_reward) {
+    if (_action_to_reward.size() <= action_id) {
+        _action_to_reward.resize(_action_to_target_states.size(), std::numeric_limits<ValueType>::infinity());
     }
-    actionToReward.at(actionId) = actionReward;
+    _action_to_reward.at(action_id) = action_reward;
 }
 
 template class ExplorationInformation<uint32_t, double>;

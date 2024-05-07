@@ -42,28 +42,28 @@ BatchStatistics::BatchStatistics(const std::vector<double>& samples) {
     variance /= static_cast<double>(dim);
 }
 
-BatchStatistics::BatchStatistics(const BatchStatistics& otherStats) {
-    mean = otherStats.mean;
-    variance = otherStats.variance;
-    dim = otherStats.dim;
+BatchStatistics::BatchStatistics(const BatchStatistics& other_stats) {
+    mean = other_stats.mean;
+    variance = other_stats.variance;
+    dim = other_stats.dim;
 }
 
-void BatchStatistics::updateStats(const BatchStatistics& otherStats) {
+void BatchStatistics::updateStats(const BatchStatistics& other_stats) {
     // If the current batch is empty, just copy the other batch
     if (dim == 0U) {
-        mean = otherStats.mean;
-        variance = otherStats.variance;
-        dim = otherStats.dim;
+        mean = other_stats.mean;
+        variance = other_stats.variance;
+        dim = other_stats.dim;
         return;
     }
-    const double totalDim = static_cast<double>(dim + otherStats.dim);
-    const double newMean = (mean * dim + otherStats.mean * otherStats.dim) / totalDim;
-    const double varianceLinComb = (dim * variance + otherStats.dim * otherStats.variance) / totalDim;
-    const double varianceCorrection = (mean - otherStats.mean) * (mean - otherStats.mean) * dim * otherStats.dim / (totalDim * totalDim);
+    const double totalDim = static_cast<double>(dim + other_stats.dim);
+    const double newMean = (mean * dim + other_stats.mean * other_stats.dim) / totalDim;
+    const double varianceLinComb = (dim * variance + other_stats.dim * other_stats.variance) / totalDim;
+    const double varianceCorrection = (mean - other_stats.mean) * (mean - other_stats.mean) * dim * other_stats.dim / (totalDim * totalDim);
     // Update mean and variance
     mean = newMean;
     variance = varianceLinComb + varianceCorrection;
-    dim = dim + otherStats.dim;
+    dim = dim + other_stats.dim;
 }
 
 }  // namespace smc_storm::samples

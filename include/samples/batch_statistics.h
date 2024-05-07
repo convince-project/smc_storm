@@ -36,20 +36,20 @@ struct BatchStatistics {
 
     /*!
      * @brief Constructor computing the statistics from sampled data
-     * @param batchSamples The samples to use for computing the stats
+     * @param batch_samples The samples to use for computing the stats
      */
-    BatchStatistics(const std::vector<double>& batchSamples);
+    BatchStatistics(const std::vector<double>& batch_samples);
 
     /*!
      * @brief Copy constructor
-     * @param otherStats Stats to copy
+     * @param other_stats Stats to copy
      */
-    BatchStatistics(const BatchStatistics& otherStats);
+    BatchStatistics(const BatchStatistics& other_stats);
 
     /*!
      * @brief Integrate statistics from another batch in the current one
-     * @param otherStats statistics we want to merge
+     * @param other_stats statistics we want to merge
      */
-    void updateStats(const BatchStatistics& otherStats);
+    void updateStats(const BatchStatistics& other_stats);
 };
 }  // namespace smc_storm::samples

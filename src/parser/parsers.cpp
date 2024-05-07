@@ -62,8 +62,8 @@ namespace smc_storm::parser
         STORM_LOG_THROW(model_and_property.property.front().getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException, 
             "The property uses undefined constants!!!");
         // Expand the model
-        storm::jani::ModelFeatures supportedFeatures = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
-        storm::api::simplifyJaniModel(model_and_property.model.asJaniModel(), model_and_property.property, supportedFeatures);
+        storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
+        storm::api::simplifyJaniModel(model_and_property.model.asJaniModel(), model_and_property.property, supported_features);
         return model_and_property;
     }
 } // namespace smc_storm::helpers

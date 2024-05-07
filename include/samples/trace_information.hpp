@@ -23,7 +23,7 @@
 namespace smc_storm::samples {
 
 struct TraceInformation {
-    size_t traceLength;
+    size_t trace_length;
     TraceResult outcome;
     double reward;
 };

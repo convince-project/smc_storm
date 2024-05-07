@@ -42,13 +42,13 @@ class SamplingResults {
      * @brief A structure to keep results from a single batch. They will be added to the SamplingResults object at once.
      */
     struct BatchResults {
-        const size_t _batchSize;
+        const size_t _batch_size;
         const PropertyType _property_type;
         // Property verification results
         // Members counting the sampled results in a single batch
-        size_t _nVerified = 0U;
-        size_t _nNotVerified = 0U;
-        size_t _nNoInfo = 0U;
+        size_t _n_verified = 0U;
+        size_t _n_not_verified = 0U;
+        size_t _n_no_info = 0U;
         // A counter for the total amount of sampled results
         size_t _count = 0U;
         // A vector keeping the collected rewards
@@ -58,18 +58,18 @@ class SamplingResults {
         size_t _max_trace_length = 0U;
 
         // Rewards accumulation results (note: it should be templated with ValueType!)
-        double _minReward = std::numeric_limits<double>::infinity();
-        double _maxReward = -std::numeric_limits<double>::infinity();
+        double _min_reward = std::numeric_limits<double>::infinity();
+        double _max_reward = -std::numeric_limits<double>::infinity();
         // Constructor MUST define a batch size
         BatchResults() = delete;
-        BatchResults(size_t batchSize, const PropertyType prop);
+        BatchResults(size_t batch_size, const PropertyType prop);
         
         /*!
          * @brief Check whether we need more samples according to the batch size
          * @return true if the have less elements than the batch size. False otherwise
          */
         inline bool batchIncomplete() const {
-            return _count < _batchSize;
+            return _count < _batch_size;
         }
 
         /*!
@@ -103,17 +103,17 @@ class SamplingResults {
 
     /*!
      * @brief Initialize a SamplingResults object
-     * @param batchSize The n. of results to collect before updating the SamplingResults object
+     * @param batch_size The n. of results to collect before updating the SamplingResults object
      * @param prop Whether we are evaluating a probability or a reward property
      */
     explicit SamplingResults(size_t const batch_size = 100U, PropertyType const& prop = PropertyType::P, const double epsilon = 0.01, const double confidence = 0.95, const std::string& stat_method = "");
 
     /*!
-     * @brief Get the batchSize configured in the constructor
-     * @return A const reference to the batchSize member variable
+     * @brief Get the batch_size configured in the constructor
+     * @return A const reference to the batch_size member variable
      */
     inline size_t const& getBatchSize() const {
-        return _batchSize;
+        return _batch_size;
     }
 
     /*!
@@ -158,7 +158,7 @@ class SamplingResults {
      * @return Whether we have reached the minimum n. of iterations
      */
     inline bool minIterationsReached() const {
-        return _nVerified + _nNotVerified >= _minIterations;
+        return _n_verified + _n_not_verified >= _min_iterations;
     }
 
     /*!
@@ -196,33 +196,33 @@ class SamplingResults {
 
     mutable std::mutex _mtx;
     // The kind of property we need to evaluate
-    const PropertyType _propertyType;
+    const PropertyType _property_type;
     // Variables to keep track of the sampled traces results (Used for P properties)
-    size_t _nVerified;
-    size_t _nNotVerified;
-    size_t _nNoInfo;
+    size_t _n_verified;
+    size_t _n_not_verified;
+    size_t _n_no_info;
     // Variables to keep track of rewards (WIP, will need to be extended for different bound methods)
-    double _minReward;
-    double _maxReward;
-    BatchStatistics _rewardStats;
+    double _min_reward;
+    double _max_reward;
+    BatchStatistics _reward_stats;
 
     // Variables to keep track of the trace lengths
     size_t _min_trace_length;
     size_t _max_trace_length;
 
     // Upper bound for n. of samples, coming from Chernoff bounds
-    size_t _requiredSamples;
+    size_t _required_samples;
 
     // Constants needed for computing whether a new batch is needed
     const std::string _stat_method;
-    const double _maxAbsErr;
+    const double _max_abs_err;
     const double _confidence;
     const double _quantile;
     // N. of batches to generate before doing the next check
-    const size_t _batchSize;
+    const size_t _batch_size;
     // Evaluator of choice to define whether we need more samples or not
-    std::function<bool()> _boundFunction;
-    const size_t _minIterations;
+    std::function<bool()> _bound_function;
+    const size_t _min_iterations;
 };
 
 }  // namespace smc_storm::samples
