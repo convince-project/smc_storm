@@ -24,10 +24,13 @@ namespace smc_storm::settings
         std::string property_name;
         std::string constants{""};
         std::string stat_method {""};
+        std::string traces_file {""};
         double confidence {0.95};
         double epsilon {0.01};
         int max_trace_length {1000000};
+        size_t max_n_traces {0U};
         size_t n_threads{1U};
+        size_t batch_size{100U};
         bool show_statistics{false};
     };
 } // namespace smc_storm::settings

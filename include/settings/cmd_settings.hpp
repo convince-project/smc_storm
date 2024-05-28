@@ -35,6 +35,9 @@ namespace smc_storm::settings {
             parser.add_argument("--stat-method")
                 .default_value(_loaded_settings.stat_method)
                 .help("Statistical method to use.");
+            parser.add_argument("--traces-file")
+                .default_value(_loaded_settings.traces_file)
+                .help("Path to the traces file.");
             parser.add_argument("--confidence")
                 .scan<'g', double>()
                 .default_value(_loaded_settings.confidence)
@@ -46,11 +49,19 @@ namespace smc_storm::settings {
             parser.add_argument("--max-trace-length")
                 .scan<'i', int>()
                 .default_value(_loaded_settings.max_trace_length)
-                .help("Maximum number of iterations (0 -> inf).");
+                .help("Maximum number of steps in a single trace (0 -> inf).");
+            parser.add_argument("--max-n-traces")
+                .scan<'i', size_t>()
+                .default_value(_loaded_settings.max_n_traces)
+                .help("Maximum number of traces to generate (for debugging reasons, overrides stat_method. 0 -> unset).");
             parser.add_argument("--n-threads")
                 .scan<'i', size_t>()
                 .default_value(_loaded_settings.n_threads)
                 .help("Number of threads to use.");
+            parser.add_argument("--batch-size")
+                .scan<'i', size_t>()
+                .default_value(_loaded_settings.batch_size)
+                .help("Batch size for the sampling.");
             parser.add_argument("--show-statistics")
                 .default_value(false)
                 .implicit_value(true)
@@ -66,10 +77,13 @@ namespace smc_storm::settings {
                 _loaded_settings.constants = parser.get<std::string>("--constants");
                 _loaded_settings.property_name = parser.get<std::string>("--property-name");
                 _loaded_settings.stat_method = parser.get<std::string>("--stat-method");
+                _loaded_settings.traces_file = parser.get<std::string>("--traces-file");
                 _loaded_settings.confidence = parser.get<double>("--confidence");
                 _loaded_settings.epsilon = parser.get<double>("--epsilon");
                 _loaded_settings.max_trace_length = parser.get<int>("--max-trace-length");
+                _loaded_settings.max_n_traces = parser.get<size_t>("--max-n-traces");
                 _loaded_settings.n_threads = parser.get<size_t>("--n-threads");
+                _loaded_settings.batch_size = parser.get<size_t>("--batch-size");
                 _loaded_settings.show_statistics = parser.get<bool>("--show-statistics");
                 _parsing_done = true;
             }

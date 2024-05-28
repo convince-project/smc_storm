@@ -30,10 +30,10 @@ namespace smc_storm::model_checker {
 template<typename StateType, typename ValueType>
 StateGeneration<StateType, ValueType>::StateGeneration(
     storm::storage::SymbolicModelDescription const& model, storm::logic::Formula const& formula,
-    samples::ExplorationInformation<StateType, ValueType>& exploration_information, bool const build_rewards)
-    : _property_description(formula)
-{
+    std::string const& reward_model, samples::ExplorationInformation<StateType, ValueType>& exploration_information)
+: _property_description(formula) {
     std::map<std::string, storm::expressions::Expression> label_to_expression_mapping = {};
+    const bool build_rewards = !reward_model.empty();
     const storm::generator::NextStateGeneratorOptions gen_options(build_rewards, true);
     // Prepare the next state generator
     _generator_ptr.reset();
@@ -56,22 +56,16 @@ StateGeneration<StateType, ValueType>::StateGeneration(
     // Prepare the expressions we need to verify
     _property_description.generateExpressions(model.getManager(), label_to_expression_mapping);
     initStateToIdCallback(exploration_information);
-}
-
-template<typename StateType, typename ValueType>
-StateGeneration<StateType, ValueType>::StateGeneration(
-    storm::storage::SymbolicModelDescription const& model, storm::logic::Formula const& formula,
-    std::string const& reward_model, samples::ExplorationInformation<StateType, ValueType>& exploration_information)
-    : StateGeneration(model, formula, exploration_information, true)
-{
-    const size_t n_reward_models = _generator_ptr->getNumberOfRewardModels();
-    for (size_t rewIdx = 0U; rewIdx < n_reward_models; ++rewIdx) {
-        const auto& reward_info = _generator_ptr->getRewardModelInformation(rewIdx);
-        if (reward_model == reward_info.getName()) {
-            _reward_model_index = rewIdx;
+    if (build_rewards) {
+        const size_t n_reward_models = _generator_ptr->getNumberOfRewardModels();
+        for (size_t rewIdx = 0U; rewIdx < n_reward_models; ++rewIdx) {
+            const auto& reward_info = _generator_ptr->getRewardModelInformation(rewIdx);
+            if (reward_model == reward_info.getName()) {
+                _reward_model_index = rewIdx;
+            }
         }
+        STORM_LOG_THROW(rewardLoaded(), storm::exceptions::UnexpectedException, "Cannot find required model " << reward_model);
     }
-    STORM_LOG_THROW(rewardLoaded(), storm::exceptions::UnexpectedException, "Cannot find required model " << reward_model);
 }
 
 template<typename StateType, typename ValueType>

@@ -42,7 +42,18 @@ class ExplorationInformation {
     typedef typename IdToStateMap::const_iterator const_iterator;
     typedef std::vector<std::vector<storm::storage::MatrixEntry<StateType, ValueType>>> MatrixType;
 
-    ExplorationInformation();
+    /*!
+     * @brief Constructor for the ExplorationInformation class
+     * @param store_expanded_states If true, the class will store all expanded raw states in memory
+     */
+    ExplorationInformation(const bool store_expanded_states);
+
+    /*!
+     * @brief Return the compressed state associated to the input state id
+     * @param state the ID of the requested compressed state
+     * @return A compressed state
+     */
+    storm::generator::CompressedState const& getCompressedState(StateType const& state) const;
 
     const_iterator findUnexploredState(StateType const& state) const;
 
@@ -120,14 +131,16 @@ class ExplorationInformation {
 
     std::vector<storm::storage::MatrixEntry<StateType, ValueType>> const& getRowOfMatrix(ActionType const& row) const;
 
-    ValueType const& getActionReward(ActionType const& actionId) const;
+    ValueType const& getActionReward(ActionType const& action_id) const;
 
     void addActionsToMatrix(size_t const& count);
 
-    void addActionReward(ActionType const& actionId, ValueType const& actionReward);
+    void addActionReward(ActionType const& action_id, ValueType const& action_reward);
 
    private:
     static constexpr ActionType _unexplored_marker{std::numeric_limits<ActionType>::max()};
+    // Flag to signal whether to store the compressed states or not
+    const bool _store_expanded_states;
     // Assigns to each actionId (row) a vector of (targetStateId, Likelihood) (of type MatrixEntry)
     MatrixType _action_to_target_states;
 
@@ -143,6 +156,9 @@ class ExplorationInformation {
 
     // Assigns for each explored state a reward. Unexplored states will have infinite reward
     std::vector<ValueType> _state_to_reward;
+
+    // Keep the compressed state in memory in case we need to output the generated traces
+    std::vector<storm::generator::CompressedState> _state_to_compressed_state;
 
     IdToStateMap _unexplored_states;
 

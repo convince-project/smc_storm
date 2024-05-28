@@ -15,20 +15,24 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include <storm/utility/macros.h>
+#include <storm/exceptions/UnexpectedException.h>
+
+#include "samples/trace_result.hpp"
 
 namespace smc_storm::samples
 {
+const std::string toString(const TraceResult& result) {
+    switch (result) {
+        case TraceResult::VERIFIED:
+            return "Verified";
+        case TraceResult::NOT_VERIFIED:
+            return "Not verified";
+        case TraceResult::NO_INFO:
+            return "No information";
+        default:
+            STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "Unknown TraceResult");
+    }
+}
 
-/*!
-* @brief The possible outcome of each generated trace.
-*/
-enum class TraceResult {
-    VERIFIED,
-    NOT_VERIFIED,
-    NO_INFO
-};
-
-const std::string toString(const TraceResult& result);
-    
-} // namespace smc_storm::samples
+}  // namespace smc_storm::samples
