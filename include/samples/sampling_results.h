@@ -23,6 +23,7 @@
 #include <string>
 #include <mutex>
 
+#include "settings/smc_settings.hpp"
 #include "samples/batch_statistics.h"
 #include "samples/trace_information.hpp"
 
@@ -103,18 +104,23 @@ class SamplingResults {
 
     /*!
      * @brief Initialize a SamplingResults object
-     * @param batch_size The n. of results to collect before updating the SamplingResults object
+     * @param settings The settings object containing the configuration for the MC task
      * @param prop Whether we are evaluating a probability or a reward property
      */
-    explicit SamplingResults(size_t const batch_size = 100U, PropertyType const& prop = PropertyType::P, const double epsilon = 0.01, const double confidence = 0.95, const std::string& stat_method = "");
+    explicit SamplingResults(const settings::SmcSettings& settings, PropertyType const& prop);
 
     /*!
      * @brief Get the batch_size configured in the constructor
      * @return A const reference to the batch_size member variable
      */
     inline size_t const& getBatchSize() const {
-        return _batch_size;
+        if (_settings.max_n_traces > 0) {
+            return std::min(_settings.max_n_traces, _settings.batch_size);
+        }
+        return _settings.batch_size;
     }
+
+    BatchResults getBatchResultInstance() const;
 
     /*!
      * @brief Add the results from a batch to the SampledResults.
@@ -214,12 +220,8 @@ class SamplingResults {
     size_t _required_samples;
 
     // Constants needed for computing whether a new batch is needed
-    const std::string _stat_method;
-    const double _max_abs_err;
-    const double _confidence;
+    const settings::SmcSettings& _settings;
     const double _quantile;
-    // N. of batches to generate before doing the next check
-    const size_t _batch_size;
     // Evaluator of choice to define whether we need more samples or not
     std::function<bool()> _bound_function;
     const size_t _min_iterations;

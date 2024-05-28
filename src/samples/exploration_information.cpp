@@ -16,14 +16,22 @@
  */
 
 #include <storm/utility/macros.h>
+#include <storm/exceptions/IllegalFunctionCallException.h>
 
 #include "samples/exploration_information.h"
 
 namespace smc_storm::samples {
 
 template<typename StateType, typename ValueType>
-ExplorationInformation<StateType, ValueType>::ExplorationInformation() {
+ExplorationInformation<StateType, ValueType>::ExplorationInformation(const bool store_expanded_states)
+ : _store_expanded_states(store_expanded_states) {
     // Do nothing
+}
+
+template<typename StateType, typename ValueType>
+storm::generator::CompressedState const& ExplorationInformation<StateType, ValueType>::getCompressedState(StateType const& state) const {
+    STORM_LOG_THROW(_store_expanded_states, storm::exceptions::IllegalFunctionCallException, "Compressed state storage is not enabled.");
+    return _state_to_compressed_state.at(state);
 }
 
 template<typename StateType, typename ValueType>
@@ -46,6 +54,9 @@ template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::addUnexploredState(StateType const& state_id, storm::generator::CompressedState const& compressed_state) {
     _state_to_row_group_mapping.push_back(_unexplored_marker);
     _unexplored_states[state_id] = compressed_state;
+    if (_store_expanded_states) {
+        _state_to_compressed_state.push_back(compressed_state);
+    }
 }
 
 template<typename StateType, typename ValueType>

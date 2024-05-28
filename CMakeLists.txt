@@ -20,17 +20,8 @@ FetchContent_MakeAvailable(argparse)
 
 include_directories(include)
 
-set(LIB_SRC_FILES
-    src/model_checker/smc_engine.cpp
-    src/model_checker/state_generation.cpp
-    src/model_checker/statistical_model_checker.cpp
-    src/parser/parsers.cpp
-    src/properties/property_description.cpp
-    src/samples/batch_statistics.cpp
-    src/samples/exploration_information.cpp
-    src/samples/model_sampling.cpp
-    src/samples/sampling_results.cpp
-)
+# Add all storm sources except cli.cpp
+file(GLOB_RECURSE LIB_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
 add_library(${PROJECT_NAME}_lib ${LIB_SRC_FILES})
 target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR} ${storm-parsers_INCLUDE_DIR})
@@ -55,4 +46,8 @@ if(BUILD_TESTING)
   add_executable(test_models test/test_models.cpp)
   target_link_libraries(test_models ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
   gtest_add_tests(TARGET test_models)
+
+  add_executable(test_trace_export test/test_trace_export.cpp)
+  target_link_libraries(test_trace_export ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
+  gtest_add_tests(TARGET test_trace_export)
 endif()

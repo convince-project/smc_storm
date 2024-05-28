@@ -32,6 +32,7 @@
 #include "samples/sampling_results.h"
 #include "samples/model_sampling.h"
 #include "samples/trace_information.hpp"
+#include "samples/traces_exporter.h"
 
 // Fwd declaration for storm::Environment
 namespace storm {
@@ -74,6 +75,10 @@ class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractM
    private:
     bool verifyModelValid() const;
 
+    bool verifySettingsValid() const;
+
+    bool traceStorageEnabled() const;
+
     std::vector<uint_fast32_t> getThreadSeeds() const;
 
     /*!
@@ -82,19 +87,9 @@ class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractM
      * @param model_sampler Object used to randomly sample next action and states
      * @param sampling_results Object keeping track of the previous sample results and defining if new samples are needed
      */
-    void performProbabilitySampling(
+    void performSampling(
         storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task,
-        samples::ModelSampling<StateType, ValueType> const& model_sampler, samples::SamplingResults& sampling_results) const;
-    
-    /*!
-     * @brief Generates samples from a model and evaluates rewards on them as long as it is needed
-     * @param check_task The property and rewards we are evaluating on the loaded model
-     * @param model_sampler Object used to randomly sample next action and states
-     * @param sampling_results Object keeping track of the previous sample results and defining if new samples are needed
-     */
-    void performRewardSampling(
-        storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task,
-        samples::ModelSampling<StateType, ValueType> const& model_sampler, samples::SamplingResults& sampling_results) const;
+        samples::ModelSampling<StateType, ValueType> const& model_sampler, samples::SamplingResults& sampling_results);
 
     /*!
      * @brief Sample a single path until we reach a state it doesn't make sense to expand further
@@ -122,6 +117,7 @@ class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractM
     // The model to check.
     const storm::storage::SymbolicModelDescription _model;
     const settings::SmcSettings _settings;
+    std::unique_ptr<samples::TracesExporter> _traces_exporter_ptr;
 };
 }  // namespace model_checker
 }  // namespace smc_storm
