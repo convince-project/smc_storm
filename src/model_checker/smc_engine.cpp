@@ -16,6 +16,7 @@
  */
 
 #include <thread>
+#include <filesystem>
 
 #include <storm/storage/expressions/ExpressionEvaluator.h>
 
@@ -46,8 +47,9 @@
 #include <storm/utility/random.h>
 
 #include <storm/exceptions/InvalidOperationException.h>
+#include <storm/exceptions/InvalidModelException.h>
+#include <storm/exceptions/InvalidSettingsException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
-#include <storm/exceptions/NotSupportedException.h>
 
 #include "samples/exploration_information.h"
 #include "model_checker/state_generation.h"
@@ -72,6 +74,11 @@ bool StatisticalExplorationModelChecker<ModelType, StateType>::canHandleStatic(s
 }
 
 template<typename ModelType, typename StateType>
+bool StatisticalExplorationModelChecker<ModelType, StateType>::traceStorageEnabled() const {
+    return !_settings.traces_file.empty();
+}
+
+template<typename ModelType, typename StateType>
 std::vector<uint_fast32_t> StatisticalExplorationModelChecker<ModelType, StateType>::getThreadSeeds() const {
     // Get an initial seed for random sampling in each thread
     const uint_fast32_t init_random_seed = std::chrono::system_clock::now().time_since_epoch().count();
@@ -86,9 +93,11 @@ std::vector<uint_fast32_t> StatisticalExplorationModelChecker<ModelType, StateTy
 
 template<typename ModelType, typename StateType>
 StatisticalExplorationModelChecker<ModelType, StateType>::StatisticalExplorationModelChecker(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings)
-    : _model{in_model},
-      _settings{settings} {
-    // Intentionally left empty.
+: _model{in_model},
+  _settings{settings} {
+    // Verify model validity
+    STORM_LOG_THROW(verifyModelValid(), storm::exceptions::InvalidModelException, "Invalid model provided: cannot evaluate!");
+    STORM_LOG_THROW(verifySettingsValid(), storm::exceptions::InvalidSettingsException, "Invalid settings provided: cannot evaluate!");
 }
 
 template<typename ModelType, typename StateType>
@@ -112,14 +121,29 @@ bool StatisticalExplorationModelChecker<ModelType, StateType>::verifyModelValid(
 }
 
 template<typename ModelType, typename StateType>
+bool StatisticalExplorationModelChecker<ModelType, StateType>::verifySettingsValid() const {
+    bool is_settings_valid = true;
+    if (_settings.n_threads == 0U) {
+        STORM_LOG_ERROR("The number of threads must be greater than 0!");
+        is_settings_valid = false;
+    }
+    if (traceStorageEnabled()) {
+        if (_settings.n_threads > 1U) {
+            STORM_LOG_ERROR("Traces can only be stored when using a single thread!");
+            is_settings_valid = false;
+        }
+        STORM_LOG_WARN_COND(_settings.max_n_traces > 0U, "The amount of generated traces might be very large if left unbounded. Consider setting `--max-n-traces`.");
+    } else {
+        STORM_LOG_WARN_COND(_settings.max_n_traces == 0U, "The amount of generated traces is bounded. This might affect reliability of the results.");
+    }
+    return is_settings_valid;
+}
+
+template<typename ModelType, typename StateType>
 std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChecker<ModelType, StateType>::computeProbabilities(
     storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) {
-    // Verify model validity
-    STORM_LOG_THROW(verifyModelValid(), storm::exceptions::InvalidPropertyException,
-                    "Invalid model provided: cannot evaluate!");
     // Prepare the results holder
-    const size_t batch_size = 100U;
-    samples::SamplingResults sampling_results(batch_size, samples::SamplingResults::PropertyType::P, _settings.epsilon, _settings.confidence, _settings.stat_method);
+    samples::SamplingResults sampling_results(_settings, samples::SamplingResults::PropertyType::P);
 
     const auto thread_seeds = getThreadSeeds();
     std::vector<std::thread> thread_instances;
@@ -127,7 +151,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChe
     for (const auto& thread_seed : thread_seeds) {
         thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed](){
             const samples::ModelSampling<StateType, ValueType> model_sampler(thread_seed);
-            performProbabilitySampling(check_task, model_sampler, sampling_results);
+            performSampling(check_task, model_sampler, sampling_results);
         });
     }
 
@@ -149,10 +173,9 @@ template<typename ModelType, typename StateType>
 std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChecker<ModelType, StateType>::computeReachabilityRewards(
     storm::Environment const& env, storm::logic::RewardMeasureType reward_type, storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task)
 {
-    STORM_LOG_THROW(reward_type == storm::logic::RewardMeasureType::Expectation, storm::exceptions::NotSupportedException, "Variance reward measures not supported.");
+    STORM_LOG_THROW(reward_type == storm::logic::RewardMeasureType::Expectation, storm::exceptions::InvalidPropertyException, "Variance reward measures not supported.");
     // Prepare the results holder
-    const size_t batch_size = 100U;
-    samples::SamplingResults sampling_results(batch_size, samples::SamplingResults::PropertyType::R, _settings.epsilon, _settings.confidence, _settings.stat_method);
+    samples::SamplingResults sampling_results(_settings, samples::SamplingResults::PropertyType::R);
 
     const auto thread_seeds = getThreadSeeds();
     std::vector<std::thread> thread_instances;
@@ -160,7 +183,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChe
     for (const auto& thread_seed : thread_seeds) {
         thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed](){
             const samples::ModelSampling<StateType, ValueType> model_sampler(thread_seed);
-            performRewardSampling(check_task, model_sampler, sampling_results);
+            performSampling(check_task, model_sampler, sampling_results);
         });
     }
 
@@ -178,23 +201,29 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChe
 }
 
 template<typename ModelType, typename StateType>
-void StatisticalExplorationModelChecker<ModelType, StateType>::performProbabilitySampling(
+void StatisticalExplorationModelChecker<ModelType, StateType>::performSampling(
     storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task, samples::ModelSampling<StateType, ValueType> const& model_sampler,
-    samples::SamplingResults& sampling_results) const
+    samples::SamplingResults& sampling_results)
 {
+    // TODO: Make sure that this is never set in case of P properties
+    const std::string reward_model = check_task.isRewardModelSet() ? check_task.getRewardModel() : "";
     // Prepare exploration information holder.
-    samples::ExplorationInformation<StateType, ValueType> exploration_information;
+    const bool export_traces = traceStorageEnabled();
+    samples::ExplorationInformation<StateType, ValueType> exploration_information(export_traces);
     exploration_information.newRowGroup(0);
 
     // Prepare object for sampling next states
-    StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), exploration_information);
+    StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), reward_model, exploration_information);
     // Generate the initial state so we know where to start the simulation.
     state_generation.computeInitialStates();
-    STORM_LOG_THROW(state_generation.getNumberOfInitialStates() == 1, storm::exceptions::NotSupportedException,
+    STORM_LOG_THROW(state_generation.getNumberOfInitialStates() == 1, storm::exceptions::InvalidModelException,
                     "Currently only models with one initial state are supported by the exploration engine.");
 
-    // TODO: The property type is known to the sampling_results object: consider generating the Batch container from there
-    samples::SamplingResults::BatchResults batch_results(sampling_results.getBatchSize(), samples::SamplingResults::PropertyType::P);
+    if (export_traces) {   
+        // Prepare the traces export object
+        _traces_exporter_ptr = std::make_unique<samples::TracesExporter>(_settings.traces_file, state_generation.getVariableInformation());
+    }
+    samples::SamplingResults::BatchResults batch_results = sampling_results.getBatchResultInstance();
 
     // Now perform the actual sampling
     while (sampling_results.newBatchNeeded()) {
@@ -206,35 +235,7 @@ void StatisticalExplorationModelChecker<ModelType, StateType>::performProbabilit
         }
         sampling_results.addBatchResults(batch_results);
     }
-}
-
-template<typename ModelType, typename StateType>
-void StatisticalExplorationModelChecker<ModelType, StateType>::performRewardSampling(
-    storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task, samples::ModelSampling<StateType, ValueType> const& model_sampler, samples::SamplingResults& sampling_results) const
-{
-    // Prepare exploration information holder.
-    samples::ExplorationInformation<StateType, ValueType> exploration_information;
-    exploration_information.newRowGroup(0);
-
-    // Prepare object for sampling next states
-    StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), check_task.getRewardModel(), exploration_information);
-    // Generate the initial state so we know where to start the simulation.
-    state_generation.computeInitialStates();
-    STORM_LOG_THROW(state_generation.getNumberOfInitialStates() == 1, storm::exceptions::NotSupportedException,
-                    "Currently only models with one initial state are supported by the exploration engine.");
-
-    samples::SamplingResults::BatchResults batch_results(sampling_results.getBatchSize(), samples::SamplingResults::PropertyType::R);
-
-    // Now perform the actual sampling
-    while (sampling_results.newBatchNeeded()) {
-        batch_results.reset();
-        while (batch_results.batchIncomplete()) {
-            // Sample a new path
-            const auto result = samplePathFromInitialState(state_generation, exploration_information, model_sampler);
-            batch_results.addResult(result);
-        }
-        sampling_results.addBatchResults(batch_results);
-    }
+    _traces_exporter_ptr.reset();
 }
 
 template<typename ModelType, typename StateType>
@@ -255,6 +256,10 @@ samples::TraceInformation StatisticalExplorationModelChecker<ModelType, StateTyp
     samples::TraceResult path_result = samples::TraceResult::NO_INFO;
     while (path_result == samples::TraceResult::NO_INFO) {
         STORM_LOG_TRACE("Current state is: " << current_state_id << ".");
+        // If we need to export the traces, the exporter instance will exist
+        if (_traces_exporter_ptr) {
+            _traces_exporter_ptr->addNextState(exploration_information.getCompressedState(current_state_id));
+        }
         properties::StateInfoType state_info = properties::state_info::NO_INFO;
 
         // If the state is not yet explored, we need to retrieve its behaviors.
@@ -312,6 +317,10 @@ samples::TraceInformation StatisticalExplorationModelChecker<ModelType, StateTyp
         }
     }
     trace_information.outcome = path_result;
+    // Export the trace results and start a new one, if requested
+    if (_traces_exporter_ptr) {
+        _traces_exporter_ptr->addCurrentTraceResult(trace_information);
+    }
     return trace_information;
 }
 

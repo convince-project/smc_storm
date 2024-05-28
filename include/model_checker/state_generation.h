@@ -38,25 +38,19 @@ template<typename StateType, typename ValueType>
 class StateGeneration {
    public:
     /*!
-     * @brief Base constructor for StateGeneration class
-     * @param model The model to generate the next states from
-     * @param formula The formula to evaluate on the generated states
-     * @param exploration_information Structure that keeps track of the already explored states
-     * @param build_rewards Whether to embed the rewards in the model we are building up
-     */
-    StateGeneration(storm::storage::SymbolicModelDescription const& model, storm::logic::Formula const& formula,
-                    samples::ExplorationInformation<StateType, ValueType>& exploration_information,
-                    bool const build_rewards = false);
-
-    /*!
      * @brief Extension of the constructor above, in case we evaluate Rewards
      * @param model The model to generate the next states from
      * @param formula The formula to evaluate on the generated states
-     * @param reward_model Name of the reward model to use for assigning costs on states and actions
+     * @param reward_model Name of the reward model to use for assigning costs on states and actions. Empty for P properties
      * @param exploration_information Structure that keeps track of the already explored states
      */
     StateGeneration(storm::storage::SymbolicModelDescription const& model, storm::logic::Formula const& formula,
                     std::string const& reward_model, samples::ExplorationInformation<StateType, ValueType>& exploration_information);
+
+    inline const storm::generator::VariableInformation& getVariableInformation() const
+    {
+        return _generator_ptr->getVariableInformation();
+    }
 
     /*!
      * @brief Check if a reward model is loaded and therefore it needs to be evaluated

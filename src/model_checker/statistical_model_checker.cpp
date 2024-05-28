@@ -41,8 +41,7 @@
 namespace smc_storm::model_checker
 {
 StatisticalModelChecker::StatisticalModelChecker(const settings::SmcSettings& settings)
-    : _settings(settings)
-{
+: _settings(settings) {
     // Init loggers
     storm::utility::setUp();
     // Check if settings have been already initialized
