@@ -104,13 +104,13 @@ class StateGeneration {
     std::size_t getNumberOfInitialStates() const;
 
     /*!
-     * @brief Check whether the loaded state satisfies the condition formula
+     * @brief Check if the loaded state satisfies the condition formula
      * @return true of the condition formula is satisfied, false otherwise
      */
     bool isConditionState() const;
 
     /*!
-     * @brief Check whether the loaded state satisfies the target formula
+     * @brief Check if the loaded state satisfies the target formula
      * @return true of the target formula is satisfied, false otherwise
      */
     bool isTargetState() const;
@@ -125,7 +125,7 @@ class StateGeneration {
     }
 
     /*!
-     * @brief Getter for the max amount of steps, before which the target formula must hold to be verified
+     * @brief Getter for the max amount of steps, after which the property is marked as unsatisfied
      * @return The upper bound of the property
      */
     inline size_t getUpperBound() const
@@ -135,7 +135,7 @@ class StateGeneration {
 
     /*!
      * @brief Flag indicating that a terminal state should be considered as verified, regardless of the target formula
-     * @return true if any terminal state that does not break the condition formula results as verified, false otherwise
+     * @return true if any terminal state that does not break the condition formula is verified, false otherwise
      */
     inline bool getIsTerminalVerified() const
     {

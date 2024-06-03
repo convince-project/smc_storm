@@ -63,7 +63,7 @@ struct BatchResults {
     
     /*!
     * @brief Check whether we need more samples according to the batch size
-    * @return true if the have less elements than the batch size. False otherwise
+    * @return true if the batch contains less elements than the batch size, false otherwise
     */
     inline bool batchIncomplete() const {
         return _count < _batch_size;

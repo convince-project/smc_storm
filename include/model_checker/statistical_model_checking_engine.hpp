@@ -81,7 +81,7 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
     virtual bool canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const override;
 
     /*!
-     * @brief Static version of the engine support check for the provided property
+     * @brief Static version of the engine's compatibility check for the provided property
      * @param check_task The property to verify
      * @return true if the property can be handled, false otherwise
      */

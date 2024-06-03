@@ -14,7 +14,7 @@ Retrieve the available options
 Examples
 ++++++++
 
-Here are reported some examples using the model provided in the `test/test_files` folder
+Here some examples are provided, to show how to run smc_storm on the exemplary models provided in the `test/test_files` folder:
 
 .. code-block:: bash
 

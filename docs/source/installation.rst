@@ -9,6 +9,8 @@ Install STORM
 
 smc_storm needs STORM to be built on the local machine. To achieve that, follow the `official documentation <https://www.stormchecker.org/documentation/obtain-storm/build.html>`_.
 
+In order to get the latest features, we recommend using the `master` branch, which provides support for the trigonometric operators that are not supported yet in the `stable` branch.
+
 We used the following command to build STORM:
 
 .. code-block:: bash
