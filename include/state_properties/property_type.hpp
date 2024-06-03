@@ -16,24 +16,13 @@
  */
 
 #pragma once
-#include <string>
-namespace smc_storm::settings
-{
+
+namespace smc_storm::state_properties {
 /*!
-* @brief Data structure holding all configurations required by SMC_STORM
+* @brief The kind of property we are evaluating
 */
-struct SmcSettings  {
-    std::string model;
-    std::string property_name;
-    std::string constants{""};
-    std::string stat_method {""};
-    std::string traces_file {""};
-    double confidence {0.95};
-    double epsilon {0.01};
-    int max_trace_length {1000000};
-    size_t max_n_traces {0U};
-    size_t n_threads{1U};
-    size_t batch_size{100U};
-    bool show_statistics{false};
+enum class PropertyType {
+    P,
+    R
 };
-} // namespace smc_storm::settings
+}  // namespace smc_storm::state_properties

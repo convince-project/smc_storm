@@ -28,7 +28,7 @@
 #include <storm/utility/ConstantsComparator.h>
 
 #include "settings/smc_settings.hpp"
-#include "properties/state_info.h"
+#include "state_properties/state_info.h"
 #include "samples/sampling_results.h"
 #include "samples/model_sampling.h"
 #include "samples/trace_information.hpp"
@@ -41,9 +41,9 @@ class Environment;
 
 namespace smc_storm {
 // Additional fwd declarations
-namespace properties {
+namespace state_properties {
 class PropertyDescription;
-} // namespace properties
+} // namespace state_properties
 
 namespace samples {
 template<typename StateType, typename ValueType>
@@ -110,7 +110,7 @@ class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractM
      * @param exploration_information Information about the previous explorations (to optimize computation)
      * @return A description of the input state for evaluation
      */
-    properties::StateInfoType exploreState(
+    state_properties::StateInfoType exploreState(
         StateGeneration<StateType, ValueType>& state_generation, StateType const& current_state_id,
         samples::ExplorationInformation<StateType, ValueType>& exploration_information) const;
 

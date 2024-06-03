@@ -51,6 +51,7 @@
 #include <storm/exceptions/InvalidSettingsException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
 
+#include "state_properties/property_type.hpp"
 #include "samples/exploration_information.h"
 #include "model_checker/state_generation.h"
 
@@ -143,7 +144,7 @@ template<typename ModelType, typename StateType>
 std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChecker<ModelType, StateType>::computeProbabilities(
     storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) {
     // Prepare the results holder
-    samples::SamplingResults sampling_results(_settings, samples::SamplingResults::PropertyType::P);
+    samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::P);
 
     const auto thread_seeds = getThreadSeeds();
     std::vector<std::thread> thread_instances;
@@ -175,7 +176,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChe
 {
     STORM_LOG_THROW(reward_type == storm::logic::RewardMeasureType::Expectation, storm::exceptions::InvalidPropertyException, "Variance reward measures not supported.");
     // Prepare the results holder
-    samples::SamplingResults sampling_results(_settings, samples::SamplingResults::PropertyType::R);
+    samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::R);
 
     const auto thread_seeds = getThreadSeeds();
     std::vector<std::thread> thread_instances;
@@ -223,7 +224,7 @@ void StatisticalExplorationModelChecker<ModelType, StateType>::performSampling(
         // Prepare the traces export object
         _traces_exporter_ptr = std::make_unique<samples::TracesExporter>(_settings.traces_file, state_generation.getVariableInformation());
     }
-    samples::SamplingResults::BatchResults batch_results = sampling_results.getBatchResultInstance();
+    samples::BatchResults batch_results = sampling_results.getBatchResultInstance();
 
     // Now perform the actual sampling
     while (sampling_results.newBatchNeeded()) {
@@ -260,7 +261,7 @@ samples::TraceInformation StatisticalExplorationModelChecker<ModelType, StateTyp
         if (_traces_exporter_ptr) {
             _traces_exporter_ptr->addNextState(exploration_information.getCompressedState(current_state_id));
         }
-        properties::StateInfoType state_info = properties::state_info::NO_INFO;
+        state_properties::StateInfoType state_info = state_properties::state_info::NO_INFO;
 
         // If the state is not yet explored, we need to retrieve its behaviors.
         if (exploration_information.isUnexplored(current_state_id)) {
@@ -280,11 +281,11 @@ samples::TraceInformation StatisticalExplorationModelChecker<ModelType, StateTyp
         // Do the check before emplacing back to get the correct n. of steps!
         const bool min_steps_done = trace_information.trace_length >= state_generation.getLowerBound();
         // Once here, we know the info related to the current state and we can decide whether to stop or continue!
-        if (min_steps_done && properties::state_info::checkSatisfyTarget(state_info) && !check_global_property) {
+        if (min_steps_done && state_properties::state_info::checkSatisfyTarget(state_info) && !check_global_property) {
             path_result = samples::TraceResult::VERIFIED;
-        } else if (properties::state_info::checkBreakCondition(state_info)) {
+        } else if (state_properties::state_info::checkBreakCondition(state_info)) {
             path_result = samples::TraceResult::NOT_VERIFIED;
-        } else if (properties::state_info::checkIsTerminal(state_info)) {
+        } else if (state_properties::state_info::checkIsTerminal(state_info)) {
             path_result = (check_global_property && min_steps_done) ? samples::TraceResult::VERIFIED : samples::TraceResult::NOT_VERIFIED;
         } else {
             // The state was neither a target nor a terminal state
@@ -325,11 +326,11 @@ samples::TraceInformation StatisticalExplorationModelChecker<ModelType, StateTyp
 }
 
 template<typename ModelType, typename StateType>
-properties::StateInfoType StatisticalExplorationModelChecker<ModelType, StateType>::exploreState(
+state_properties::StateInfoType StatisticalExplorationModelChecker<ModelType, StateType>::exploreState(
         StateGeneration<StateType, ValueType>& state_generation, StateType const& current_state_id,
         samples::ExplorationInformation<StateType, ValueType>& exploration_information) const {
     // At start, we know nothing about this state
-    properties::StateInfoType state_info = properties::state_info::NO_INFO;
+    state_properties::StateInfoType state_info = state_properties::state_info::NO_INFO;
     const size_t reward_index = state_generation.getRewardIndex();
     const bool rewards_needed = state_generation.rewardLoaded();
 
@@ -349,7 +350,7 @@ properties::StateInfoType StatisticalExplorationModelChecker<ModelType, StateTyp
     }
 
     if (state_generation.isTargetState()) {
-        state_info |= properties::state_info::SATISFY_TARGET;
+        state_info |= state_properties::state_info::SATISFY_TARGET;
     }
     if (state_generation.isConditionState()) {
         // Clumsily check whether we have found a state that forms a trivial BMEC.
@@ -365,7 +366,7 @@ properties::StateInfoType StatisticalExplorationModelChecker<ModelType, StateTyp
         }
         if (!otherSuccessor) {
             // Can't find a successor: we reached a terminal state
-            state_info |= properties::state_info::IS_TERMINAL;
+            state_info |= state_properties::state_info::IS_TERMINAL;
         } else {
             // If the state was neither a trivial (non-accepting) terminal state nor a target state, we
             // need to store its behavior.
@@ -393,15 +394,15 @@ properties::StateInfoType StatisticalExplorationModelChecker<ModelType, StateTyp
         }
 
     } else {
-        state_info |= properties::state_info::BREAK_CONDITION;
+        state_info |= state_properties::state_info::BREAK_CONDITION;
     }
 
-    if (!properties::state_info::checkNoInfo(state_info)) {
+    if (!state_properties::state_info::checkNoInfo(state_info)) {
         exploration_information.addStateInfo(current_state_id, state_info);
     }
 
     // Check whether we need to add a dummy action to the exploration information object
-    if (properties::state_info::checkBreakCondition(state_info) || properties::state_info::checkIsTerminal(state_info)) {
+    if (state_properties::state_info::checkBreakCondition(state_info) || state_properties::state_info::checkIsTerminal(state_info)) {
         exploration_information.addActionsToMatrix(1);
         exploration_information.newRowGroup();
     }

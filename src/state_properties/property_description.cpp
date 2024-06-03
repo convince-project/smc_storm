@@ -28,9 +28,9 @@
 #include <storm/exceptions/IllegalArgumentValueException.h>
 #include <storm/exceptions/NotImplementedException.h>
 
-#include "properties/property_description.h"
+#include "state_properties/property_description.h"
 
-namespace smc_storm::properties {
+namespace smc_storm::state_properties {
 PropertyDescription::PropertyDescription(storm::logic::Formula const& formula) {
     // For now we support only a limited set of simpler formulas
     if (formula.isBoundedUntilFormula()) {
@@ -147,4 +147,4 @@ void PropertyDescription::processUnaryBooleanPathFormula(storm::logic::UnaryBool
     STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "The provided negated input formula is not supported yet!");
 }
 
-}  // namespace smc_storm::properties
+}  // namespace smc_storm::state_properties

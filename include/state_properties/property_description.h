@@ -25,7 +25,7 @@
 #include <storm/logic/Formula.h>
 #include <storm/logic/BooleanLiteralFormula.h>
 
-namespace smc_storm::properties {
+namespace smc_storm::state_properties {
 
 /*!
  * @brief Class defining an input property in terms of Condition and Target formula (plus some flags).
@@ -110,4 +110,4 @@ private:
     storm::expressions::Expression _target_expression;
 
 };
-}  // namespace smc_storm::properties
+}  // namespace smc_storm::state_properties

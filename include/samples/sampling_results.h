@@ -26,79 +26,13 @@
 #include "settings/smc_settings.hpp"
 #include "samples/batch_statistics.h"
 #include "samples/trace_information.hpp"
+#include "samples/batch_results.hpp"
+#include "state_properties/property_type.hpp"
 
 namespace smc_storm::samples {
 
 class SamplingResults {
-   public:
-    /*!
-     * @brief The kind of property we are evaluating
-     */
-    enum class PropertyType {
-        P,
-        R
-    };
-
-    /*!
-     * @brief A structure to keep results from a single batch. They will be added to the SamplingResults object at once.
-     */
-    struct BatchResults {
-        const size_t _batch_size;
-        const PropertyType _property_type;
-        // Property verification results
-        // Members counting the sampled results in a single batch
-        size_t _n_verified = 0U;
-        size_t _n_not_verified = 0U;
-        size_t _n_no_info = 0U;
-        // A counter for the total amount of sampled results
-        size_t _count = 0U;
-        // A vector keeping the collected rewards
-        std::vector<double> _rewards;
-        // Min and max trace length
-        size_t _min_trace_length = std::numeric_limits<size_t>::max();
-        size_t _max_trace_length = 0U;
-
-        // Rewards accumulation results (note: it should be templated with ValueType!)
-        double _min_reward = std::numeric_limits<double>::infinity();
-        double _max_reward = -std::numeric_limits<double>::infinity();
-        // Constructor MUST define a batch size
-        BatchResults() = delete;
-        BatchResults(size_t batch_size, const PropertyType prop);
-        
-        /*!
-         * @brief Check whether we need more samples according to the batch size
-         * @return true if the have less elements than the batch size. False otherwise
-         */
-        inline bool batchIncomplete() const {
-            return _count < _batch_size;
-        }
-
-        /*!
-         * @brief Add a new result to the batch
-         * @param res Result from a single trace
-         */
-        void addResult(const TraceInformation& res);
-
-        /*!
-         * @brief Computes the statistics for the current batch and returns them
-         * @return The stats for the current batch
-         */
-        BatchStatistics getBatchStatistics() const;
-
-        /*!
-         * @brief Get a count of the n. of results stored in the batch
-         * @return A const reference to the aforementioned counter
-         */
-        inline size_t const& getCount() const {
-            return _count;
-        }
-
-        /*!
-         * @brief Reset all members to 0
-         */
-        void reset();
-    };
-
+public:
     // Disable empty constructor (will use the one below)
     SamplingResults() = delete;
 
@@ -107,7 +41,7 @@ class SamplingResults {
      * @param settings The settings object containing the configuration for the MC task
      * @param prop Whether we are evaluating a probability or a reward property
      */
-    explicit SamplingResults(const settings::SmcSettings& settings, PropertyType const& prop);
+    explicit SamplingResults(const settings::SmcSettings& settings, state_properties::PropertyType const& prop);
 
     /*!
      * @brief Get the batch_size configured in the constructor
@@ -158,7 +92,7 @@ class SamplingResults {
      */
     void printResults() const;
 
-   private:
+private:
     /*!
      * @brief Check if we have reached the minimum n. of iterations
      * @return Whether we have reached the minimum n. of iterations
@@ -202,7 +136,7 @@ class SamplingResults {
 
     mutable std::mutex _mtx;
     // The kind of property we need to evaluate
-    const PropertyType _property_type;
+    const state_properties::PropertyType _property_type;
     // Variables to keep track of the sampled traces results (Used for P properties)
     size_t _n_verified;
     size_t _n_not_verified;

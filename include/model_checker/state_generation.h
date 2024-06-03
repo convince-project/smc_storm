@@ -25,7 +25,7 @@
 #include <storm/storage/SymbolicModelDescription.h>
 #include <storm/storage/sparse/StateStorage.h>
 
-#include "properties/property_description.h"
+#include "state_properties/property_description.h"
 
 namespace smc_storm {
 namespace samples {
@@ -109,7 +109,7 @@ class StateGeneration {
     std::unique_ptr<storm::generator::NextStateGenerator<ValueType, StateType>> _generator_ptr;
     std::unique_ptr<storm::storage::sparse::StateStorage<StateType>> _state_storage_ptr;
 
-    properties::PropertyDescription _property_description;
+    state_properties::PropertyDescription _property_description;
     size_t _reward_model_index = std::numeric_limits<size_t>::max();
 
     std::function<StateType(storm::generator::CompressedState const&)> _state_to_id_callback;
