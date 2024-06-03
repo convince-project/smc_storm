@@ -1,15 +1,23 @@
 Tutorials
 =========
 
-How to model check your robot
------------------------------
+How to use smc_storm
+--------------------
 
-1. Install the necessary packages:
-```
-sudo apt install THAT
-```
+Retrieve the available options
+++++++++++++++++++++++++++++++
 
-2. Run the model checker:
-```
-convince_toolchain -i model.scxml -o results.json
-```
+.. code-block:: bash
+
+    smc_storm --help
+
+Examples
+++++++++
+
+Here are reported some examples using the model provided in the `test/test_files` folder
+
+.. code-block:: bash
+
+    smc_storm --model leader_sync.3-2.v1.jani --property-name eventually_elected --batch-size 200
+    smc_storm --model nand.v1.jani --property-name reliable --constants "N=20,K=2" --epsilon 0.01 --confidence 0.95 --n-threads 5 --show-statistics
+    smc_storm --model leader_sync.3-2.v1.jani --property-name time --traces-file ~/exported_traces.csv --show-statistics --max-n-traces 5

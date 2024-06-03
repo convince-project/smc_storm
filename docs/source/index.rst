@@ -1,16 +1,15 @@
-Welcome to the CONVINCE demo documentation!
-===========================================
+Welcome to the smc_storm documentation!
+=======================================
 
-Lorem ipsum dolor sit amet, consectetur adipisici elit, sed eiusmod tempor incidunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquid ex ea commodi consequat. Quis aute iure reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint obcaecat cupiditat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-
-.. note::
-
-   This just a demo.
+smc_storm is a statistical model checker for discrete time Markov chains (DTMCs) and Markov decision processes (MDPs).
+As the name suggests, it builds up on `STORM <https://www.stormchecker.org/>`_, and supports both Probability and Reward properties.
 
 Contents
 --------
 
 .. toctree::
-
+   :maxdepth: 2
+   
+   installation
    tutorials
    API/api
