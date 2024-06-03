@@ -34,7 +34,7 @@
 
 #include <storm-parsers/api/storm-parsers.h>
 
-#include "model_checker/smc_engine.h"
+#include "model_checker/statistical_model_checking_engine.hpp"
 #include "parser/parsers.hpp"
 #include "model_checker/statistical_model_checker.hpp"
 
@@ -69,10 +69,10 @@ void StatisticalModelChecker::check()
     STORM_PRINT("Checking model: " << _settings.model << std::endl);
     const storm::modelchecker::CheckTask<> check_task(*(_property.front().getRawFormula()), true);
     if (_model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::DTMC) {
-        StatisticalExplorationModelChecker<storm::models::sparse::Dtmc<double>> checker(_model, _settings);
+        StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>> checker(_model, _settings);
         _result = checker.check(check_task);
     } else if (_model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::MDP) {
-        StatisticalExplorationModelChecker<storm::models::sparse::Mdp<double>> checker(_model, _settings);
+        StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>> checker(_model, _settings);
         _result = checker.check(check_task);
     } else {
         STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Only DTMC and MDP models are supported.");

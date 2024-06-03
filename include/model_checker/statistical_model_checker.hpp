@@ -32,6 +32,9 @@ namespace storm::modelchecker
 
 namespace smc_storm::model_checker
 {
+    /*!
+     * @brief Entry point for the statistical model checking pipeline. This class initiate the model checking engine given the settings.
+     */
     class StatisticalModelChecker
     {
         public:

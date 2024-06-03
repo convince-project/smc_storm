@@ -55,12 +55,12 @@
 #include "samples/exploration_information.h"
 #include "model_checker/state_generation.h"
 
-#include "model_checker/smc_engine.h"
+#include "model_checker/statistical_model_checking_engine.hpp"
 
 namespace smc_storm {
 namespace model_checker {
 template<typename ModelType, typename StateType>
-bool StatisticalExplorationModelChecker<ModelType, StateType>::canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) {
+bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) {
     // Prepare the fragment defined our supported formulas
     // This allows all (atomic) property operators + the unary NOT logic operator on atomic properties (e.g. !F(s=2))
     storm::logic::FragmentSpecification const fragment =
@@ -75,12 +75,12 @@ bool StatisticalExplorationModelChecker<ModelType, StateType>::canHandleStatic(s
 }
 
 template<typename ModelType, typename StateType>
-bool StatisticalExplorationModelChecker<ModelType, StateType>::traceStorageEnabled() const {
+bool StatisticalModelCheckingEngine<ModelType, StateType>::traceStorageEnabled() const {
     return !_settings.traces_file.empty();
 }
 
 template<typename ModelType, typename StateType>
-std::vector<uint_fast32_t> StatisticalExplorationModelChecker<ModelType, StateType>::getThreadSeeds() const {
+std::vector<uint_fast32_t> StatisticalModelCheckingEngine<ModelType, StateType>::getThreadSeeds() const {
     // Get an initial seed for random sampling in each thread
     const uint_fast32_t init_random_seed = std::chrono::system_clock::now().time_since_epoch().count();
     storm::utility::RandomProbabilityGenerator<ValueType> random_generator(init_random_seed); 
@@ -93,7 +93,7 @@ std::vector<uint_fast32_t> StatisticalExplorationModelChecker<ModelType, StateTy
 }
 
 template<typename ModelType, typename StateType>
-StatisticalExplorationModelChecker<ModelType, StateType>::StatisticalExplorationModelChecker(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings)
+StatisticalModelCheckingEngine<ModelType, StateType>::StatisticalModelCheckingEngine(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings)
 : _model{in_model},
   _settings{settings} {
     // Verify model validity
@@ -102,12 +102,12 @@ StatisticalExplorationModelChecker<ModelType, StateType>::StatisticalExploration
 }
 
 template<typename ModelType, typename StateType>
-bool StatisticalExplorationModelChecker<ModelType, StateType>::canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const {
+bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const {
     return canHandleStatic(check_task);
 }
 
 template<typename ModelType, typename StateType>
-bool StatisticalExplorationModelChecker<ModelType, StateType>::verifyModelValid() const {
+bool StatisticalModelCheckingEngine<ModelType, StateType>::verifyModelValid() const {
     bool is_model_valid = false;
     bool is_model_deterministic = false;
     if (_model.isJaniModel()) {
@@ -122,7 +122,7 @@ bool StatisticalExplorationModelChecker<ModelType, StateType>::verifyModelValid(
 }
 
 template<typename ModelType, typename StateType>
-bool StatisticalExplorationModelChecker<ModelType, StateType>::verifySettingsValid() const {
+bool StatisticalModelCheckingEngine<ModelType, StateType>::verifySettingsValid() const {
     bool is_settings_valid = true;
     if (_settings.n_threads == 0U) {
         STORM_LOG_ERROR("The number of threads must be greater than 0!");
@@ -141,7 +141,7 @@ bool StatisticalExplorationModelChecker<ModelType, StateType>::verifySettingsVal
 }
 
 template<typename ModelType, typename StateType>
-std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChecker<ModelType, StateType>::computeProbabilities(
+std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeProbabilities(
     storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) {
     // Prepare the results holder
     samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::P);
@@ -171,7 +171,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChe
 
 
 template<typename ModelType, typename StateType>
-std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChecker<ModelType, StateType>::computeReachabilityRewards(
+std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeReachabilityRewards(
     storm::Environment const& env, storm::logic::RewardMeasureType reward_type, storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task)
 {
     STORM_LOG_THROW(reward_type == storm::logic::RewardMeasureType::Expectation, storm::exceptions::InvalidPropertyException, "Variance reward measures not supported.");
@@ -202,7 +202,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalExplorationModelChe
 }
 
 template<typename ModelType, typename StateType>
-void StatisticalExplorationModelChecker<ModelType, StateType>::performSampling(
+void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
     storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task, samples::ModelSampling<StateType, ValueType> const& model_sampler,
     samples::SamplingResults& sampling_results)
 {
@@ -240,7 +240,7 @@ void StatisticalExplorationModelChecker<ModelType, StateType>::performSampling(
 }
 
 template<typename ModelType, typename StateType>
-samples::TraceInformation StatisticalExplorationModelChecker<ModelType, StateType>::samplePathFromInitialState(
+samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::samplePathFromInitialState(
     StateGeneration<StateType, ValueType>& state_generation, samples::ExplorationInformation<StateType, ValueType>& exploration_information,
     samples::ModelSampling<StateType, ValueType> const& model_sampler) const
 {
@@ -326,7 +326,7 @@ samples::TraceInformation StatisticalExplorationModelChecker<ModelType, StateTyp
 }
 
 template<typename ModelType, typename StateType>
-state_properties::StateInfoType StatisticalExplorationModelChecker<ModelType, StateType>::exploreState(
+state_properties::StateInfoType StatisticalModelCheckingEngine<ModelType, StateType>::exploreState(
         StateGeneration<StateType, ValueType>& state_generation, StateType const& current_state_id,
         samples::ExplorationInformation<StateType, ValueType>& exploration_information) const {
     // At start, we know nothing about this state
@@ -410,7 +410,7 @@ state_properties::StateInfoType StatisticalExplorationModelChecker<ModelType, St
     return state_info;
 }
 
-template class StatisticalExplorationModelChecker<storm::models::sparse::Dtmc<double>, uint32_t>;
-template class StatisticalExplorationModelChecker<storm::models::sparse::Mdp<double>, uint32_t>;
+template class StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, uint32_t>;
+template class StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>, uint32_t>;
 }  // namespace model_checker
 }  // namespace smc_storm

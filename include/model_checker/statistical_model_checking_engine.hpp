@@ -55,13 +55,18 @@ namespace model_checker {
 template<typename StateType, typename ValueType>
 class StateGeneration;
 
+/*!
+ * @brief The implementation of the ModelChecking engine
+ * @tparam ModelType Definition of the kind of model to evaluate (e.g. DTMC, MDP, ...)
+ * @tparam StateType Variable type used to identify the states in the model
+ */
 template<typename ModelType, typename StateType = uint32_t>
-class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractModelChecker<ModelType> {
+class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModelChecker<ModelType> {
    public:
     typedef typename ModelType::ValueType ValueType;
     typedef StateType ActionType;
 
-    StatisticalExplorationModelChecker(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings);
+    StatisticalModelCheckingEngine(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings);
 
     virtual bool canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const override;
 
