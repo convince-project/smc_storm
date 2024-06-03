@@ -33,8 +33,22 @@ namespace smc_storm::parser
         std::vector<storm::jani::Property> property;
     };
 
+    /*!
+     * @brief Given a path to a model and the property to verify, generate the model and property to be used in the model checking engine
+     * @param path_to_model The path to the model file
+     * @param property_name The name of the property to verify
+     * @param user_constants Value to assign to constants that might be undefined in the input model
+     * @return Loaded instance of the requested model and property
+     */
     SymbolicModelAndProperty parseModelAndProperty(std::filesystem::path const& path_to_model, std::string const& property_name, const std::string& user_constants);
 
+    /*!
+     * @brief Given a path to a JANI model and the property to verify, generate the model and property to be used in the model checking engine
+     * @param path_to_model The path to the model file
+     * @param property_name The name of the property to verify
+     * @param user_constants Value to assign to constants that might be undefined in the input model
+     * @return Loaded instance of the requested model and property
+     */
     SymbolicModelAndProperty parseJaniModelAndProperty(std::filesystem::path const& path_to_model, std::string const& property_name, const std::string& user_constants);
-    
+
 } // namespace smc_storm::parser

@@ -66,16 +66,45 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
     typedef typename ModelType::ValueType ValueType;
     typedef StateType ActionType;
 
+    /*!
+     * @brief Constructor for the StatisticalModelCheckingEngine
+     * @param in_model the model to perform the evaluation on
+     * @param settings A collection of settings, used to configure the engine
+     */
     StatisticalModelCheckingEngine(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings);
 
+    /*!
+     * @brief Check if the provided property is supported by the engine
+     * @param check_task The property to verify
+     * @return true if the property can be handled, false otherwise
+     */
     virtual bool canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const override;
 
+    /*!
+     * @brief Static version of the engine support check for the provided property
+     * @param check_task The property to verify
+     * @return true if the property can be handled, false otherwise
+     */
     static bool canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task);
 
-    virtual std::unique_ptr<storm::modelchecker::CheckResult> computeProbabilities(storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) override;
+    /*!
+     * @brief Evaluate the loaded model on a P property
+     * @param env Variable carrying information for other Model Checkers in STORM. Unused here.
+     * @param check_task The property to verify
+     * @return The result of the evaluation
+     */
+    virtual std::unique_ptr<storm::modelchecker::CheckResult> computeProbabilities(
+        [[maybe_unused]] storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) override;
 
+    /*!
+     * @brief Evaluate the loaded model on a R property
+     * @param env Variable carrying information for other Model Checkers in STORM. Unused here.
+     * @param check_task The property to verify
+     * @return The result of the evaluation
+     */
     virtual std::unique_ptr<storm::modelchecker::CheckResult> computeReachabilityRewards(
-        storm::Environment const& env, storm::logic::RewardMeasureType reward_type, storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task) override;
+        [[maybe_unused]] storm::Environment const& env, storm::logic::RewardMeasureType reward_type,
+        storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task) override;
 
    private:
     bool verifyModelValid() const;

@@ -34,6 +34,11 @@ class ExplorationInformation;
 }  // namespace samples
 
 namespace model_checker {
+/*!
+ * @brief Class that loads an input model and property to generate states and verify if the input property holds.
+ * @tparam StateType Variab;e type to identify states and actions
+ * @tparam ValueType Variable type of computed results (e.g. rewards)
+ */
 template<typename StateType, typename ValueType>
 class StateGeneration {
    public:
@@ -47,6 +52,10 @@ class StateGeneration {
     StateGeneration(storm::storage::SymbolicModelDescription const& model, storm::logic::Formula const& formula,
                     std::string const& reward_model, samples::ExplorationInformation<StateType, ValueType>& exploration_information);
 
+    /*!
+     * @brief Get the variable information related to the loaded model
+     * @return A const reference to the VariableInformation instance
+     */
     inline const storm::generator::VariableInformation& getVariableInformation() const
     {
         return _generator_ptr->getVariableInformation();
@@ -70,10 +79,22 @@ class StateGeneration {
         return _reward_model_index;
     }
 
+    /*!
+     * @brief Load a compressed state in the NextStateGenerator
+     * @param state The compressed state to load
+     */
     void load(storm::generator::CompressedState const& state);
 
+    /*!
+     * @brief Get the initial states of the loaded model
+     * @return A list of state IDs
+     */
     std::vector<StateType> getInitialStates();
 
+    /*!
+     * @brief Expand the loaded state to get the next states
+     * @return A generator used to access the generated information
+     */
     storm::generator::StateBehavior<ValueType, StateType> expand();
 
     void computeInitialStates();
@@ -82,22 +103,40 @@ class StateGeneration {
 
     std::size_t getNumberOfInitialStates() const;
 
-    // Check whether the loaded state satisfies the condition formula
+    /*!
+     * @brief Check whether the loaded state satisfies the condition formula
+     * @return true of the condition formula is satisfied, false otherwise
+     */
     bool isConditionState() const;
 
-    // Check whether the loaded state satisfies the target formula
+    /*!
+     * @brief Check whether the loaded state satisfies the target formula
+     * @return true of the target formula is satisfied, false otherwise
+     */
     bool isTargetState() const;
 
+    /*!
+     * @brief Getter for the min amount of steps to compute before checking for target and condition formulae
+     * @return The lower bound of the property
+     */
     inline size_t getLowerBound() const
     {
         return _property_description.getLowerBound();
     }
 
+    /*!
+     * @brief Getter for the max amount of steps, before which the target formula must hold to be verified
+     * @return The upper bound of the property
+     */
     inline size_t getUpperBound() const
     {
         return _property_description.getUpperBound();
     }
 
+    /*!
+     * @brief Flag indicating that a terminal state should be considered as verified, regardless of the target formula
+     * @return true if any terminal state that does not break the condition formula results as verified, false otherwise
+     */
     inline bool getIsTerminalVerified() const
     {
         return _property_description.getIsTerminalVerified();

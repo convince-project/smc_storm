@@ -39,11 +39,28 @@ namespace smc_storm::model_checker
     {
         public:
             StatisticalModelChecker() = delete;
+            /*!
+             * @brief Generate a new instance of the StatisticalModelChecker, using the provided settings to load the model and the property to verify
+             * @param settings 
+             */
             StatisticalModelChecker(const settings::SmcSettings& settings);
             ~StatisticalModelChecker();
+
+            /*!
+             * @brief Print the loaded property in a human readable format
+             */
             void printProperty() const;
+
+            /*!
+             * @brief Perform the model checking operation and store the result internally
+             */
             void check();
-            
+
+            /*!
+             * @brief Get the computed result
+             * @tparam ResultType The type of result to retrieve (i.e. double for probabilities and rewards and bool for conditions)
+             * @return The computed result, according to the ResultType template parameter
+             */
             template <typename ResultType>
             ResultType getResult() const;
         private:
