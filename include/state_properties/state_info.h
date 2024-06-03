@@ -19,7 +19,7 @@
 
 #include <inttypes.h>
 
-namespace smc_storm::properties {
+namespace smc_storm::state_properties {
 
 typedef uint8_t StateInfoType;
 
@@ -48,4 +48,4 @@ namespace state_info {
         return (info & SATISFY_TARGET) != 0U;
     }
 }  // state_info
-}  // namespace smc_storm::properties
+}  // namespace smc_storm::state_properties

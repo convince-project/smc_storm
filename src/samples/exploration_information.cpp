@@ -126,12 +126,12 @@ bool ExplorationInformation<StateType, ValueType>::isUnexplored(StateType const&
 }
 
 template<typename StateType, typename ValueType>
-properties::StateInfoType ExplorationInformation<StateType, ValueType>::getStateInfo(StateType const& state) const {
+state_properties::StateInfoType ExplorationInformation<StateType, ValueType>::getStateInfo(StateType const& state) const {
     const auto& state_info_it = _states_info.find(state);
     if (state_info_it != _states_info.end()) {
         return state_info_it->second;
     }
-    return properties::state_info::NO_INFO;
+    return state_properties::state_info::NO_INFO;
 }
 
 template<typename StateType, typename ValueType>
@@ -142,7 +142,7 @@ ValueType const& ExplorationInformation<StateType, ValueType>::getStateReward(St
 template<typename StateType, typename ValueType>
 bool ExplorationInformation<StateType, ValueType>::isTerminal(StateType const& state) const {
     const auto stateInfo = getStateInfo(state);
-    return properties::state_info::checkIsTerminal(stateInfo);
+    return state_properties::state_info::checkIsTerminal(stateInfo);
 }
 
 template<typename StateType, typename ValueType>
@@ -163,13 +163,13 @@ bool ExplorationInformation<StateType, ValueType>::onlyOneActionAvailable(StateT
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::addStateInfo(StateType const& state, StateInfoType const info) {
-    if (properties::state_info::checkNoInfo(info)) {
+    if (state_properties::state_info::checkNoInfo(info)) {
         _states_info.erase(state);
     }
     _states_info[state] = info;
     auto state_info_it = _states_info.find(state);
     if (state_info_it == _states_info.end()) {
-        if (!properties::state_info::checkNoInfo(info)) {
+        if (!state_properties::state_info::checkNoInfo(info)) {
             _states_info.insert({state, info});
         }
     } else {
@@ -187,7 +187,7 @@ void ExplorationInformation<StateType, ValueType>::addStateReward(StateType cons
 
 template<typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::addTerminalState(StateType const& state) {
-    addStateInfo(state, properties::state_info::IS_TERMINAL);
+    addStateInfo(state, state_properties::state_info::IS_TERMINAL);
 }
 
 template<typename StateType, typename ValueType>

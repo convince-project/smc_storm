@@ -30,13 +30,23 @@ namespace smc_storm::samples
 class TracesExporter
 {
 public:
+    /*!
+     * @brief Constructor for the TraceExporter helper class
+     * @param path_to_file Path to the CSV file to write the traces in
+     * @param var_info Reference to the VariableInformation instance related to the loaded model, to expand CompressedStates
+     */
     TracesExporter(const std::filesystem::path& path_to_file, const storm::generator::VariableInformation& var_info);
     ~TracesExporter();
+
     // TODO: Add information about the taken action and the current reward
+    /*!
+     * @brief Add a new line to the current trace, using the provided state
+     * @param state The Compressed state containing the internal variables values.
+     */
     void addNextState(const storm::generator::CompressedState& state);
     /*!
      * @brief Write the current trace's verification result and start the next trace
-     * @param result 
+     * @param result The result of the current trace
      */
     void addCurrentTraceResult(const TraceInformation& result);
 private:

@@ -29,13 +29,18 @@
 #include <storm/storage/BoostTypes.h>
 #include <storm/storage/SparseMatrix.h>
 
-#include "properties/state_info.h"
+#include "state_properties/state_info.h"
 
 namespace smc_storm::samples {
+/*!
+ * @brief Class holding information about the explored states
+ * @tparam StateType variable type for state and action identifiers
+ * @tparam ValueType variable type for the results (e.g. Rewards)
+ */
 template<typename StateType, typename ValueType>
 class ExplorationInformation {
-   public:
-    typedef properties::StateInfoType StateInfoType;
+public:
+    typedef state_properties::StateInfoType StateInfoType;
     typedef StateType ActionType;
     typedef std::unordered_map<StateType, StateInfoType> StateInfoMap;
     typedef std::unordered_map<StateType, storm::generator::CompressedState> IdToStateMap;
@@ -137,10 +142,13 @@ class ExplorationInformation {
 
     void addActionReward(ActionType const& action_id, ValueType const& action_reward);
 
-   private:
+private:
+    // The value used to mark unexplored states
     static constexpr ActionType _unexplored_marker{std::numeric_limits<ActionType>::max()};
+
     // Flag to signal whether to store the compressed states or not
     const bool _store_expanded_states;
+
     // Assigns to each actionId (row) a vector of (targetStateId, Likelihood) (of type MatrixEntry)
     MatrixType _action_to_target_states;
 

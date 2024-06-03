@@ -33,3 +33,9 @@
 
 # Build directories
 build/
+
+# vscode
+.vscode
+
+# Sphinx
+API/

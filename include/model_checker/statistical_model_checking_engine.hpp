@@ -28,7 +28,7 @@
 #include <storm/utility/ConstantsComparator.h>
 
 #include "settings/smc_settings.hpp"
-#include "properties/state_info.h"
+#include "state_properties/state_info.h"
 #include "samples/sampling_results.h"
 #include "samples/model_sampling.h"
 #include "samples/trace_information.hpp"
@@ -41,9 +41,9 @@ class Environment;
 
 namespace smc_storm {
 // Additional fwd declarations
-namespace properties {
+namespace state_properties {
 class PropertyDescription;
-} // namespace properties
+} // namespace state_properties
 
 namespace samples {
 template<typename StateType, typename ValueType>
@@ -55,22 +55,56 @@ namespace model_checker {
 template<typename StateType, typename ValueType>
 class StateGeneration;
 
+/*!
+ * @brief The implementation of the ModelChecking engine
+ * @tparam ModelType Definition of the kind of model to evaluate (e.g. DTMC, MDP, ...)
+ * @tparam StateType Variable type used to identify the states in the model
+ */
 template<typename ModelType, typename StateType = uint32_t>
-class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractModelChecker<ModelType> {
+class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModelChecker<ModelType> {
    public:
     typedef typename ModelType::ValueType ValueType;
     typedef StateType ActionType;
 
-    StatisticalExplorationModelChecker(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings);
+    /*!
+     * @brief Constructor for the StatisticalModelCheckingEngine
+     * @param in_model the model to perform the evaluation on
+     * @param settings A collection of settings, used to configure the engine
+     */
+    StatisticalModelCheckingEngine(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings);
 
+    /*!
+     * @brief Check if the provided property is supported by the engine
+     * @param check_task The property to verify
+     * @return true if the property can be handled, false otherwise
+     */
     virtual bool canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const override;
 
+    /*!
+     * @brief Static version of the engine's compatibility check for the provided property
+     * @param check_task The property to verify
+     * @return true if the property can be handled, false otherwise
+     */
     static bool canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task);
 
-    virtual std::unique_ptr<storm::modelchecker::CheckResult> computeProbabilities(storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) override;
+    /*!
+     * @brief Evaluate the loaded model on a P property
+     * @param env Variable carrying information for other Model Checkers in STORM. Unused here.
+     * @param check_task The property to verify
+     * @return The result of the evaluation
+     */
+    virtual std::unique_ptr<storm::modelchecker::CheckResult> computeProbabilities(
+        [[maybe_unused]] storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) override;
 
+    /*!
+     * @brief Evaluate the loaded model on a R property
+     * @param env Variable carrying information for other Model Checkers in STORM. Unused here.
+     * @param check_task The property to verify
+     * @return The result of the evaluation
+     */
     virtual std::unique_ptr<storm::modelchecker::CheckResult> computeReachabilityRewards(
-        storm::Environment const& env, storm::logic::RewardMeasureType reward_type, storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task) override;
+        [[maybe_unused]] storm::Environment const& env, storm::logic::RewardMeasureType reward_type,
+        storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task) override;
 
    private:
     bool verifyModelValid() const;
@@ -110,7 +144,7 @@ class StatisticalExplorationModelChecker : public storm::modelchecker::AbstractM
      * @param exploration_information Information about the previous explorations (to optimize computation)
      * @return A description of the input state for evaluation
      */
-    properties::StateInfoType exploreState(
+    state_properties::StateInfoType exploreState(
         StateGeneration<StateType, ValueType>& state_generation, StateType const& current_state_id,
         samples::ExplorationInformation<StateType, ValueType>& exploration_information) const;
 

@@ -28,57 +28,7 @@
 #include "samples/sampling_results.h"
 
 namespace smc_storm::samples {
-SamplingResults::BatchResults::BatchResults(size_t const batch_size, const PropertyType prop_type)
-: _batch_size{batch_size},
-  _property_type{prop_type} {
-    reset();
-}
-
-void SamplingResults::BatchResults::addResult(const TraceInformation& res) {
-    ++_count;
-    switch (res.outcome)
-    {
-        case TraceResult::VERIFIED:
-            _n_verified++;
-            break;
-        case TraceResult::NOT_VERIFIED:
-            _n_not_verified++;
-            break;
-        case TraceResult::NO_INFO:
-            _n_no_info++;
-            break;
-        default:
-            STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "Unexpected Result value added");
-            break;
-    }
-    // TODO: Consider having a structure to track min-max value and distinguish between verified and non-verified traces
-    _min_trace_length = std::min(_min_trace_length, res.trace_length);
-    _max_trace_length = std::max(_max_trace_length, res.trace_length);
-    if (_property_type == PropertyType::R && res.outcome == TraceResult::VERIFIED) {
-        _rewards.emplace_back(res.reward);
-        _min_reward = std::min(res.reward, _min_reward);
-        _max_reward = std::max(res.reward, _max_reward);
-    }
-}
-
-BatchStatistics SamplingResults::BatchResults::getBatchStatistics() const {
-    return BatchStatistics(_rewards);
-}
-
-void SamplingResults::BatchResults::reset() {
-    _n_verified = 0U;
-    _n_not_verified = 0U;
-    _n_no_info = 0U;
-    _count = 0U;
-    _rewards.clear();
-    _rewards.reserve(_batch_size);
-    _min_reward = std::numeric_limits<double>::infinity();
-    _max_reward = -std::numeric_limits<double>::infinity();
-    _min_trace_length = std::numeric_limits<size_t>::max();
-    _max_trace_length = 0U;
-}
-
-SamplingResults::SamplingResults(const settings::SmcSettings& settings, PropertyType const& prop)
+SamplingResults::SamplingResults(const settings::SmcSettings& settings, state_properties::PropertyType const& prop)
 : _settings{settings},
   _property_type{prop},
   _quantile{calculateQuantile(_settings.confidence)},
@@ -93,7 +43,7 @@ SamplingResults::SamplingResults(const settings::SmcSettings& settings, Property
     initBoundFunction();
 }
 
-SamplingResults::BatchResults SamplingResults::getBatchResultInstance() const {
+BatchResults SamplingResults::getBatchResultInstance() const {
     return BatchResults(getBatchSize(), _property_type);
 }
 
@@ -101,11 +51,12 @@ void SamplingResults::initBoundFunction() {
     _bound_function = nullptr;
     // Set the default method to evaluate the n. of iterations
     std::string stat_method = _settings.stat_method;
+    const bool is_reward_prop = state_properties::PropertyType::R == _property_type;
     if (stat_method.empty()) {
-        stat_method = (PropertyType::R == _property_type) ? "chow_robbins" : "adaptive";
+        stat_method = is_reward_prop ? "chow_robbins" : "adaptive";
     }
     // Assign the correct bound function
-    if (_property_type == PropertyType::R) {
+    if (is_reward_prop) {
         // All iteration bounds related to Reward properties
         if ("chernoff" == stat_method) {
             updateChernoffBound();
@@ -255,15 +206,14 @@ bool SamplingResults::evaluateChowRobbinsBound()
 }
 
 void SamplingResults::addBatchResults(BatchResults const& res) {
-    const BatchStatistics batch_stats = ((PropertyType::R == _property_type) ? res.getBatchStatistics() : BatchStatistics());
     std::scoped_lock<std::mutex> lock(_mtx);
     _n_verified += res._n_verified;
     _n_not_verified += res._n_not_verified;
     _n_no_info += res._n_no_info;
     _min_trace_length = std::min(_min_trace_length, res._min_trace_length);
     _max_trace_length = std::max(_max_trace_length, res._max_trace_length);
-    if (_property_type == PropertyType::R) {
-        _reward_stats.updateStats(batch_stats);
+    if (_property_type == state_properties::PropertyType::R) {
+        _reward_stats.updateStats(res.getBatchStatistics());
         bool is_interval_changed = false;
         if (_min_reward > res._min_reward) {
             is_interval_changed = true;
@@ -312,7 +262,7 @@ double SamplingResults::getProbabilityVerifiedProperty() const
 
 bool SamplingResults::newBatchNeeded() const {
     // Reward properties require always reaching the target state
-    if (_property_type == PropertyType::R && (_n_no_info  > 0U || _n_not_verified > 0U)) {
+    if (_property_type == state_properties::PropertyType::R && (_n_no_info  > 0U || _n_not_verified > 0U)) {
         return false;
     }
     const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
@@ -339,7 +289,7 @@ void SamplingResults::updateChernoffBound()
 {
     // Use Chernoff bound for Bernoullian distribution
     double result_interval_width = 1.0;
-    if (_property_type == PropertyType::R && !(std::isinf(_min_reward) && std::isinf(_max_reward))) {
+    if (_property_type == state_properties::PropertyType::R && !(std::isinf(_min_reward) && std::isinf(_max_reward))) {
         result_interval_width = std::max(1.0, _max_reward - _min_reward);
     }
     _required_samples = storm::utility::ceil(storm::utility::log(2.0 / (1.0 - _settings.confidence)) * storm::utility::pow(result_interval_width, 2) / (2.0 * storm::utility::pow(_settings.epsilon, 2)));
@@ -352,7 +302,7 @@ void SamplingResults::printResults() const
     STORM_PRINT("\tN. of times target reached:\t" << _n_verified << "\n");
     STORM_PRINT("\tN. of times no termination:\t" << _n_no_info << "\n");
     STORM_PRINT("\tTot. n. of tries (samples):\t" << n_samples << "\n");
-    if (_property_type == PropertyType::P) {
+    if (_property_type == state_properties::PropertyType::P) {
         STORM_PRINT("\tEstimated success prob.:\t" << getProbabilityVerifiedProperty() << "\n");
     } else {
         STORM_PRINT("\tEstimated average reward.:\t" << getEstimatedReward() << "\n");

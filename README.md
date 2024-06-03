@@ -18,7 +18,7 @@ We recommend to use the `master` branch, since it provides the latest features a
 After cloning this repository, execute the following commands:
 ```bash
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=RelWithDebInfo && make -j4
+cmake .. -DCMAKE_BUILD_TYPE=Release && make -j4
 # optionally, run the unit tests to make sure everything works as expected
 ./test_models
 ```
