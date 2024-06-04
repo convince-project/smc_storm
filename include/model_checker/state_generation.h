@@ -104,14 +104,14 @@ class StateGeneration {
     std::size_t getNumberOfInitialStates() const;
 
     /*!
-     * @brief Check if the loaded state satisfies the condition formula
-     * @return true of the condition formula is satisfied, false otherwise
+     * @brief Check whether the loaded state satisfies the condition formula
+     * @return true if the condition formula is satisfied, false otherwise
      */
     bool isConditionState() const;
 
     /*!
-     * @brief Check if the loaded state satisfies the target formula
-     * @return true of the target formula is satisfied, false otherwise
+     * @brief Check whether the loaded state satisfies the target formula
+     * @return true if the target formula is satisfied, false otherwise
      */
     bool isTargetState() const;
 
