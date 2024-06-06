@@ -3,6 +3,10 @@ name: Build and Deploy executable
 
 on: push
 
+concurrency:
+    group: build
+    cancel-in-progress: true
+
 jobs:
     build:
         runs-on: ubuntu-latest
@@ -10,7 +14,10 @@ jobs:
             # Checkout the repository
             - name: Checkout repository
               uses: actions/checkout@v2
-            # install the dependencies
+            # Enable ccache
+            - name: ccache
+              uses: hendrikmuhs/ccache-action@v1.2
+              # install the dependencies
             - name: Install dependencies
               run: |
                     sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
@@ -21,6 +28,7 @@ jobs:
                     git clone https://github.com/boschresearch/storm.git  # Switch to official one one PR merged
             - name: Build Storm
               run: |
+                    export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
                     mkdir external_dependencies/storm/build
                     cd external_dependencies/storm/build
                     cmake -DSTORM_USE_SPOT_SHIPPED=ON ..
