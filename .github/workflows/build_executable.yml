@@ -13,7 +13,7 @@ jobs:
             # install the dependencies
             - name: Install dependencies
               run: |
-                    sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev
+                    sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Clone Storm
               run: |
                     mkdir external_dependencies
@@ -31,3 +31,32 @@ jobs:
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release
                     make
+            - name: Run tests
+              run: |
+                    cd build
+                    ctest
+            - name: Install chrpath
+              run: sudo apt install chrpath
+            - name: Copy lib and executables in deploy folder
+              run: |
+                    mkdir deployment
+                    cd deployment
+                    # Copy the dependencies
+                    mkdir 3rd_party
+                    cp ../external_dependencies/storm/build/lib/libstorm.so 3rd_party
+                    cp ../external_dependencies/storm/build/lib/libstorm-parsers.so 3rd_party
+                    cp ../external_dependencies/storm/build/resources/3rdparty/carl/libcarl.so.14.27 3rd_party
+                    cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libspot.so.0 3rd_party
+                    cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libbddx.so.0 3rd_party
+                    # Copy the smc_storm lib
+                    mkdir lib
+                    cp ../build/lib/libsmc_storm_lib.so lib
+                    mkdir bin
+                    cp ../build/bin/smc_storm bin
+            - name: Set new rpaths in deployment
+              run: |
+                    cd deployment/bin
+                    chrpath -r ../3rd_party ../3rd_party/libstorm.so
+                    chrpath -r ../3rd_party ../3rd_party/libstorm-parsers.so
+                    chrpath -r ../3rd_party ../lib/libsmc_storm_lib.so
+                    chrpath -r ../lib smc_storm

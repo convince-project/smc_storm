@@ -7,6 +7,11 @@ project(smc_storm VERSION 1.0)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+# Make sure lib and binaries are separated
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 # search for Storm library
 find_package(storm REQUIRED)
 
@@ -23,7 +28,7 @@ include_directories(include)
 # Add all storm sources except cli.cpp
 file(GLOB_RECURSE LIB_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
-add_library(${PROJECT_NAME}_lib ${LIB_SRC_FILES})
+add_library(${PROJECT_NAME}_lib SHARED ${LIB_SRC_FILES})
 target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR} ${storm-parsers_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME}_lib PUBLIC storm storm-parsers argparse)
 
@@ -45,9 +50,9 @@ if(BUILD_TESTING)
 
   add_executable(test_models test/test_models.cpp)
   target_link_libraries(test_models ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
-  gtest_add_tests(TARGET test_models)
+  gtest_add_tests(TARGET test_models WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
   add_executable(test_trace_export test/test_trace_export.cpp)
   target_link_libraries(test_trace_export ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
-  gtest_add_tests(TARGET test_trace_export)
+  gtest_add_tests(TARGET test_trace_export WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 endif()
