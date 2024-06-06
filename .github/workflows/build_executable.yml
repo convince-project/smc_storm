@@ -1,0 +1,33 @@
+name: Build and Deploy executable
+# Deploy sphinx documentation to GitHub Pages in docs branch
+
+on: push
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            # Checkout the repository
+            - name: Checkout repository
+              uses: actions/checkout@v2
+            # install the dependencies
+            - name: Install dependencies
+              run: |
+                    sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev
+            - name: Clone Storm
+              run: |
+                    mkdir external_dependencies
+                    cd external_dependencies
+                    git clone https://github.com/boschresearch/storm.git  # Switch to official one one PR merged
+            - name: Build Storm
+              run: |
+                    mkdir external_dependencies/storm/build
+                    cd external_dependencies/storm/build
+                    cmake -DSTORM_USE_SPOT_SHIPPED=ON ..
+                    make
+            - name: Build smc_storm
+              run: |
+                    mkdir build
+                    cd build
+                    cmake .. -DCMAKE_BUILD_TYPE=Release
+                    make
