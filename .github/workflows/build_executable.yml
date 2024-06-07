@@ -77,16 +77,16 @@ jobs:
             - name: Generate install script
               run: |
                     cd deployment
-                    cat << EOF > install_test.sh
+                    cat << EOF > install.sh
                     #!/bin/bash
                     SOURCE=\$( cd -- "\$( dirname -- "\${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libspot.so.0
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libstorm.so
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libstorm-parsers.so
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/lib/libsmc_storm_lib.so
-                    chrpath -r .\$SOURCE/lib \$SOURCE/bin/smc_storm
+                    chrpath -r \$SOURCE/lib \$SOURCE/bin/smc_storm
+                    chmod a+x \$SOURCE/bin/smc_storm
                     EOF
-                    chmod a+x install_test.sh
             - name: Upload artifact
               uses: actions/upload-artifact@v4
               with:
