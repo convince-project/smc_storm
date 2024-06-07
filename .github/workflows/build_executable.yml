@@ -49,9 +49,10 @@ jobs:
                     make
             - name: Build smc_storm
               run: |
+                    export STORM_BUILD_DIR=$PWD/external_dependencies/storm/build
                     mkdir build
                     cd build
-                    cmake .. -DCMAKE_BUILD_TYPE=Release
+                    cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
             - name: Run tests
               run: |
