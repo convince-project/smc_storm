@@ -45,8 +45,6 @@ jobs:
               run: |
                     cd build
                     ctest
-            - name: Install chrpath
-              run: sudo apt install chrpath
             - name: Copy lib and executables in deploy folder
               run: |
                     mkdir deployment
