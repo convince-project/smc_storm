@@ -11,9 +11,16 @@ jobs:
     build:
         runs-on: ubuntu-latest
         steps:
-            # Checkout the repository
+            # Checkout this repository
             - name: Checkout repository
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
+            # Checkout storm dependency (to switch to the official one once support for sin/cos is integrated)
+            - name: Checkout STORM
+              uses: actions/checkout@v4
+              with:
+                repository: boschresearch/storm
+                ref: support-for-sin-cos-constants
+                path: external_dependencies/storm
             # Enable ccache
             - name: ccache
               uses: hendrikmuhs/ccache-action@v1.2
@@ -21,11 +28,6 @@ jobs:
             - name: Install dependencies
               run: |
                     sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
-            - name: Clone Storm
-              run: |
-                    mkdir external_dependencies
-                    cd external_dependencies
-                    git clone https://github.com/boschresearch/storm.git  # Switch to official one one PR merged
             - name: Build Storm
               run: |
                     export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
