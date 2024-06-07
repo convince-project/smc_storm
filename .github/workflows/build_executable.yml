@@ -63,10 +63,25 @@ jobs:
                     cp ../build/lib/libsmc_storm_lib.so lib
                     mkdir bin
                     cp ../build/bin/smc_storm bin
-            - name: Set new rpaths in deployment
+            - name: Generate install script
               run: |
-                    cd deployment/bin
-                    chrpath -r ../3rd_party ../3rd_party/libstorm.so
-                    chrpath -r ../3rd_party ../3rd_party/libstorm-parsers.so
-                    chrpath -r ../3rd_party ../lib/libsmc_storm_lib.so
-                    chrpath -r ../lib smc_storm
+                    cd deployment
+                    cat << EOF > install_test.sh
+                    #!/bin/bash
+                    SOURCE=${BASH_SOURCE[0]}
+                    chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libspot.so.0
+                    chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libstorm.so
+                    chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libstorm-parsers.so
+                    chrpath -r \$SOURCE/3rd_party \$SOURCE/lib/libsmc_storm_lib.so
+                    chrpath -r .\$SOURCE/lib \$SOURCE/bin/smc_storm
+                    EOF
+                    chmod +x install_test.sh
+            - name: Upload artifact
+              uses: actions/upload-artifact@v4
+              with:
+                    name: smc_storm_executable
+                    path: deployment
+                    if-no-files-found: error
+                    retention-days: 10
+                    overwrite: true
+
