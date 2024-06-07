@@ -1,10 +1,14 @@
-name: Build and Deploy executable
+name: Build tests and archive executable
 # Deploy sphinx documentation to GitHub Pages in docs branch
 
-on: push
+on:
+  pull_request:
+  push:
+    branches: [ "main" ]
 
+# Make sure that there is one job per branch
 concurrency:
-    group: build
+    group: ${{ github.workflow }}-${{ github.ref }}
     cancel-in-progress: true
 
 jobs:
