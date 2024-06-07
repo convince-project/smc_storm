@@ -28,7 +28,19 @@ jobs:
             - name: Install dependencies
               run: |
                     sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
+            - name: Get STORM last commit hash
+              id: get-storm-commit
+              run: |
+                    cd external_dependencies/storm
+                    git rev-parse --short HEAD
+            - name: Get cached storm build
+              id: get-storm-cache
+              uses: actions/cache@v4
+              with:
+                    path: external_dependencies/storm/build
+                    key: storm-build-${{ steps.get-storm-commit.outputs.stdout }}
             - name: Build Storm
+              if: steps.get-storm-cache.outputs.cache-hit != 'true'
               run: |
                     export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
                     mkdir external_dependencies/storm/build
