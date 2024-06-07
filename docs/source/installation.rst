@@ -37,7 +37,7 @@ In order to be able to call smc_storm from anywhere in bash, you can add the smc
 
 .. code-block:: bash
 
-    export PATH=$PATH:$HOME/storm_ws/smc_storm/build
+    export PATH=$PATH:$HOME/storm_ws/smc_storm/build/bin
 
 
 Verify everything is working

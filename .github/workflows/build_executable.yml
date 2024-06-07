@@ -32,13 +32,13 @@ jobs:
               id: get-storm-commit
               run: |
                     cd external_dependencies/storm
-                    git rev-parse --short HEAD
+                    echo storm_hash="$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
             - name: Get cached storm build
               id: get-storm-cache
               uses: actions/cache@v4
               with:
                     path: external_dependencies/storm/build
-                    key: storm-build-${{ steps.get-storm-commit.outputs.stdout }}
+                    key: storm-build-${{ steps.get-storm-commit.outputs.storm_hash }}
             - name: Build Storm
               if: steps.get-storm-cache.outputs.cache-hit != 'true'
               run: |
