@@ -1,5 +1,4 @@
 name: Build tests and archive executable
-# Deploy sphinx documentation to GitHub Pages in docs branch
 
 on:
   pull_request:
