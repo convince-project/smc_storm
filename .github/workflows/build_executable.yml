@@ -23,7 +23,7 @@ jobs:
               with:
                 repository: boschresearch/storm
                 # Temporary fixed commit. Remove once we switch to the official storm repo
-                ref: 77ad64e
+                ref: 77ad64ed21225b3f5d91bb606796ec64eab8c279
                 path: external_dependencies/storm
             # Enable ccache
             - name: ccache
