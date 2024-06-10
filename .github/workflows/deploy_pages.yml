@@ -1,4 +1,4 @@
-name: Deploy
+name: Deploy Pages
 # Deploy sphinx documentation to GitHub Pages in docs branch
 
 on:

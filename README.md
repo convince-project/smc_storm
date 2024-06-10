@@ -26,7 +26,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Release && make -j4
 To make the smc_storm executable usable from any folder, we suggest to add the following line to your `~/.bashrc` file or run it before start using the tool:
 ```bash
 # Make smc_storm executable from anywhere
-export PATH=$PATH:<path-to-smc-storm-repo>/build
+export PATH=$PATH:<path-to-smc-storm-repo>/build/bin
 ```
 
 ## Available parameters
@@ -51,7 +51,7 @@ We provide a small test to ensure that the trigonometry operators are available 
 It can be run as in the following example:
 
 ```bash
-export PATH=$PATH:<path-to-smc-storm-repo>/build
+export PATH=$PATH:<path-to-smc-storm-repo>/build/bin
 smc_storm --model <path-to-smc-storm-repo>/test/test_files/trigonometry_test.jani --property-name destination_reached_sin --epsilon 0.01 --confidence 0.95 --max-trace-length 400
 ```
 
