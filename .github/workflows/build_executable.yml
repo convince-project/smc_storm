@@ -23,7 +23,8 @@ jobs:
               uses: actions/checkout@v4
               with:
                 repository: boschresearch/storm
-                ref: support-for-sin-cos-constants
+                # Temporary fixed commit. Remove once we switch to the official storm repo
+                ref: 77ad64e
                 path: external_dependencies/storm
             # Enable ccache
             - name: ccache
