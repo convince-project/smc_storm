@@ -16,6 +16,7 @@
  */
 
 #include <storm/api/builder.h>
+#include <storm/api/properties.h>
 #include <storm-parsers/api/storm-parsers.h>
 #include <storm-parsers/parser/PrismParser.h>
 #include <storm-parsers/parser/JaniParser.h>
@@ -58,9 +59,13 @@ SymbolicModelAndProperty parseJaniModelAndProperty(const std::filesystem::path& 
     // Add the user-defined constants
     const auto user_constants_map = model_and_property.model.parseConstantDefinitions(user_constants);
     model_and_property.model = model_and_property.model.preprocess(user_constants_map);
-    model_and_property.property.front() = model_and_property.property.front().substitute(user_constants_map);
-    STORM_LOG_THROW(model_and_property.property.front().getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException, 
-        "The property uses undefined constants!!!");
+    model_and_property.property = storm::api::substituteConstantsInProperties(model_and_property.property, user_constants_map);
+    model_and_property.property = storm::api::substituteTranscendentalNumbersInProperties(model_and_property.property);
+    // Make sure that all properties have no undefined constant
+    for (const auto& property : model_and_property.property) {
+        STORM_LOG_THROW(property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException, 
+            "The property uses undefined constants!!!");
+    }
     // Expand the model
     storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
     storm::api::simplifyJaniModel(model_and_property.model.asJaniModel(), model_and_property.property, supported_features);
