@@ -1,5 +1,6 @@
 ---
 Checks:          '-*,
+                  -clang-diagnostic-*,-clang-analyzer-*,-cert-*,
                   readability-named-parameter,
                   readability-redundant-smartptr-get,
                   readability-redundant-string-cstr,
@@ -8,7 +9,6 @@ Checks:          '-*,
                   readability-identifier-naming,
                   readability-function-size,
                   readability-braces-around-statements,
-                  -clang-diagnostic-*,-clang-analyzer-*,-cert-*,
                   modernize-use-emplace,
                   '
 FormatStyle:     llvm
