@@ -1,0 +1,62 @@
+---
+Checks:          '-*,
+                  readability-named-parameter,
+                  readability-redundant-smartptr-get,
+                  readability-redundant-string-cstr,
+                  readability-simplify-boolean-expr,
+                  readability-container-size-empty,
+                  readability-identifier-naming,
+                  readability-function-size,
+                  readability-braces-around-statements,
+                  -clang-diagnostic-*,-clang-analyzer-*,-cert-*,
+                  modernize-use-emplace,
+                  '
+FormatStyle:     llvm
+CheckOptions:
+  - key:             readability-identifier-naming.ClassCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.ClassConstantCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.ClassMemberCase
+    value:           lower_case
+  - key:             readability-identifier-naming.ClassMethodCase
+    value:           camelBack
+  - key:             readability-identifier-naming.EnumCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.EnumConstantCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.GlobalVariableCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.MemberCase
+    value:           lower_case
+  - key:             readability-identifier-naming.MethodCase
+    value:           camelBack
+  - key:             readability-identifier-naming.PrivateMemberCase
+    value:           lower_case
+  - key:             readability-identifier-naming.PrivateMemberPrefix
+    value:           _
+  - key:             readability-identifier-naming.PrivateMethodCase
+    value:           camelBack
+  - key:             readability-identifier-naming.ProtectedMemberCase
+    value:           lower_case
+  - key:             readability-identifier-naming.ProtectedMemberPrefix
+    value:           _
+  - key:             readability-identifier-naming.ProtectedMethodCase
+    value:           camelBack
+  - key:             readability-identifier-naming.ProtectedMethodSuffix
+    value:           _
+  - key:             readability-identifier-naming.PublicMemberCase
+    value:           lower_case
+  - key:             readability-identifier-naming.PublicMethodCase
+    value:           camelBack
+  - key:             readability-identifier-naming.StaticConstantCase
+    value:           UPPER_CASE
+  - key:             readability-identifier-naming.UnionCase
+    value:           CamelCase
+  - key:             readability-identifier-naming.VariableCase
+    value:           lower_case
+  - key:             readability-identifier-naming.FunctionCase
+    value:           camelBack
+  - key:             readability-identifier-naming.NamespaceCase
+    value:           snake_case
+...
