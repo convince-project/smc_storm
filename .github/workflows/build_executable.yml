@@ -90,12 +90,14 @@ jobs:
                     if [[ "\$1" == "--install-dependencies" ]]; then
                       # Check if we need to prepend sudo
                       if [[ \$(id -u) -ne 0 ]]; then
-                        SUDO=sudo
+                        SUDO=sudo DEBIAN_FRONTEND=noninteractive
+                      else
+                        # Required only when running in docker, as root
+                        export DEBIAN_FRONTEND=noninteractive
                       fi
                       # Install the dependencies
-                      \$SUDO apt update && \$SUDO DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends \
-                      libboost-all-dev libcln-dev libgmp-dev libginac-dev libglpk-dev libhwloc-dev libz3-dev \
-                      libxerces-c-dev libeigen3-dev libgtest-dev
+                      \$SUDO apt update
+                      \$SUDO apt install -y --no-install-recommends chrpath libboost-all-dev libcln-dev libgmp-dev libginac-dev libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
                     fi
                     SOURCE=\$( cd -- "\$( dirname -- "\${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libspot.so.0
