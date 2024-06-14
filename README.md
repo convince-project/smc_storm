@@ -3,7 +3,22 @@ A Statistical Model Checker implementation building on top of STORM
 
 ## Installation
 
-### Get the Official Storm installed
+### Using deployed binaries
+
+We provide pre-built binaries that can be used on Ubuntu. They can be found at the [Releases page](https://github.com/convince-project/smc_storm/releases).
+
+To install them on your machine, extract `smc_storm_executable.tar.gz` and follow these steps:
+
+```bash
+cd smc_storm_executable            # This is the extracted archive
+install.sh --install-dependencies  # This flag will install all  packages required by smc_storm and its dependencies
+export PATH=$PATH:$PWD/bin         # This way, smc_storm can be called from anywhere
+smc_storm --help                   # Make sure the binary runs
+```
+
+### Compile from source
+
+#### Get the Official Storm installed
 This package needs Storm to be built on your local machine. To achieve that, follow the [official documentation](https://www.stormchecker.org/documentation/obtain-storm/build.html).
 
 We used the following command to build storm:
@@ -14,7 +29,7 @@ cmake -DSTORM_USE_SPOT_SHIPPED=ON $STORM_DIR && make -j10
 
 We recommend to use the `master` branch, since it provides the latest features as the trigonometric operators.
 
-### Build this module
+#### Build this module
 After cloning this repository, execute the following commands:
 ```bash
 mkdir build && cd build
