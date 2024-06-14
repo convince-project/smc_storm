@@ -14,7 +14,7 @@ Retrieve the available options
 Examples
 ++++++++
 
-Here some examples are provided, to show how to run smc_storm on the exemplary models provided in the `test/test_files` folder:
+Here some examples are provided, to show how to run smc_storm on the exemplary models provided in the `test_files folder <https://github.com/convince-project/smc_storm/tree/main/test/test_files>`_:
 
 .. code-block:: bash
 
