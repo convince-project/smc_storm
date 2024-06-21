@@ -1,55 +1,53 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/beta.hpp>
+#include <boost/math/distributions/normal.hpp>
 
-#include <storm/exceptions/UnexpectedException.h>
 #include <storm/exceptions/NotImplementedException.h>
 #include <storm/exceptions/OutOfRangeException.h>
+#include <storm/exceptions/UnexpectedException.h>
 
-#include <storm/utility/macros.h>
 #include <storm/utility/constants.h>
+#include <storm/utility/macros.h>
 
 #include "samples/sampling_results.hpp"
 
 namespace smc_storm::samples {
-BatchResults::BatchResults(size_t const batch_size, const state_properties::PropertyType prop_type)
-: _batch_size{batch_size},
-  _property_type{prop_type} {
+BatchResults::BatchResults(const size_t batch_size, const state_properties::PropertyType prop_type)
+    : _batch_size{batch_size}, _property_type{prop_type} {
     reset();
 }
 
 void BatchResults::addResult(const TraceInformation& res) {
     ++_count;
-    switch (res.outcome)
-    {
-        case TraceResult::VERIFIED:
-            _n_verified++;
-            break;
-        case TraceResult::NOT_VERIFIED:
-            _n_not_verified++;
-            break;
-        case TraceResult::NO_INFO:
-            _n_no_info++;
-            break;
-        default:
-            STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "Unexpected Result value added");
-            break;
+    switch (res.outcome) {
+    case TraceResult::VERIFIED:
+        _n_verified++;
+        break;
+    case TraceResult::NOT_VERIFIED:
+        _n_not_verified++;
+        break;
+    case TraceResult::NO_INFO:
+        _n_no_info++;
+        break;
+    default:
+        STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "Unexpected Result value added");
+        break;
     }
     // TODO: Consider having a structure to track min-max value and distinguish between verified and non-verified traces
     _min_trace_length = std::min(_min_trace_length, res.trace_length);

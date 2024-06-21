@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
@@ -20,19 +20,19 @@
 #include <stddef.h>
 
 #include <functional>
-#include <string>
 #include <mutex>
+#include <string>
 
-#include "settings/smc_settings.hpp"
+#include "samples/batch_results.hpp"
 #include "samples/batch_statistics.hpp"
 #include "samples/trace_information.hpp"
-#include "samples/batch_results.hpp"
+#include "settings/smc_settings.hpp"
 #include "state_properties/property_type.hpp"
 
 namespace smc_storm::samples {
 
 class SamplingResults {
-public:
+  public:
     // Disable empty constructor (will use the one below)
     SamplingResults() = delete;
 
@@ -41,13 +41,13 @@ public:
      * @param settings The settings object containing the configuration for the MC task
      * @param prop Whether we are evaluating a probability or a reward property
      */
-    explicit SamplingResults(const settings::SmcSettings& settings, state_properties::PropertyType const& prop);
+    explicit SamplingResults(const settings::SmcSettings& settings, const state_properties::PropertyType& prop);
 
     /*!
      * @brief Get the batch_size configured in the constructor
      * @return A const reference to the batch_size member variable
      */
-    inline size_t const& getBatchSize() const {
+    inline const size_t& getBatchSize() const {
         if (_settings.max_n_traces > 0) {
             return std::min(_settings.max_n_traces, _settings.batch_size);
         }
@@ -60,14 +60,14 @@ public:
      * @brief Add the results from a batch to the SampledResults.
      * @param res Collection of results from a single batch. It is expected to be reset afterwards!
      */
-    void addBatchResults(BatchResults const& res);
+    void addBatchResults(const BatchResults& res);
 
     /*!
      * @brief Get the amount of samples that returned the requested result
      * @param res The result value we are looking for
      * @return The n. of times we got the requested result.
      */
-    size_t getResultCount(TraceResult const res) const;
+    size_t getResultCount(const TraceResult res) const;
 
     /*!
      * @brief Compute the estimated reward from the sampled trajectories
@@ -92,7 +92,7 @@ public:
      */
     void printResults() const;
 
-private:
+  private:
     /*!
      * @brief Check if we have reached the minimum n. of iterations
      * @return Whether we have reached the minimum n. of iterations
@@ -106,7 +106,7 @@ private:
      * @param confidence The confidence value to use
      * @return The quantile value that will be used to evaluate sampling bounds
      */
-    static double calculateQuantile(double const& confidence);
+    static double calculateQuantile(const double& confidence);
 
     /*!
      * @brief Get the n. of samples we need to collect to ensure result within bounds

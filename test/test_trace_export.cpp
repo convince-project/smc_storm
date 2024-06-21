@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
@@ -21,15 +21,17 @@
 
 #include <storm/exceptions/NotSupportedException.h>
 
-#include "settings/smc_settings.hpp"
 #include "model_checker/statistical_model_checker.hpp"
+#include "settings/smc_settings.hpp"
 
 const std::filesystem::path TEST_PATH{"test_files"};
 const std::filesystem::path TEST_TRACES_PATH{"test_traces"};
 constexpr char SEPARATOR = ';';
 constexpr char FORBIDDEN_CHAR = ',';
 
-smc_storm::settings::SmcSettings getSmcSettings(const std::string& traces_file, const std::filesystem::path& jani_file, const std::string& property, const std::string& constants = "") {
+smc_storm::settings::SmcSettings getSmcSettings(
+    const std::string& traces_file, const std::filesystem::path& jani_file, const std::string& property,
+    const std::string& constants = "") {
     smc_storm::settings::SmcSettings settings;
     settings.model = jani_file.string();
     settings.property_name = property;
@@ -56,7 +58,6 @@ bool lineValid(const std::string& line, size_t expected_separators) {
     const size_t n_forbidden = std::count(line.begin(), line.end(), FORBIDDEN_CHAR);
     return n_separators == expected_separators && n_forbidden == 0U;
 }
-
 
 TEST(ExportTracesCommonCaseTest, TestLeaderSync) {
     const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
@@ -93,7 +94,7 @@ TEST(ExportTracesDeathTest, TestLeaderSync) {
     const auto smc_settings = getSmcSettings("leader_sync_death.csv", jani_file, "time");
     // Make sure the file already exists
     std::ofstream ofs(smc_settings.traces_file);
-    ofs << "\n"; 
+    ofs << "\n";
     ofs.close();
     // Ensure the code dies in such case
     EXPECT_DEATH(getVerificationResult<double>(smc_settings), "");

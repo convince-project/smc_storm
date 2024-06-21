@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
@@ -20,12 +20,12 @@
 #include <stddef.h>
 
 #include <functional>
-#include <string>
 #include <mutex>
+#include <string>
 
-#include "settings/smc_settings.hpp"
 #include "samples/batch_statistics.hpp"
 #include "samples/trace_information.hpp"
+#include "settings/smc_settings.hpp"
 #include "state_properties/property_type.hpp"
 
 namespace smc_storm::samples {
@@ -60,38 +60,38 @@ struct BatchResults {
      * @param prop The property type we are evaluating (probability or reward), to determine what information to store
      */
     BatchResults(size_t batch_size, const state_properties::PropertyType prop);
-    
+
     /*!
-    * @brief Check whether we need more samples according to the batch size
-    * @return true if the batch contains less elements than the batch size, false otherwise
-    */
+     * @brief Check whether we need more samples according to the batch size
+     * @return true if the batch contains less elements than the batch size, false otherwise
+     */
     inline bool batchIncomplete() const {
         return _count < _batch_size;
     }
 
     /*!
-    * @brief Add a new result to the batch
-    * @param res Result from a single trace
-    */
+     * @brief Add a new result to the batch
+     * @param res Result from a single trace
+     */
     void addResult(const TraceInformation& res);
 
     /*!
-    * @brief Computes the statistics for the current batch and returns them
-    * @return The stats for the current batch
-    */
+     * @brief Computes the statistics for the current batch and returns them
+     * @return The stats for the current batch
+     */
     BatchStatistics getBatchStatistics() const;
 
     /*!
-    * @brief Get a count of the n. of results stored in the batch
-    * @return A const reference to the aforementioned counter
-    */
-    inline size_t const& getCount() const {
+     * @brief Get a count of the n. of results stored in the batch
+     * @return A const reference to the aforementioned counter
+     */
+    inline const size_t& getCount() const {
         return _count;
     }
 
     /*!
-    * @brief Reset all members to 0
-    */
+     * @brief Reset all members to 0
+     */
     void reset();
 };
 }  // namespace smc_storm::samples

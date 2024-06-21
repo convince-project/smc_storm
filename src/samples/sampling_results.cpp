@@ -1,38 +1,35 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <boost/math/distributions/normal.hpp>
 #include <boost/math/distributions/beta.hpp>
+#include <boost/math/distributions/normal.hpp>
 
-#include <storm/exceptions/UnexpectedException.h>
 #include <storm/exceptions/NotImplementedException.h>
 #include <storm/exceptions/OutOfRangeException.h>
+#include <storm/exceptions/UnexpectedException.h>
 
-#include <storm/utility/macros.h>
 #include <storm/utility/constants.h>
+#include <storm/utility/macros.h>
 
 #include "samples/sampling_results.hpp"
 
 namespace smc_storm::samples {
-SamplingResults::SamplingResults(const settings::SmcSettings& settings, state_properties::PropertyType const& prop)
-: _settings{settings},
-  _property_type{prop},
-  _quantile{calculateQuantile(_settings.confidence)},
-  _min_iterations{50U} {
+SamplingResults::SamplingResults(const settings::SmcSettings& settings, const state_properties::PropertyType& prop)
+    : _settings{settings}, _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{50U} {
     _n_verified = 0U;
     _n_not_verified = 0U;
     _n_no_info = 0U;
@@ -89,34 +86,31 @@ void SamplingResults::initBoundFunction() {
     STORM_LOG_THROW(_bound_function, storm::exceptions::NotImplementedException, "Could not find bounds method " << stat_method);
 }
 
-bool SamplingResults::evaluateChernoffBound()
-{
+bool SamplingResults::evaluateChernoffBound() {
     return (_n_verified + _n_not_verified) < _required_samples;
 }
 
-bool SamplingResults::evaluateWaldBound()
-{
+bool SamplingResults::evaluateWaldBound() {
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     const double success_proportion = successes / iterations;
-    double ci_half_width = _quantile * sqrt(success_proportion * ( 1 - success_proportion) / iterations);
+    double ci_half_width = _quantile * sqrt(success_proportion * (1 - success_proportion) / iterations);
     // Boolean to make sure the certainty bound computed with the Wald bound is inside the desired interval
-    return ci_half_width > _settings.epsilon; 
+    return ci_half_width > _settings.epsilon;
 }
 
-bool SamplingResults::evaluateAgrestiBound()
-{
+bool SamplingResults::evaluateAgrestiBound() {
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
-    const double adjusted_success_proportion=(successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
+    const double adjusted_success_proportion = (successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
     // Boolean to make sure the certainty bound computed with the Agresti bound is inside the desired interval
-    return _quantile * sqrt(adjusted_success_proportion * (1.0 - adjusted_success_proportion) / (iterations + _quantile * _quantile)) > _settings.epsilon;
+    return _quantile * sqrt(adjusted_success_proportion * (1.0 - adjusted_success_proportion) / (iterations + _quantile * _quantile)) >
+           _settings.epsilon;
 }
 
-bool SamplingResults::evaluateWilsonBound()
-{
+bool SamplingResults::evaluateWilsonBound() {
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
@@ -127,21 +121,20 @@ bool SamplingResults::evaluateWilsonBound()
     return ci_half_width > _settings.epsilon;
 }
 
-bool SamplingResults::evaluateWilsonCorrectedBound()
-{
+bool SamplingResults::evaluateWilsonCorrectedBound() {
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     const double p = (successes / iterations) - (1.0 / (2.0 * iterations));
     const double z = _quantile;
     const double zSq = z * z;
-    const double ci_half_width = (z / (2.0 * (iterations + zSq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + zSq);
+    const double ci_half_width =
+        (z / (2.0 * (iterations + zSq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + zSq);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
 
-bool SamplingResults::evaluateClopperPearsonBound()
-{
+bool SamplingResults::evaluateClopperPearsonBound() {
     const double alpha_half = (1 - _settings.confidence) * 0.5;
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
@@ -162,24 +155,23 @@ bool SamplingResults::evaluateClopperPearsonBound()
     return ci_half_width > _settings.epsilon;
 }
 
-bool SamplingResults::evaluateAdaptiveBound()
-{
+bool SamplingResults::evaluateAdaptiveBound() {
     // Based on "A New Adaptive Sampling Method for Scalable Learning" by Chen and Xu (2013)
     const double alpha = (1 - _settings.confidence);
     const double successes = static_cast<double>(_n_verified);
     const double iterations = static_cast<double>(_n_verified + _n_not_verified);
     const double successes_proportion = successes / iterations;
     const double corrected_success_prob = abs(successes_proportion - 0.5) - (_settings.epsilon * 2.0 / 3.0);
-    const double min_expected_iterations = (2.0 * log(2.0 / alpha) / (_settings.epsilon * _settings.epsilon)) * (0.25 - corrected_success_prob * corrected_success_prob);
+    const double min_expected_iterations =
+        (2.0 * log(2.0 / alpha) / (_settings.epsilon * _settings.epsilon)) * (0.25 - corrected_success_prob * corrected_success_prob);
     return iterations < min_expected_iterations;
 }
 
-bool SamplingResults::evaluateArcsineBound()
-{
+bool SamplingResults::evaluateArcsineBound() {
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
-    const double interval_modifier=_quantile / (2.0 * sqrt(iterations));
+    const double interval_modifier = _quantile / (2.0 * sqrt(iterations));
     const double adjusted_success_proportion = (successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
     const double sqrt_lower_bound = sin(asin(sqrt(adjusted_success_proportion)) - interval_modifier);
     const double sqrt_upper_bound = sin(asin(sqrt(adjusted_success_proportion)) + interval_modifier);
@@ -187,8 +179,7 @@ bool SamplingResults::evaluateArcsineBound()
     return abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) > _settings.epsilon * 2.0;
 }
 
-bool SamplingResults::evaluateZInterval()
-{
+bool SamplingResults::evaluateZInterval() {
     // Following https://www.statisticshowto.com/probability-and-statistics/confidence-interval/#CIZ2
     if (_reward_stats.dim == 0U) {
         // No sample yet! Keep getting samples!
@@ -198,14 +189,13 @@ bool SamplingResults::evaluateZInterval()
     return ci_half_width > _settings.epsilon;
 }
 
-bool SamplingResults::evaluateChowRobbinsBound()
-{
+bool SamplingResults::evaluateChowRobbinsBound() {
     // Based on "On the Asymptotic Theory of Fixed-Width Sequential Confidence Intervals for the Mean" paper (1965).
     const double ci_half_width_squared = _reward_stats.variance * _quantile * _quantile / static_cast<double>(_reward_stats.dim);
     return (_settings.epsilon * _settings.epsilon) < ci_half_width_squared;
 }
 
-void SamplingResults::addBatchResults(BatchResults const& res) {
+void SamplingResults::addBatchResults(const BatchResults& res) {
     std::scoped_lock<std::mutex> lock(_mtx);
     _n_verified += res._n_verified;
     _n_not_verified += res._n_not_verified;
@@ -230,10 +220,9 @@ void SamplingResults::addBatchResults(BatchResults const& res) {
     }
 }
 
-size_t SamplingResults::getResultCount(TraceResult const res) const {
+size_t SamplingResults::getResultCount(const TraceResult res) const {
     std::scoped_lock<std::mutex> lock(_mtx);
-    switch (res)
-    {
+    switch (res) {
     case TraceResult::VERIFIED:
         return _n_verified;
     case TraceResult::NOT_VERIFIED:
@@ -245,16 +234,15 @@ size_t SamplingResults::getResultCount(TraceResult const res) const {
 }
 
 double SamplingResults::getEstimatedReward() const {
-    if (_n_no_info  > 0U || _n_not_verified > 0U) {
+    if (_n_no_info > 0U || _n_not_verified > 0U) {
         STORM_LOG_WARN("Found samples not verifying the property. This results in infinite reward (cost).");
         return std::numeric_limits<double>::infinity();
     }
-    STORM_LOG_THROW(_n_verified > 0U, storm::exceptions::OutOfRangeException, "Computing rewards without samples!");    
+    STORM_LOG_THROW(_n_verified > 0U, storm::exceptions::OutOfRangeException, "Computing rewards without samples!");
     return _reward_stats.mean;
 }
 
-double SamplingResults::getProbabilityVerifiedProperty() const
-{
+double SamplingResults::getProbabilityVerifiedProperty() const {
     const size_t n_samples = _n_verified + _n_not_verified;
     STORM_LOG_THROW(n_samples > 0U, storm::exceptions::OutOfRangeException, "No samples to use for evaluation.");
     return static_cast<double>(_n_verified) / static_cast<double>(n_samples);
@@ -262,7 +250,7 @@ double SamplingResults::getProbabilityVerifiedProperty() const
 
 bool SamplingResults::newBatchNeeded() const {
     // Reward properties require always reaching the target state
-    if (_property_type == state_properties::PropertyType::R && (_n_no_info  > 0U || _n_not_verified > 0U)) {
+    if (_property_type == state_properties::PropertyType::R && (_n_no_info > 0U || _n_not_verified > 0U)) {
         return false;
     }
     const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
@@ -274,29 +262,30 @@ bool SamplingResults::newBatchNeeded() const {
     }
     // Check if we never reached a terminal states
     if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
-        STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "More than half the generated traces do not reach the terminal state. Aborting.");
+        STORM_LOG_THROW(
+            false, storm::exceptions::UnexpectedException,
+            "More than half the generated traces do not reach the terminal state. Aborting.");
     }
     return _bound_function();
 }
 
-double SamplingResults::calculateQuantile(double const& confidence)
-{
+double SamplingResults::calculateQuantile(const double& confidence) {
     boost::math::normal distribution_normal(0.0, 1.0);
-    return boost::math::quantile(distribution_normal, 1.0 - ((1.0-confidence) * 0.5));
+    return boost::math::quantile(distribution_normal, 1.0 - ((1.0 - confidence) * 0.5));
 }
 
-void SamplingResults::updateChernoffBound()
-{
+void SamplingResults::updateChernoffBound() {
     // Use Chernoff bound for Bernoullian distribution
     double result_interval_width = 1.0;
     if (_property_type == state_properties::PropertyType::R && !(std::isinf(_min_reward) && std::isinf(_max_reward))) {
         result_interval_width = std::max(1.0, _max_reward - _min_reward);
     }
-    _required_samples = storm::utility::ceil(storm::utility::log(2.0 / (1.0 - _settings.confidence)) * storm::utility::pow(result_interval_width, 2) / (2.0 * storm::utility::pow(_settings.epsilon, 2)));
+    _required_samples = storm::utility::ceil(
+        storm::utility::log(2.0 / (1.0 - _settings.confidence)) * storm::utility::pow(result_interval_width, 2) /
+        (2.0 * storm::utility::pow(_settings.epsilon, 2)));
 }
 
-void SamplingResults::printResults() const
-{
+void SamplingResults::printResults() const {
     const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
     STORM_PRINT("\n============= SMC Results =============\n");
     STORM_PRINT("\tN. of times target reached:\t" << _n_verified << "\n");

@@ -1,37 +1,40 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <storm/exceptions/IllegalArgumentValueException.h>
+#include <storm/exceptions/NotImplementedException.h>
+// clang-format off
+// Don't reorder those includes, due to storm includes
 #include <storm/storage/expressions/Expression.h>
 #include <storm/storage/expressions/ExpressionManager.h>
+// clang-format on
 #include <storm/logic/BooleanLiteralFormula.h>
-#include <storm/logic/EventuallyFormula.h>
-#include <storm/logic/UntilFormula.h>
 #include <storm/logic/BoundedUntilFormula.h>
+#include <storm/logic/EventuallyFormula.h>
 #include <storm/logic/GloballyFormula.h>
 #include <storm/logic/NextFormula.h>
 #include <storm/logic/UnaryBooleanPathFormula.h>
+#include <storm/logic/UntilFormula.h>
 #include <storm/utility/macros.h>
-#include <storm/exceptions/IllegalArgumentValueException.h>
-#include <storm/exceptions/NotImplementedException.h>
 
 #include "state_properties/property_description.hpp"
 
 namespace smc_storm::state_properties {
-PropertyDescription::PropertyDescription(storm::logic::Formula const& formula) {
+PropertyDescription::PropertyDescription(const storm::logic::Formula& formula) {
     // For now we support only a limited set of simpler formulas
     if (formula.isBoundedUntilFormula()) {
         processBoundedUntilFormula(formula.asBoundedUntilFormula());
@@ -54,20 +57,20 @@ PropertyDescription::PropertyDescription(storm::logic::Formula const& formula) {
         return;
     }
     if (formula.isUnaryBooleanPathFormula()) {
-        processUnaryBooleanPathFormula(dynamic_cast<storm::logic::UnaryBooleanPathFormula const&>(formula));
+        processUnaryBooleanPathFormula(dynamic_cast<const storm::logic::UnaryBooleanPathFormula&>(formula));
         return;
     }
     STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "The provided formula is not supported");
 }
 
-PropertyDescription::PropertyDescription(storm::expressions::Expression const& condition_expr, storm::expressions::Expression const& target_expr)
-: _condition_expression(condition_expr), _target_expression(target_expr)
-{
+PropertyDescription::PropertyDescription(
+    const storm::expressions::Expression& condition_expr, const storm::expressions::Expression& target_expr)
+    : _condition_expression(condition_expr), _target_expression(target_expr) {
     // Supposed to be empty
 }
 
-void PropertyDescription::generateExpressions(storm::expressions::ExpressionManager const& manager, LabelsMap const& label_to_expression_mapping)
-{
+void PropertyDescription::generateExpressions(
+    const storm::expressions::ExpressionManager& manager, const LabelsMap& label_to_expression_mapping) {
     _condition_expression = _condition_formula_ref.get().toExpression(manager, label_to_expression_mapping);
     _target_expression = _target_formula_ref.get().toExpression(manager, label_to_expression_mapping);
     if (_negate_condition) {
@@ -78,18 +81,17 @@ void PropertyDescription::generateExpressions(storm::expressions::ExpressionMana
     }
 }
 
-void PropertyDescription::processEventuallyFormula(storm::logic::EventuallyFormula const& formula) {
+void PropertyDescription::processEventuallyFormula(const storm::logic::EventuallyFormula& formula) {
     _condition_formula_ref = TrueFormula;
     _target_formula_ref = formula.getSubformula();
 }
 
-void PropertyDescription::processUntilFormula(storm::logic::UntilFormula const& formula) {
+void PropertyDescription::processUntilFormula(const storm::logic::UntilFormula& formula) {
     _condition_formula_ref = formula.getLeftSubformula();
     _target_formula_ref = formula.getRightSubformula();
 }
 
-void PropertyDescription::processBoundedUntilFormula(storm::logic::BoundedUntilFormula const& formula)
-{
+void PropertyDescription::processBoundedUntilFormula(const storm::logic::BoundedUntilFormula& formula) {
     STORM_LOG_THROW(!formula.isMultiDimensional(), storm::exceptions::NotImplementedException, "We support only bounds in one dimension.");
     _condition_formula_ref = formula.getLeftSubformula();
     _target_formula_ref = formula.getRightSubformula();
@@ -102,14 +104,14 @@ void PropertyDescription::processBoundedUntilFormula(storm::logic::BoundedUntilF
     }
 }
 
-void PropertyDescription::processGloballyFormula(storm::logic::GloballyFormula const& formula) {
+void PropertyDescription::processGloballyFormula(const storm::logic::GloballyFormula& formula) {
     // For global formulae we want to ensure we reach a terminal state without breaking our condition
     _is_terminal_verified = true;
     _condition_formula_ref = formula.getSubformula();
     _target_formula_ref = FalseFormula;
 }
 
-void PropertyDescription::processNextFormula(storm::logic::NextFormula const& formula) {
+void PropertyDescription::processNextFormula(const storm::logic::NextFormula& formula) {
     _condition_formula_ref = TrueFormula;
     _target_formula_ref = formula.getSubformula();
     // neXt is basically a Final with two bounds to make sure we check EXACTLY the second element on the path!
@@ -117,13 +119,13 @@ void PropertyDescription::processNextFormula(storm::logic::NextFormula const& fo
     _upper_bound_value = 1U;
 }
 
-void PropertyDescription::processUnaryBooleanPathFormula(storm::logic::UnaryBooleanPathFormula const& formula) {
+void PropertyDescription::processUnaryBooleanPathFormula(const storm::logic::UnaryBooleanPathFormula& formula) {
     // This would be basically a negate formula...
     STORM_LOG_THROW(formula.isNot(), storm::exceptions::IllegalArgumentValueException, "Expected the Unary Boolean formula to be a NOT.");
     const auto& subformula = formula.getSubformula();
     if (subformula.isNextFormula()) {
         processNextFormula(subformula.asNextFormula());
-        _negate_target  = true;
+        _negate_target = true;
         return;
     }
     if (subformula.isEventuallyFormula()) {

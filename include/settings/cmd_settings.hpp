@@ -1,57 +1,41 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
 #pragma once
-#include <argparse/argparse.hpp>
 #include "settings/smc_settings.hpp"
+#include <argparse/argparse.hpp>
 
 namespace smc_storm::settings {
 /*!
  * @brief Class for generating the settings from the command line arguments
  */
 class CmdSettings {
-public:
+  public:
     /*!
      * @brief Constructor: it declares the available cmd arguments
      */
     CmdSettings() : parser("smc_storm") {
-        parser.add_argument("--model")
-            .required()
-            .help("Path to the model file.");
-        parser.add_argument("--constants")
-            .default_value(_loaded_settings.constants)
-            .help("Optional constants for the model / properties.");
-        parser.add_argument("--property-name")
-            .required()
-            .help("Property to check.");
-        parser.add_argument("--stat-method")
-            .default_value(_loaded_settings.stat_method)
-            .help("Statistical method to use.");
-        parser.add_argument("--traces-file")
-            .default_value(_loaded_settings.traces_file)
-            .help("Path to the traces file.");
-        parser.add_argument("--confidence")
-            .scan<'g', double>()
-            .default_value(_loaded_settings.confidence)
-            .help("Confidence level.");
-        parser.add_argument("--epsilon")
-            .scan<'g', double>()
-            .default_value(_loaded_settings.epsilon)
-            .help("Maximum absolute error.");
+        parser.add_argument("--model").required().help("Path to the model file.");
+        parser.add_argument("--constants").default_value(_loaded_settings.constants).help("Optional constants for the model / properties.");
+        parser.add_argument("--property-name").required().help("Property to check.");
+        parser.add_argument("--stat-method").default_value(_loaded_settings.stat_method).help("Statistical method to use.");
+        parser.add_argument("--traces-file").default_value(_loaded_settings.traces_file).help("Path to the traces file.");
+        parser.add_argument("--confidence").scan<'g', double>().default_value(_loaded_settings.confidence).help("Confidence level.");
+        parser.add_argument("--epsilon").scan<'g', double>().default_value(_loaded_settings.epsilon).help("Maximum absolute error.");
         parser.add_argument("--max-trace-length")
             .scan<'i', int>()
             .default_value(_loaded_settings.max_trace_length)
@@ -60,18 +44,12 @@ public:
             .scan<'i', size_t>()
             .default_value(_loaded_settings.max_n_traces)
             .help("Maximum number of traces to generate (for debugging reasons, overrides stat_method. 0 -> unset).");
-        parser.add_argument("--n-threads")
-            .scan<'i', size_t>()
-            .default_value(_loaded_settings.n_threads)
-            .help("Number of threads to use.");
+        parser.add_argument("--n-threads").scan<'i', size_t>().default_value(_loaded_settings.n_threads).help("Number of threads to use.");
         parser.add_argument("--batch-size")
             .scan<'i', size_t>()
             .default_value(_loaded_settings.batch_size)
             .help("Batch size for the sampling.");
-        parser.add_argument("--show-statistics")
-            .default_value(false)
-            .implicit_value(true)
-            .help("Show statistics after checking.");
+        parser.add_argument("--show-statistics").default_value(false).implicit_value(true).help("Show statistics after checking.");
     }
 
     /*!
@@ -97,8 +75,7 @@ public:
             _loaded_settings.batch_size = parser.get<size_t>("--batch-size");
             _loaded_settings.show_statistics = parser.get<bool>("--show-statistics");
             _parsing_done = true;
-        }
-        catch (const std::exception& err) {
+        } catch (const std::exception& err) {
             std::cerr << err.what() << std::endl;
             std::cerr << parser;
             std::exit(1);
@@ -112,9 +89,9 @@ public:
         return _loaded_settings;
     }
 
-private:
+  private:
     argparse::ArgumentParser parser;
     bool _parsing_done = false;
     SmcSettings _loaded_settings;
 };
-} // namespace smc_storm::settings
+}  // namespace smc_storm::settings

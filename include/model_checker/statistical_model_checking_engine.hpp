@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
@@ -27,12 +27,12 @@
 
 #include <storm/utility/ConstantsComparator.h>
 
-#include "settings/smc_settings.hpp"
-#include "state_properties/state_info.hpp"
-#include "samples/sampling_results.hpp"
 #include "samples/model_sampling.hpp"
+#include "samples/sampling_results.hpp"
 #include "samples/trace_information.hpp"
 #include "samples/traces_exporter.hpp"
+#include "settings/smc_settings.hpp"
+#include "state_properties/state_info.hpp"
 
 // Fwd declaration for storm::Environment
 namespace storm {
@@ -43,16 +43,16 @@ namespace smc_storm {
 // Additional fwd declarations
 namespace state_properties {
 class PropertyDescription;
-} // namespace state_properties
+}  // namespace state_properties
 
 namespace samples {
-template<typename StateType, typename ValueType>
+template <typename StateType, typename ValueType>
 class ExplorationInformation;
 }  // namespace samples
 
 namespace model_checker {
 
-template<typename StateType, typename ValueType>
+template <typename StateType, typename ValueType>
 class StateGeneration;
 
 /*!
@@ -60,9 +60,9 @@ class StateGeneration;
  * @tparam ModelType Definition of the kind of model to evaluate (e.g. DTMC, MDP, ...)
  * @tparam StateType Variable type used to identify the states in the model
  */
-template<typename ModelType, typename StateType = uint32_t>
+template <typename ModelType, typename StateType = uint32_t>
 class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModelChecker<ModelType> {
-   public:
+  public:
     typedef typename ModelType::ValueType ValueType;
     typedef StateType ActionType;
 
@@ -71,21 +71,21 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @param in_model the model to perform the evaluation on
      * @param settings A collection of settings, used to configure the engine
      */
-    StatisticalModelCheckingEngine(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings);
+    StatisticalModelCheckingEngine(const storm::storage::SymbolicModelDescription& in_model, const settings::SmcSettings& settings);
 
     /*!
      * @brief Check if the provided property is supported by the engine
      * @param check_task The property to verify
      * @return true if the property can be handled, false otherwise
      */
-    virtual bool canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const override;
+    virtual bool canHandle(const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) const override;
 
     /*!
      * @brief Static version of the engine's compatibility check for the provided property
      * @param check_task The property to verify
      * @return true if the property can be handled, false otherwise
      */
-    static bool canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task);
+    static bool canHandleStatic(const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task);
 
     /*!
      * @brief Evaluate the loaded model on a P property
@@ -94,7 +94,8 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @return The result of the evaluation
      */
     virtual std::unique_ptr<storm::modelchecker::CheckResult> computeProbabilities(
-        [[maybe_unused]] storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) override;
+        [[maybe_unused]] const storm::Environment& env,
+        const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) override;
 
     /*!
      * @brief Evaluate the loaded model on a R property
@@ -103,10 +104,10 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @return The result of the evaluation
      */
     virtual std::unique_ptr<storm::modelchecker::CheckResult> computeReachabilityRewards(
-        [[maybe_unused]] storm::Environment const& env, storm::logic::RewardMeasureType reward_type,
-        storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task) override;
+        [[maybe_unused]] const storm::Environment& env, storm::logic::RewardMeasureType reward_type,
+        const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) override;
 
-   private:
+  private:
     bool verifyModelValid() const;
 
     bool verifySettingsValid() const;
@@ -122,8 +123,8 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @param sampling_results Object keeping track of the previous sample results and defining if new samples are needed
      */
     void performSampling(
-        storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task,
-        samples::ModelSampling<StateType, ValueType> const& model_sampler, samples::SamplingResults& sampling_results);
+        const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
+        const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results);
 
     /*!
      * @brief Sample a single path until we reach a state it doesn't make sense to expand further
@@ -133,8 +134,9 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @return A pair with the Information attached to the reached state and the accumulated reward
      */
     samples::TraceInformation samplePathFromInitialState(
-        StateGeneration<StateType, ValueType>& state_generation, samples::ExplorationInformation<StateType, ValueType>& exploration_information,
-        samples::ModelSampling<StateType, ValueType> const& model_sampler) const;
+        StateGeneration<StateType, ValueType>& state_generation,
+        samples::ExplorationInformation<StateType, ValueType>& exploration_information,
+        const samples::ModelSampling<StateType, ValueType>& model_sampler) const;
 
     /*!
      * @brief Explore a single, unexplored state
@@ -145,7 +147,7 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @return A description of the input state for evaluation
      */
     state_properties::StateInfoType exploreState(
-        StateGeneration<StateType, ValueType>& state_generation, StateType const& current_state_id,
+        StateGeneration<StateType, ValueType>& state_generation, const StateType& current_state_id,
         samples::ExplorationInformation<StateType, ValueType>& exploration_information) const;
 
     // The model to check.
@@ -155,4 +157,3 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
 };
 }  // namespace model_checker
 }  // namespace smc_storm
-
