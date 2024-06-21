@@ -62,7 +62,7 @@ jobs:
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
-            - name: run linting
+            - name: Run linting
               run: |
                     ./scripts/check-clang-style.bash
             - name: Run tests

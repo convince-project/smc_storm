@@ -196,7 +196,7 @@ bool SamplingResults::evaluateChowRobbinsBound() {
 }
 
 void SamplingResults::addBatchResults(const BatchResults& res) {
-    std::scoped_lock<std::mutex> Lock(_mtx);
+    std::scoped_lock<std::mutex> lock(_mtx);
     _n_verified += res.n_verified;
     _n_not_verified += res.n_not_verified;
     _n_no_info += res.n_no_info;
