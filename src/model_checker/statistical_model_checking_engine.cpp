@@ -1,22 +1,22 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <thread>
 #include <filesystem>
+#include <thread>
 
 #include <storm/storage/expressions/ExpressionEvaluator.h>
 
@@ -25,8 +25,8 @@
 #include <storm/storage/MaximalEndComponentDecomposition.h>
 #include <storm/storage/SparseMatrix.h>
 
-#include <storm/storage/prism/Program.h>
 #include <storm/storage/jani/Model.h>
+#include <storm/storage/prism/Program.h>
 
 #include <storm/logic/FragmentSpecification.h>
 
@@ -36,9 +36,9 @@
 #include <storm/models/sparse/Mdp.h>
 #include <storm/models/sparse/StandardRewardModel.h>
 
-#include <storm/settings/SettingsManager.h>
 #include <storm/settings/modules/CoreSettings.h>
 #include <storm/settings/modules/ExplorationSettings.h>
+#include <storm/settings/SettingsManager.h>
 
 #include <storm/utility/constants.h>
 #include <storm/utility/graph.h>
@@ -46,26 +46,28 @@
 #include <storm/utility/prism.h>
 #include <storm/utility/random.h>
 
-#include <storm/exceptions/InvalidOperationException.h>
 #include <storm/exceptions/InvalidModelException.h>
-#include <storm/exceptions/InvalidSettingsException.h>
+#include <storm/exceptions/InvalidOperationException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
+#include <storm/exceptions/InvalidSettingsException.h>
 
+#include "model_checker/state_generation.hpp"
+#include "samples/exploration_information.hpp"
 #include "state_properties/property_type.hpp"
-#include "samples/exploration_information.h"
-#include "model_checker/state_generation.h"
 
 #include "model_checker/statistical_model_checking_engine.hpp"
 
 namespace smc_storm {
 namespace model_checker {
-template<typename ModelType, typename StateType>
-bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandleStatic(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) {
+template <typename ModelType, typename StateType>
+bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandleStatic(
+    const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) {
     // Prepare the fragment defined our supported formulas
     // This allows all (atomic) property operators + the unary NOT logic operator on atomic properties (e.g. !F(s=2))
     storm::logic::FragmentSpecification const fragment =
-        storm::logic::prctl().setNestedOperatorsAllowed(false).setUnaryBooleanPathFormulasAllowed(true).setOperatorAtTopLevelRequired(false);
-    storm::logic::Formula const& formula = check_task.getFormula();
+        storm::logic::prctl().setNestedOperatorsAllowed(false).setUnaryBooleanPathFormulasAllowed(true).setOperatorAtTopLevelRequired(
+            false);
+    const storm::logic::Formula& formula = check_task.getFormula();
     const bool is_formula_supported = formula.isInFragment(fragment);
     const bool is_only_init_state_relevant = check_task.isOnlyInitialStatesRelevantSet();
     // Conditional logging prints when the condition does not hold!
@@ -74,17 +76,17 @@ bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandleStatic(storm
     return is_formula_supported && is_only_init_state_relevant;
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 bool StatisticalModelCheckingEngine<ModelType, StateType>::traceStorageEnabled() const {
     return !_settings.traces_file.empty();
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 std::vector<uint_fast32_t> StatisticalModelCheckingEngine<ModelType, StateType>::getThreadSeeds() const {
     // Get an initial seed for random sampling in each thread
     const uint_fast32_t init_random_seed = std::chrono::system_clock::now().time_since_epoch().count();
-    storm::utility::RandomProbabilityGenerator<ValueType> random_generator(init_random_seed); 
-    std::vector<uint_fast32_t> thread_seeds {};
+    storm::utility::RandomProbabilityGenerator<ValueType> random_generator(init_random_seed);
+    std::vector<uint_fast32_t> thread_seeds{};
     thread_seeds.reserve(_settings.n_threads);
     for (size_t iter = 0U; iter < _settings.n_threads; ++iter) {
         thread_seeds.emplace_back(random_generator.random_uint(0, std::numeric_limits<uint_fast32_t>::max()));
@@ -92,21 +94,22 @@ std::vector<uint_fast32_t> StatisticalModelCheckingEngine<ModelType, StateType>:
     return thread_seeds;
 }
 
-template<typename ModelType, typename StateType>
-StatisticalModelCheckingEngine<ModelType, StateType>::StatisticalModelCheckingEngine(storm::storage::SymbolicModelDescription const& in_model, const settings::SmcSettings& settings)
-: _model{in_model},
-  _settings{settings} {
+template <typename ModelType, typename StateType>
+StatisticalModelCheckingEngine<ModelType, StateType>::StatisticalModelCheckingEngine(
+    const storm::storage::SymbolicModelDescription& in_model, const settings::SmcSettings& settings)
+    : _model{in_model}, _settings{settings} {
     // Verify model validity
     STORM_LOG_THROW(verifyModelValid(), storm::exceptions::InvalidModelException, "Invalid model provided: cannot evaluate!");
     STORM_LOG_THROW(verifySettingsValid(), storm::exceptions::InvalidSettingsException, "Invalid settings provided: cannot evaluate!");
 }
 
-template<typename ModelType, typename StateType>
-bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandle(storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) const {
+template <typename ModelType, typename StateType>
+bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandle(
+    const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) const {
     return canHandleStatic(check_task);
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 bool StatisticalModelCheckingEngine<ModelType, StateType>::verifyModelValid() const {
     bool is_model_valid = false;
     bool is_model_deterministic = false;
@@ -121,7 +124,7 @@ bool StatisticalModelCheckingEngine<ModelType, StateType>::verifyModelValid() co
     return is_model_valid;
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 bool StatisticalModelCheckingEngine<ModelType, StateType>::verifySettingsValid() const {
     bool is_settings_valid = true;
     if (_settings.n_threads == 0U) {
@@ -133,16 +136,19 @@ bool StatisticalModelCheckingEngine<ModelType, StateType>::verifySettingsValid()
             STORM_LOG_ERROR("Traces can only be stored when using a single thread!");
             is_settings_valid = false;
         }
-        STORM_LOG_WARN_COND(_settings.max_n_traces > 0U, "The amount of generated traces might be very large if left unbounded. Consider setting `--max-n-traces`.");
+        STORM_LOG_WARN_COND(
+            _settings.max_n_traces > 0U,
+            "The amount of generated traces might be very large if left unbounded. Consider setting `--max-n-traces`.");
     } else {
-        STORM_LOG_WARN_COND(_settings.max_n_traces == 0U, "The amount of generated traces is bounded. This might affect reliability of the results.");
+        STORM_LOG_WARN_COND(
+            _settings.max_n_traces == 0U, "The amount of generated traces is bounded. This might affect reliability of the results.");
     }
     return is_settings_valid;
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeProbabilities(
-    storm::Environment const& env, storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task) {
+    const storm::Environment& env, const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) {
     // Prepare the results holder
     samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::P);
 
@@ -150,7 +156,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
     std::vector<std::thread> thread_instances;
     thread_instances.reserve(thread_seeds.size());
     for (const auto& thread_seed : thread_seeds) {
-        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed](){
+        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed]() {
             const samples::ModelSampling<StateType, ValueType> model_sampler(thread_seed);
             performSampling(check_task, model_sampler, sampling_results);
         });
@@ -166,15 +172,17 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
         sampling_results.printResults();
     }
 
-    return std::make_unique<storm::modelchecker::ExplicitQuantitativeCheckResult<ValueType>>(estimated_success_prob, estimated_success_prob);
+    return std::make_unique<storm::modelchecker::ExplicitQuantitativeCheckResult<ValueType>>(
+        estimated_success_prob, estimated_success_prob);
 }
 
-
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeReachabilityRewards(
-    storm::Environment const& env, storm::logic::RewardMeasureType reward_type, storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType> const& check_task)
-{
-    STORM_LOG_THROW(reward_type == storm::logic::RewardMeasureType::Expectation, storm::exceptions::InvalidPropertyException, "Variance reward measures not supported.");
+    const storm::Environment& env, storm::logic::RewardMeasureType reward_type,
+    const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) {
+    STORM_LOG_THROW(
+        reward_type == storm::logic::RewardMeasureType::Expectation, storm::exceptions::InvalidPropertyException,
+        "Variance reward measures not supported.");
     // Prepare the results holder
     samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::R);
 
@@ -182,7 +190,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
     std::vector<std::thread> thread_instances;
     thread_instances.reserve(thread_seeds.size());
     for (const auto& thread_seed : thread_seeds) {
-        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed](){
+        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed]() {
             const samples::ModelSampling<StateType, ValueType> model_sampler(thread_seed);
             performSampling(check_task, model_sampler, sampling_results);
         });
@@ -201,11 +209,10 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
     return std::make_unique<storm::modelchecker::ExplicitQuantitativeCheckResult<ValueType>>(avg_reward, avg_reward);
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
-    storm::modelchecker::CheckTask<storm::logic::Formula, ValueType> const& check_task, samples::ModelSampling<StateType, ValueType> const& model_sampler,
-    samples::SamplingResults& sampling_results)
-{
+    const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
+    const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results) {
     // TODO: Make sure that this is never set in case of P properties
     const std::string reward_model = check_task.isRewardModelSet() ? check_task.getRewardModel() : "";
     // Prepare exploration information holder.
@@ -217,10 +224,11 @@ void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
     StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), reward_model, exploration_information);
     // Generate the initial state so we know where to start the simulation.
     state_generation.computeInitialStates();
-    STORM_LOG_THROW(state_generation.getNumberOfInitialStates() == 1, storm::exceptions::InvalidModelException,
-                    "Currently only models with one initial state are supported by the exploration engine.");
+    STORM_LOG_THROW(
+        state_generation.getNumberOfInitialStates() == 1, storm::exceptions::InvalidModelException,
+        "Currently only models with one initial state are supported by the exploration engine.");
 
-    if (export_traces) {   
+    if (export_traces) {
         // Prepare the traces export object
         _traces_exporter_ptr = std::make_unique<samples::TracesExporter>(_settings.traces_file, state_generation.getVariableInformation());
     }
@@ -229,7 +237,7 @@ void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
     // Now perform the actual sampling
     while (sampling_results.newBatchNeeded()) {
         batch_results.reset();
-        while (batch_results.batchIncomplete()){
+        while (batch_results.batchIncomplete()) {
             // Sample a new path
             const auto result = samplePathFromInitialState(state_generation, exploration_information, model_sampler);
             batch_results.addResult(result);
@@ -239,11 +247,10 @@ void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
     _traces_exporter_ptr.reset();
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::samplePathFromInitialState(
     StateGeneration<StateType, ValueType>& state_generation, samples::ExplorationInformation<StateType, ValueType>& exploration_information,
-    samples::ModelSampling<StateType, ValueType> const& model_sampler) const
-{
+    const samples::ModelSampling<StateType, ValueType>& model_sampler) const {
     samples::TraceInformation trace_information;
     trace_information.trace_length = 0U;
     trace_information.outcome = samples::TraceResult::NO_INFO;
@@ -295,7 +302,7 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::
                 // TODO: Global properties might require special handling, however STORM has no support for Bounded Global properties
                 STORM_LOG_TRACE("We reached the Upper bound. Stopping path expansion!");
                 path_result = samples::TraceResult::NOT_VERIFIED;
-            } else if(trace_information.trace_length >= _settings.max_trace_length && _settings.max_trace_length > 0) {
+            } else if (trace_information.trace_length >= _settings.max_trace_length && _settings.max_trace_length > 0) {
                 // If the sampled path gets too large, abort!
                 STORM_LOG_TRACE("Explored path longer than max value. Aborting!");
                 break;
@@ -310,7 +317,9 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::
                 }
                 // Get the next state given the chosen action and the prob. distr. of reachable states.
                 const StateType next_state_id = model_sampler.sampleSuccessorFromAction(chosen_action, exploration_information);
-                STORM_LOG_TRACE("Sampled successor " << next_state_id << " according to action " << chosen_action << " of state " << current_state_id << ".");
+                STORM_LOG_TRACE(
+                    "Sampled successor " << next_state_id << " according to action " << chosen_action << " of state " << current_state_id
+                                         << ".");
                 // Update the n. of steps and current state
                 current_state_id = next_state_id;
                 ++trace_information.trace_length;
@@ -325,25 +334,28 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::
     return trace_information;
 }
 
-template<typename ModelType, typename StateType>
+template <typename ModelType, typename StateType>
 state_properties::StateInfoType StatisticalModelCheckingEngine<ModelType, StateType>::exploreState(
-        StateGeneration<StateType, ValueType>& state_generation, StateType const& current_state_id,
-        samples::ExplorationInformation<StateType, ValueType>& exploration_information) const {
+    StateGeneration<StateType, ValueType>& state_generation, const StateType& current_state_id,
+    samples::ExplorationInformation<StateType, ValueType>& exploration_information) const {
     // At start, we know nothing about this state
     state_properties::StateInfoType state_info = state_properties::state_info::NO_INFO;
     const size_t reward_index = state_generation.getRewardIndex();
     const bool rewards_needed = state_generation.rewardLoaded();
 
     auto unexplored_it = exploration_information.findUnexploredState(current_state_id);
-    STORM_LOG_THROW(exploration_information.unexploredStatesEnd() != unexplored_it, storm::exceptions::UnexpectedException, "Cannot retrieve unexplored state.");
-    storm::generator::CompressedState const& compressed_state = unexplored_it->second;
+    STORM_LOG_THROW(
+        exploration_information.unexploredStatesEnd() != unexplored_it, storm::exceptions::UnexpectedException,
+        "Cannot retrieve unexplored state.");
+    const storm::generator::CompressedState& compressed_state = unexplored_it->second;
 
     exploration_information.assignStateToNextRowGroup(current_state_id);
-    STORM_LOG_TRACE("Assigning row group " << exploration_information.getRowGroup(current_state_id) << " to state " << current_state_id << ".");
+    STORM_LOG_TRACE(
+        "Assigning row group " << exploration_information.getRowGroup(current_state_id) << " to state " << current_state_id << ".");
     state_generation.load(compressed_state);
 
     // Get the expanded current state
-    storm::generator::StateBehavior<ValueType, StateType> const expanded_state = state_generation.expand();
+    const storm::generator::StateBehavior<ValueType, StateType> expanded_state = state_generation.expand();
 
     if (rewards_needed) {
         exploration_information.addStateReward(current_state_id, expanded_state.getStateRewards().at(reward_index));
@@ -354,37 +366,38 @@ state_properties::StateInfoType StatisticalModelCheckingEngine<ModelType, StateT
     }
     if (state_generation.isConditionState()) {
         // Clumsily check whether we have found a state that forms a trivial BMEC.
-        bool otherSuccessor = false;
-        for (auto const& choice : expanded_state) {
-            for (auto const& [next_state_id, _] : choice) {
+        bool other_successor = false;
+        for (const auto& choice : expanded_state) {
+            for (const auto& [next_state_id, _] : choice) {
                 if (next_state_id != current_state_id) {
                     // We found a successor that goes to a new state, no termination yet!
-                    otherSuccessor = true;
+                    other_successor = true;
                     break;
                 }
             }
         }
-        if (!otherSuccessor) {
+        if (!other_successor) {
             // Can't find a successor: we reached a terminal state
             state_info |= state_properties::state_info::IS_TERMINAL;
         } else {
-            // If the state was neither a trivial (non-accepting) terminal state nor a target state, we
-            // need to store its behavior.
-            // Next, we insert the state + related actions into our matrix structure.
+            // If the state was neither a trivial (non-accepting) terminal state
+            // nor a target state, we need to store its behavior. Next, we insert
+            // the state + related actions into our matrix structure.
             StateType start_action = exploration_information.getActionCount();
             exploration_information.addActionsToMatrix(expanded_state.getNumberOfChoices());
 
             ActionType local_action = 0;
 
-            for (auto const& single_action : expanded_state) {
+            for (const auto& single_action : expanded_state) {
                 const ActionType action_id = start_action + local_action;
                 if (rewards_needed) {
                     exploration_information.addActionReward(action_id, single_action.getRewards().at(reward_index));
                 }
-                for (auto const& [next_state_id, likelihood] : single_action) {
+                for (const auto& [next_state_id, likelihood] : single_action) {
                     exploration_information.getRowOfMatrix(action_id).emplace_back(next_state_id, likelihood);
-                    STORM_LOG_TRACE("Found transition " << current_state_id << "-[" << (action_id) << ", " << likelihood << "]-> "
-                                                        << next_state_id << ".");
+                    STORM_LOG_TRACE(
+                        "Found transition " << current_state_id << "-[" << (action_id) << ", " << likelihood << "]-> " << next_state_id
+                                            << ".");
                 }
                 ++local_action;
             }

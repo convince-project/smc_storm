@@ -1,8 +1,10 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 # set the project name and version
 project(smc_storm VERSION 1.0)
 
+# Enable compile commands export for clangd
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # specify the C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)

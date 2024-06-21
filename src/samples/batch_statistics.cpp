@@ -1,16 +1,16 @@
 /*
  * Copyright (c) 2024 Robert Bosch GmbH and its subsidiaries
- * 
+ *
  * This file is part of smc_storm.
- * 
+ *
  * smc_storm is free software: you can redistribute it and/or modify it under the terms of
  * the GNU General Public License as published by the Free Software Foundation, either
  * version 3 of the License, or (at your option) any later version.
- * 
+ *
  * smc_storm is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
  * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  * See the GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License along with smc_storm.
  * If not, see <https://www.gnu.org/licenses/>.
  */
@@ -18,7 +18,7 @@
 #include <storm/exceptions/IllegalArgumentValueException.h>
 #include <storm/utility/macros.h>
 
-#include "samples/batch_statistics.h"
+#include "samples/batch_statistics.hpp"
 
 namespace smc_storm::samples {
 
@@ -56,13 +56,14 @@ void BatchStatistics::updateStats(const BatchStatistics& other_stats) {
         dim = other_stats.dim;
         return;
     }
-    const double totalDim = static_cast<double>(dim + other_stats.dim);
-    const double newMean = (mean * dim + other_stats.mean * other_stats.dim) / totalDim;
-    const double varianceLinComb = (dim * variance + other_stats.dim * other_stats.variance) / totalDim;
-    const double varianceCorrection = (mean - other_stats.mean) * (mean - other_stats.mean) * dim * other_stats.dim / (totalDim * totalDim);
+    const double total_dim = static_cast<double>(dim + other_stats.dim);
+    const double new_mean = (mean * dim + other_stats.mean * other_stats.dim) / total_dim;
+    const double variance_lin_comb = (dim * variance + other_stats.dim * other_stats.variance) / total_dim;
+    const double variance_correction =
+        (mean - other_stats.mean) * (mean - other_stats.mean) * dim * other_stats.dim / (total_dim * total_dim);
     // Update mean and variance
-    mean = newMean;
-    variance = varianceLinComb + varianceCorrection;
+    mean = new_mean;
+    variance = variance_lin_comb + variance_correction;
     dim = dim + other_stats.dim;
 }
 
