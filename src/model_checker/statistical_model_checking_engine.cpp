@@ -366,23 +366,23 @@ state_properties::StateInfoType StatisticalModelCheckingEngine<ModelType, StateT
     }
     if (state_generation.isConditionState()) {
         // Clumsily check whether we have found a state that forms a trivial BMEC.
-        bool otherSuccessor = false;
+        bool other_successor = false;
         for (const auto& choice : expanded_state) {
             for (const auto& [next_state_id, _] : choice) {
                 if (next_state_id != current_state_id) {
                     // We found a successor that goes to a new state, no termination yet!
-                    otherSuccessor = true;
+                    other_successor = true;
                     break;
                 }
             }
         }
-        if (!otherSuccessor) {
+        if (!other_successor) {
             // Can't find a successor: we reached a terminal state
             state_info |= state_properties::state_info::IS_TERMINAL;
         } else {
-            // If the state was neither a trivial (non-accepting) terminal state nor a target state, we
-            // need to store its behavior.
-            // Next, we insert the state + related actions into our matrix structure.
+            // If the state was neither a trivial (non-accepting) terminal state
+            // nor a target state, we need to store its behavior. Next, we insert
+            // the state + related actions into our matrix structure.
             StateType start_action = exploration_information.getActionCount();
             exploration_information.addActionsToMatrix(expanded_state.getNumberOfChoices());
 

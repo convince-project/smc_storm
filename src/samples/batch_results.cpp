@@ -29,50 +29,50 @@
 
 namespace smc_storm::samples {
 BatchResults::BatchResults(const size_t batch_size, const state_properties::PropertyType prop_type)
-    : _batch_size{batch_size}, _property_type{prop_type} {
+    : batch_size{batch_size}, property_type{prop_type} {
     reset();
 }
 
 void BatchResults::addResult(const TraceInformation& res) {
-    ++_count;
+    ++count;
     switch (res.outcome) {
     case TraceResult::VERIFIED:
-        _n_verified++;
+        n_verified++;
         break;
     case TraceResult::NOT_VERIFIED:
-        _n_not_verified++;
+        n_not_verified++;
         break;
     case TraceResult::NO_INFO:
-        _n_no_info++;
+        n_no_info++;
         break;
     default:
         STORM_LOG_THROW(false, storm::exceptions::UnexpectedException, "Unexpected Result value added");
         break;
     }
     // TODO: Consider having a structure to track min-max value and distinguish between verified and non-verified traces
-    _min_trace_length = std::min(_min_trace_length, res.trace_length);
-    _max_trace_length = std::max(_max_trace_length, res.trace_length);
-    if (_property_type == state_properties::PropertyType::R && res.outcome == TraceResult::VERIFIED) {
-        _rewards.emplace_back(res.reward);
-        _min_reward = std::min(res.reward, _min_reward);
-        _max_reward = std::max(res.reward, _max_reward);
+    min_trace_length = std::min(min_trace_length, res.trace_length);
+    max_trace_length = std::max(max_trace_length, res.trace_length);
+    if (property_type == state_properties::PropertyType::R && res.outcome == TraceResult::VERIFIED) {
+        rewards.emplace_back(res.reward);
+        min_reward = std::min(res.reward, min_reward);
+        max_reward = std::max(res.reward, max_reward);
     }
 }
 
 BatchStatistics BatchResults::getBatchStatistics() const {
-    return BatchStatistics(_rewards);
+    return BatchStatistics(rewards);
 }
 
 void BatchResults::reset() {
-    _n_verified = 0U;
-    _n_not_verified = 0U;
-    _n_no_info = 0U;
-    _count = 0U;
-    _rewards.clear();
-    _rewards.reserve(_batch_size);
-    _min_reward = std::numeric_limits<double>::infinity();
-    _max_reward = -std::numeric_limits<double>::infinity();
-    _min_trace_length = std::numeric_limits<size_t>::max();
-    _max_trace_length = 0U;
+    n_verified = 0U;
+    n_not_verified = 0U;
+    n_no_info = 0U;
+    count = 0U;
+    rewards.clear();
+    rewards.reserve(batch_size);
+    min_reward = std::numeric_limits<double>::infinity();
+    max_reward = -std::numeric_limits<double>::infinity();
+    min_trace_length = std::numeric_limits<size_t>::max();
+    max_trace_length = 0U;
 }
 }  // namespace smc_storm::samples

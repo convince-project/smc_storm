@@ -82,7 +82,7 @@ void PropertyDescription::generateExpressions(
 }
 
 void PropertyDescription::processEventuallyFormula(const storm::logic::EventuallyFormula& formula) {
-    _condition_formula_ref = TrueFormula;
+    _condition_formula_ref = _true_formula;
     _target_formula_ref = formula.getSubformula();
 }
 
@@ -108,11 +108,11 @@ void PropertyDescription::processGloballyFormula(const storm::logic::GloballyFor
     // For global formulae we want to ensure we reach a terminal state without breaking our condition
     _is_terminal_verified = true;
     _condition_formula_ref = formula.getSubformula();
-    _target_formula_ref = FalseFormula;
+    _target_formula_ref = _false_formula;
 }
 
 void PropertyDescription::processNextFormula(const storm::logic::NextFormula& formula) {
-    _condition_formula_ref = TrueFormula;
+    _condition_formula_ref = _true_formula;
     _target_formula_ref = formula.getSubformula();
     // neXt is basically a Final with two bounds to make sure we check EXACTLY the second element on the path!
     _lower_bound_value = 1U;
@@ -132,7 +132,7 @@ void PropertyDescription::processUnaryBooleanPathFormula(const storm::logic::Una
         // Eventually formulae can be negated converting them to Global formulae
         // TODO: Unify this block with the processGloballyFormula method
         _is_terminal_verified = true;
-        _target_formula_ref = FalseFormula;
+        _target_formula_ref = _false_formula;
         _condition_formula_ref = subformula.asEventuallyFormula().getSubformula();
         _negate_condition = true;
         return;
@@ -141,7 +141,7 @@ void PropertyDescription::processUnaryBooleanPathFormula(const storm::logic::Una
         // Globally formulae can be negated converting them to Eventually formulae
         // TODO: Unify this block with the processEventuallyFormula method
         _target_formula_ref = subformula.asGloballyFormula().getSubformula();
-        _condition_formula_ref = TrueFormula;
+        _condition_formula_ref = _true_formula;
         _negate_target = true;
         return;
     }

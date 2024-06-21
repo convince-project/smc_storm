@@ -33,40 +33,42 @@ namespace smc_storm::samples {
  * @brief Object to hold a predefined number of traces results generated from a single thread
  */
 struct BatchResults {
-    const size_t _batch_size;
-    const state_properties::PropertyType _property_type;
+    const size_t batch_size;
+    const state_properties::PropertyType property_type;
     // Property verification results
     // Members counting the sampled results in a single batch
-    size_t _n_verified = 0U;
-    size_t _n_not_verified = 0U;
-    size_t _n_no_info = 0U;
+    size_t n_verified = 0U;
+    size_t n_not_verified = 0U;
+    size_t n_no_info = 0U;
     // A counter for the total amount of sampled results
-    size_t _count = 0U;
+    size_t count = 0U;
     // A vector keeping the collected rewards
-    std::vector<double> _rewards;
+    std::vector<double> rewards;
     // Min and max trace length
-    size_t _min_trace_length = std::numeric_limits<size_t>::max();
-    size_t _max_trace_length = 0U;
+    size_t min_trace_length = std::numeric_limits<size_t>::max();
+    size_t max_trace_length = 0U;
 
     // Rewards accumulation results (note: it should be templated with ValueType!)
-    double _min_reward = std::numeric_limits<double>::infinity();
-    double _max_reward = -std::numeric_limits<double>::infinity();
+    double min_reward = std::numeric_limits<double>::infinity();
+    double max_reward = -std::numeric_limits<double>::infinity();
 
     // Constructor MUST define a batch size
     BatchResults() = delete;
     /*!
      * @brief BatchResults constructor
      * @param batch_size The predefined size of each batch
-     * @param prop The property type we are evaluating (probability or reward), to determine what information to store
+     * @param prop The property type we are evaluating (probability or reward), to
+     * determine what information to store
      */
     BatchResults(size_t batch_size, const state_properties::PropertyType prop);
 
     /*!
      * @brief Check whether we need more samples according to the batch size
-     * @return true if the batch contains less elements than the batch size, false otherwise
+     * @return true if the batch contains less elements than the batch size, false
+     * otherwise
      */
     inline bool batchIncomplete() const {
-        return _count < _batch_size;
+        return count < batch_size;
     }
 
     /*!
@@ -86,7 +88,7 @@ struct BatchResults {
      * @return A const reference to the aforementioned counter
      */
     inline const size_t& getCount() const {
-        return _count;
+        return count;
     }
 
     /*!

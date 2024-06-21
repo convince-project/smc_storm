@@ -144,7 +144,7 @@ class ExplorationInformation {
 
   private:
     // The value used to mark unexplored states
-    static constexpr ActionType _unexplored_marker{std::numeric_limits<ActionType>::max()};
+    static constexpr ActionType UNEXPLORED_MARKER{std::numeric_limits<ActionType>::max()};
 
     // Flag to signal whether to store the compressed states or not
     const bool _store_expanded_states;
@@ -157,7 +157,7 @@ class ExplorationInformation {
 
     // This maps a a rowGroupId (related to a stateId via _state_to_row_group_mapping) to the 1st actionId leaving from that state.
     // The last actionId associated to that rowGroupId will be (row_group_indices[rowGroupId+1] - 1)
-    std::vector<StateType> row_group_indices;
+    std::vector<StateType> _row_group_indices;
 
     // Map each StateId to a rowGroupId (or unexploredMarker, if no rowGroupId yet)
     std::vector<StateType> _state_to_row_group_mapping;

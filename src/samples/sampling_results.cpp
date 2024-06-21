@@ -115,8 +115,8 @@ bool SamplingResults::evaluateWilsonBound() {
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     const double z = _quantile;
-    const double zSq = z * z;
-    const double ci_half_width = (z / (iterations + zSq)) * sqrt(successes * failures / iterations + zSq / 4.0);
+    const double z_sq = z * z;
+    const double ci_half_width = (z / (iterations + z_sq)) * sqrt(successes * failures / iterations + z_sq / 4.0);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
@@ -127,9 +127,9 @@ bool SamplingResults::evaluateWilsonCorrectedBound() {
     const double iterations = successes + failures;
     const double p = (successes / iterations) - (1.0 / (2.0 * iterations));
     const double z = _quantile;
-    const double zSq = z * z;
+    const double z_sq = z * z;
     const double ci_half_width =
-        (z / (2.0 * (iterations + zSq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + zSq);
+        (z / (2.0 * (iterations + z_sq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + z_sq);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
@@ -197,21 +197,21 @@ bool SamplingResults::evaluateChowRobbinsBound() {
 
 void SamplingResults::addBatchResults(const BatchResults& res) {
     std::scoped_lock<std::mutex> lock(_mtx);
-    _n_verified += res._n_verified;
-    _n_not_verified += res._n_not_verified;
-    _n_no_info += res._n_no_info;
-    _min_trace_length = std::min(_min_trace_length, res._min_trace_length);
-    _max_trace_length = std::max(_max_trace_length, res._max_trace_length);
+    _n_verified += res.n_verified;
+    _n_not_verified += res.n_not_verified;
+    _n_no_info += res.n_no_info;
+    _min_trace_length = std::min(_min_trace_length, res.min_trace_length);
+    _max_trace_length = std::max(_max_trace_length, res.max_trace_length);
     if (_property_type == state_properties::PropertyType::R) {
         _reward_stats.updateStats(res.getBatchStatistics());
         bool is_interval_changed = false;
-        if (_min_reward > res._min_reward) {
+        if (_min_reward > res.min_reward) {
             is_interval_changed = true;
-            _min_reward = res._min_reward;
+            _min_reward = res.min_reward;
         }
-        if (_max_reward < res._max_reward) {
+        if (_max_reward < res.max_reward) {
             is_interval_changed = true;
-            _max_reward = res._max_reward;
+            _max_reward = res.max_reward;
         }
         if (is_interval_changed) {
             // Recalculate the Chernoff bounds, since the interval got larger

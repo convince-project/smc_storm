@@ -54,7 +54,7 @@ void ExplorationInformation<StateType, ValueType>::removeUnexploredState(const_i
 template <typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::addUnexploredState(
     const StateType& state_id, const storm::generator::CompressedState& compressed_state) {
-    _state_to_row_group_mapping.push_back(_unexplored_marker);
+    _state_to_row_group_mapping.push_back(UNEXPLORED_MARKER);
     _unexplored_states[state_id] = compressed_state;
     if (_store_expanded_states) {
         _state_to_compressed_state.push_back(compressed_state);
@@ -68,18 +68,18 @@ void ExplorationInformation<StateType, ValueType>::assignStateToRowGroup(const S
 
 template <typename StateType, typename ValueType>
 StateType ExplorationInformation<StateType, ValueType>::assignStateToNextRowGroup(const StateType& state) {
-    _state_to_row_group_mapping[state] = row_group_indices.size() - 1;
+    _state_to_row_group_mapping[state] = _row_group_indices.size() - 1;
     return _state_to_row_group_mapping[state];
 }
 
 template <typename StateType, typename ValueType>
 StateType ExplorationInformation<StateType, ValueType>::getNextRowGroup() const {
-    return row_group_indices.size() - 1;
+    return _row_group_indices.size() - 1;
 }
 
 template <typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::newRowGroup(const ActionType& action) {
-    row_group_indices.push_back(action);
+    _row_group_indices.push_back(action);
 }
 
 template <typename StateType, typename ValueType>
@@ -89,7 +89,7 @@ void ExplorationInformation<StateType, ValueType>::newRowGroup() {
 
 template <typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::terminateCurrentRowGroup() {
-    row_group_indices.push_back(_action_to_target_states.size());
+    _row_group_indices.push_back(_action_to_target_states.size());
 }
 
 template <typename StateType, typename ValueType>
@@ -119,12 +119,12 @@ const StateType& ExplorationInformation<StateType, ValueType>::getRowGroup(const
 
 template <typename StateType, typename ValueType>
 const StateType& ExplorationInformation<StateType, ValueType>::getUnexploredMarker() const {
-    return _unexplored_marker;
+    return UNEXPLORED_MARKER;
 }
 
 template <typename StateType, typename ValueType>
 bool ExplorationInformation<StateType, ValueType>::isUnexplored(const StateType& state) const {
-    return _state_to_row_group_mapping[state] == _unexplored_marker;
+    return _state_to_row_group_mapping[state] == UNEXPLORED_MARKER;
 }
 
 template <typename StateType, typename ValueType>
@@ -143,19 +143,19 @@ const ValueType& ExplorationInformation<StateType, ValueType>::getStateReward(co
 
 template <typename StateType, typename ValueType>
 bool ExplorationInformation<StateType, ValueType>::isTerminal(const StateType& state) const {
-    const auto stateInfo = getStateInfo(state);
-    return state_properties::state_info::checkIsTerminal(stateInfo);
+    const auto state_info = getStateInfo(state);
+    return state_properties::state_info::checkIsTerminal(state_info);
 }
 
 template <typename StateType, typename ValueType>
 const typename ExplorationInformation<StateType, ValueType>::ActionType& ExplorationInformation<StateType, ValueType>::getStartRowOfGroup(
     const StateType& group) const {
-    return row_group_indices[group];
+    return _row_group_indices[group];
 }
 
 template <typename StateType, typename ValueType>
 size_t ExplorationInformation<StateType, ValueType>::getRowGroupSize(const StateType& group) const {
-    return row_group_indices[group + 1] - row_group_indices[group];
+    return _row_group_indices[group + 1] - _row_group_indices[group];
 }
 
 template <typename StateType, typename ValueType>

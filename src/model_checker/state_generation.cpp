@@ -59,10 +59,10 @@ StateGeneration<StateType, ValueType>::StateGeneration(
     initStateToIdCallback(exploration_information);
     if (build_rewards) {
         const size_t n_reward_models = _generator_ptr->getNumberOfRewardModels();
-        for (size_t rewIdx = 0U; rewIdx < n_reward_models; ++rewIdx) {
-            const auto& reward_info = _generator_ptr->getRewardModelInformation(rewIdx);
+        for (size_t rew_idx = 0U; rew_idx < n_reward_models; ++rew_idx) {
+            const auto& reward_info = _generator_ptr->getRewardModelInformation(rew_idx);
             if (reward_model == reward_info.getName()) {
-                _reward_model_index = rewIdx;
+                _reward_model_index = rew_idx;
             }
         }
         STORM_LOG_THROW(rewardLoaded(), storm::exceptions::UnexpectedException, "Cannot find required model " << reward_model);

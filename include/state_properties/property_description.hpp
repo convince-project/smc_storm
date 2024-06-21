@@ -24,6 +24,7 @@
 
 #include <storm/logic/BooleanLiteralFormula.h>
 #include <storm/logic/Formula.h>
+#include <storm/storage/expressions/Expression.h>
 
 namespace smc_storm::state_properties {
 
@@ -76,8 +77,8 @@ class PropertyDescription {
 
   private:
     // Helper vars
-    const storm::logic::BooleanLiteralFormula TrueFormula = storm::logic::BooleanLiteralFormula(true);
-    const storm::logic::BooleanLiteralFormula FalseFormula = storm::logic::BooleanLiteralFormula(false);
+    const storm::logic::BooleanLiteralFormula _true_formula = storm::logic::BooleanLiteralFormula(true);
+    const storm::logic::BooleanLiteralFormula _false_formula = storm::logic::BooleanLiteralFormula(false);
 
     // Private methods to precess formulae
     void processEventuallyFormula(const storm::logic::EventuallyFormula& formula);
@@ -94,8 +95,8 @@ class PropertyDescription {
     size_t _upper_bound_value = std::numeric_limits<size_t>::max();
 
     // Reference to the extracted formulae
-    std::reference_wrapper<const storm::logic::Formula> _condition_formula_ref{FalseFormula};
-    std::reference_wrapper<const storm::logic::Formula> _target_formula_ref{FalseFormula};
+    std::reference_wrapper<const storm::logic::Formula> _condition_formula_ref{_false_formula};
+    std::reference_wrapper<const storm::logic::Formula> _target_formula_ref{_false_formula};
     // Flag telling wether we need to negate the expression at generation time.
     bool _negate_condition = false;
     bool _negate_target = false;
