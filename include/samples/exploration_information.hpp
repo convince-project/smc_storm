@@ -29,7 +29,7 @@
 #include <storm/storage/BoostTypes.h>
 #include <storm/storage/SparseMatrix.h>
 
-#include "state_properties/state_info.h"
+#include "state_properties/state_info.hpp"
 
 namespace smc_storm::samples {
 /*!

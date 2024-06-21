@@ -18,7 +18,7 @@
 #include <storm/utility/macros.h>
 #include <storm/exceptions/IllegalFunctionCallException.h>
 
-#include "samples/exploration_information.h"
+#include "samples/exploration_information.hpp"
 
 namespace smc_storm::samples {
 

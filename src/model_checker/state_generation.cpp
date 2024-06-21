@@ -22,8 +22,8 @@
 
 #include <storm/exceptions/InvalidOperationException.h>
 
-#include "model_checker/state_generation.h"
-#include "samples/exploration_information.h"
+#include "model_checker/state_generation.hpp"
+#include "samples/exploration_information.hpp"
 
 namespace smc_storm::model_checker {
 

@@ -25,7 +25,7 @@
 #include <storm/utility/macros.h>
 #include <storm/utility/constants.h>
 
-#include "samples/sampling_results.h"
+#include "samples/sampling_results.hpp"
 
 namespace smc_storm::samples {
 SamplingResults::SamplingResults(const settings::SmcSettings& settings, state_properties::PropertyType const& prop)

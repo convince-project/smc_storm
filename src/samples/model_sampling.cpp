@@ -23,8 +23,8 @@
 
 #include <storm/utility/macros.h>
 
-#include "samples/exploration_information.h"
-#include "samples/model_sampling.h"
+#include "samples/exploration_information.hpp"
+#include "samples/model_sampling.hpp"
 
 namespace smc_storm::samples {
 

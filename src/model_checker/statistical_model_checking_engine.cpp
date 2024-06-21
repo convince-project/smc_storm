@@ -52,8 +52,8 @@
 #include <storm/exceptions/InvalidPropertyException.h>
 
 #include "state_properties/property_type.hpp"
-#include "samples/exploration_information.h"
-#include "model_checker/state_generation.h"
+#include "samples/exploration_information.hpp"
+#include "model_checker/state_generation.hpp"
 
 #include "model_checker/statistical_model_checking_engine.hpp"
 

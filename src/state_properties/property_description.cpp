@@ -28,7 +28,7 @@
 #include <storm/exceptions/IllegalArgumentValueException.h>
 #include <storm/exceptions/NotImplementedException.h>
 
-#include "state_properties/property_description.h"
+#include "state_properties/property_description.hpp"
 
 namespace smc_storm::state_properties {
 PropertyDescription::PropertyDescription(storm::logic::Formula const& formula) {

@@ -25,7 +25,7 @@
 #include <storm/storage/SymbolicModelDescription.h>
 #include <storm/storage/sparse/StateStorage.h>
 
-#include "state_properties/property_description.h"
+#include "state_properties/property_description.hpp"
 
 namespace smc_storm {
 namespace samples {

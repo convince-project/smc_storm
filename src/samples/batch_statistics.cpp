@@ -18,7 +18,7 @@
 #include <storm/exceptions/IllegalArgumentValueException.h>
 #include <storm/utility/macros.h>
 
-#include "samples/batch_statistics.h"
+#include "samples/batch_statistics.hpp"
 
 namespace smc_storm::samples {
 

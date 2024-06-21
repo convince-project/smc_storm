@@ -21,7 +21,7 @@
 #include <storm/utility/macros.h>
 #include <storm/exceptions/NotSupportedException.h>
 
-#include "samples/traces_exporter.h"
+#include "samples/traces_exporter.hpp"
 
 namespace smc_storm::samples
 {

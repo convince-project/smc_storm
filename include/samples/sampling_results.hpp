@@ -24,7 +24,7 @@
 #include <mutex>
 
 #include "settings/smc_settings.hpp"
-#include "samples/batch_statistics.h"
+#include "samples/batch_statistics.hpp"
 #include "samples/trace_information.hpp"
 #include "samples/batch_results.hpp"
 #include "state_properties/property_type.hpp"

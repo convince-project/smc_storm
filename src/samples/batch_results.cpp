@@ -25,7 +25,7 @@
 #include <storm/utility/macros.h>
 #include <storm/utility/constants.h>
 
-#include "samples/sampling_results.h"
+#include "samples/sampling_results.hpp"
 
 namespace smc_storm::samples {
 BatchResults::BatchResults(size_t const batch_size, const state_properties::PropertyType prop_type)

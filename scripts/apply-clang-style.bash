@@ -6,6 +6,6 @@ CODE_ROOT=$(dirname $(dirname $(realpath "${BASH_SOURCE[0]}")))
 pushd $CODE_ROOT > /dev/null || exit
 # Apply clang-format to all source files
 clang-format --style=file -i src/**/*.cpp include/**/*.h* test/*.cpp
-clang-tidy --config-file=.clang-tidy -p build **/**/*.{cpp,hpp,h} **/*.cpp
+clang-tidy --config-file=.clang-tidy src/**/*.cpp include/**/*.{hpp,h} **/*.cpp -p build
 # Return to the original directory
 popd > /dev/null || exit

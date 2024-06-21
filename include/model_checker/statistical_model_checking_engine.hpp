@@ -28,11 +28,11 @@
 #include <storm/utility/ConstantsComparator.h>
 
 #include "settings/smc_settings.hpp"
-#include "state_properties/state_info.h"
-#include "samples/sampling_results.h"
-#include "samples/model_sampling.h"
+#include "state_properties/state_info.hpp"
+#include "samples/sampling_results.hpp"
+#include "samples/model_sampling.hpp"
 #include "samples/trace_information.hpp"
-#include "samples/traces_exporter.h"
+#include "samples/traces_exporter.hpp"
 
 // Fwd declaration for storm::Environment
 namespace storm {
