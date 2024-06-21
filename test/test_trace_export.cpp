@@ -24,10 +24,10 @@
 #include "settings/smc_settings.hpp"
 #include "model_checker/statistical_model_checker.hpp"
 
-const std::filesystem::path test_path{"test_files"};
-const std::filesystem::path test_traces_path{"test_traces"};
-constexpr char separator = ';';
-constexpr char forbidden_char = ',';
+const std::filesystem::path TEST_PATH{"test_files"};
+const std::filesystem::path TEST_TRACES_PATH{"test_traces"};
+constexpr char SEPARATOR = ';';
+constexpr char FORBIDDEN_CHAR = ',';
 
 smc_storm::settings::SmcSettings getSmcSettings(const std::string& traces_file, const std::filesystem::path& jani_file, const std::string& property, const std::string& constants = "") {
     smc_storm::settings::SmcSettings settings;
@@ -37,7 +37,7 @@ smc_storm::settings::SmcSettings getSmcSettings(const std::string& traces_file, 
     // Set Chernoff to default method for better stability in tests
     settings.stat_method = "chernoff";
     settings.max_n_traces = 10;
-    settings.traces_file = (test_traces_path / traces_file).string();
+    settings.traces_file = (TEST_TRACES_PATH / traces_file).string();
     return settings;
 }
 
@@ -52,14 +52,14 @@ bool lineValid(const std::string& line, size_t expected_separators) {
     if (line.empty()) {
         return true;
     }
-    const size_t n_separators = std::count(line.begin(), line.end(), separator);
-    const size_t n_forbidden = std::count(line.begin(), line.end(), forbidden_char);
+    const size_t n_separators = std::count(line.begin(), line.end(), SEPARATOR);
+    const size_t n_forbidden = std::count(line.begin(), line.end(), FORBIDDEN_CHAR);
     return n_separators == expected_separators && n_forbidden == 0U;
 }
 
 
 TEST(ExportTracesCommonCaseTest, TestLeaderSync) {
-    const std::filesystem::path jani_file = test_path / "leader_sync.3-2.v1.jani";
+    const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
     const auto smc_settings = getSmcSettings("leader_sync.csv", jani_file, "time");
     const double result = getVerificationResult<double>(smc_settings);
     EXPECT_TRUE(std::filesystem::exists(smc_settings.traces_file));
@@ -69,8 +69,8 @@ TEST(ExportTracesCommonCaseTest, TestLeaderSync) {
     std::string line;
     // Use the first line to check the amount of semicolons in the header
     std::getline(traces_file, line);
-    const size_t n_separators = std::count(line.begin(), line.end(), separator);
-    const size_t n_forbidden = std::count(line.begin(), line.end(), forbidden_char);
+    const size_t n_separators = std::count(line.begin(), line.end(), SEPARATOR);
+    const size_t n_forbidden = std::count(line.begin(), line.end(), FORBIDDEN_CHAR);
     EXPECT_GT(n_separators, 0U);
     EXPECT_EQ(n_forbidden, 0U);
     while (true) {
@@ -89,7 +89,7 @@ TEST(ExportTracesCommonCaseTest, TestLeaderSync) {
 }
 
 TEST(ExportTracesDeathTest, TestLeaderSync) {
-    const std::filesystem::path jani_file = test_path / "leader_sync.3-2.v1.jani";
+    const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
     const auto smc_settings = getSmcSettings("leader_sync_death.csv", jani_file, "time");
     // Make sure the file already exists
     std::ofstream ofs(smc_settings.traces_file);
@@ -101,8 +101,8 @@ TEST(ExportTracesDeathTest, TestLeaderSync) {
 
 int main(int argc, char** argv) {
     // Make sure the initial folder status is as expected
-    std::filesystem::remove_all(test_traces_path);
-    std::filesystem::create_directory(test_traces_path);
+    std::filesystem::remove_all(TEST_TRACES_PATH);
+    std::filesystem::create_directory(TEST_TRACES_PATH);
     ::testing::InitGoogleTest(&argc, argv);
     (void)(::testing::GTEST_FLAG(death_test_style) = "threadsafe");
     return RUN_ALL_TESTS();
