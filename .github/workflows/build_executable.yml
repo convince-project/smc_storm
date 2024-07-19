@@ -25,9 +25,9 @@ jobs:
             - name: Checkout STORM
               uses: actions/checkout@v4
               with:
-                repository: boschresearch/storm
+                repository: moves-rwth/storm
                 # Temporary fixed commit. Remove once we switch to the official storm repo
-                ref: af3337abf9f01100c009d5e38ee5867ceafd84b9
+                ref: master
                 path: external_dependencies/storm
             # Enable ccache
             - name: ccache

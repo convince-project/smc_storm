@@ -178,11 +178,8 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
 
 template <typename ModelType, typename StateType>
 std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeReachabilityRewards(
-    const storm::Environment& env, storm::logic::RewardMeasureType reward_type,
+    const storm::Environment& env,
     const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) {
-    STORM_LOG_THROW(
-        reward_type == storm::logic::RewardMeasureType::Expectation, storm::exceptions::InvalidPropertyException,
-        "Variance reward measures not supported.");
     // Prepare the results holder
     samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::R);
 
