@@ -178,8 +178,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
 
 template <typename ModelType, typename StateType>
 std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeReachabilityRewards(
-    const storm::Environment& env,
-    const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) {
+    const storm::Environment& env, const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) {
     // Prepare the results holder
     samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::R);
 
