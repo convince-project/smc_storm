@@ -104,7 +104,7 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @return The result of the evaluation
      */
     virtual std::unique_ptr<storm::modelchecker::CheckResult> computeReachabilityRewards(
-        [[maybe_unused]] const storm::Environment& env, storm::logic::RewardMeasureType reward_type,
+        [[maybe_unused]] const storm::Environment& env,
         const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) override;
 
   private:

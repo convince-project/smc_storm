@@ -8,6 +8,8 @@ on:
       - "add-clang-format-check"
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
+  schedule:  # This is a weekly schedule, running only on the "main" branch every Sunday at midnight
+    - cron: '0 0 * * 0'
 
 # Make sure that there is one job per branch
 concurrency:
@@ -25,9 +27,9 @@ jobs:
             - name: Checkout STORM
               uses: actions/checkout@v4
               with:
-                repository: boschresearch/storm
+                repository: moves-rwth/storm
                 # Temporary fixed commit. Remove once we switch to the official storm repo
-                ref: af3337abf9f01100c009d5e38ee5867ceafd84b9
+                ref: master
                 path: external_dependencies/storm
             # Enable ccache
             - name: ccache
@@ -71,13 +73,16 @@ jobs:
                     ctest
             - name: Copy lib and executables in deploy folder
               run: |
+                    # List all existing dependencies of libstorm
+                    echo "libstorm dependencies:"
+                    ldd external_dependencies/storm/build/lib/libstorm.so
                     mkdir deployment
                     cd deployment
                     # Copy the dependencies
                     mkdir 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm.so 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm-parsers.so 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/carl/libcarl.so.14.27 3rd_party
+                    cp ../external_dependencies/storm/build/resources/3rdparty/carl/libcarl.so.14.28 3rd_party
                     cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libspot.so.0 3rd_party
                     cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libbddx.so.0 3rd_party
                     # Copy the smc_storm lib
