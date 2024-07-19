@@ -82,7 +82,7 @@ jobs:
                     mkdir 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm.so 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm-parsers.so 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/carl/lib/libcarl.so.14.27 3rd_party
+                    cp ../external_dependencies/storm/build/resources/3rdparty/carl/libcarl.so.14.28 3rd_party
                     cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libspot.so.0 3rd_party
                     cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libbddx.so.0 3rd_party
                     # Copy the smc_storm lib
