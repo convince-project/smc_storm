@@ -8,6 +8,8 @@ on:
       - "add-clang-format-check"
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
+  schedule:  # This is a weekly schedule, running only on the "main" branch every Sunday at midnight
+    - cron: '0 0 * * 0'
 
 # Make sure that there is one job per branch
 concurrency:
