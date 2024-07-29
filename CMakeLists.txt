@@ -50,9 +50,13 @@ if(BUILD_TESTING)
     configure_file(${TEST_DIRECTORY}/${test_file} ${test_file} COPYONLY)
   endforeach()
 
-  add_executable(test_models test/test_models.cpp)
-  target_link_libraries(test_models ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
-  gtest_add_tests(TARGET test_models WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+  add_executable(test_jani_models test/test_jani_models.cpp)
+  target_link_libraries(test_jani_models ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
+  gtest_add_tests(TARGET test_jani_models WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+  # add_executable(test_prism_models test/test_prism_models.cpp)
+  # target_link_libraries(test_prism_models ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
+  # gtest_add_tests(TARGET test_prism_models WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
   add_executable(test_trace_export test/test_trace_export.cpp)
   target_link_libraries(test_trace_export ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)

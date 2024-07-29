@@ -32,23 +32,17 @@ struct SymbolicModelAndProperty {
 };
 
 /*!
- * @brief Given a path to a model and the property to verify, generate the model and property to be used in the model checking engine
- * @param path_to_model The path to the model file
- * @param property_name The name of the property to verify
- * @param user_constants Value to assign to constants that might be undefined in the input model
+ * @brief Given the ScmSettings, generate the model and properties required by the model checking engine
+ * @param settings The settings object containing the path to the model and the properties to verify
  * @return Loaded instance of the requested model and property
  */
-SymbolicModelAndProperty parseModelAndProperty(
-    const std::filesystem::path& path_to_model, const std::string& property_name, const std::string& user_constants);
+SymbolicModelAndProperty parseModelAndProperty(const settings::SmcSettings& settings);
 
 /*!
- * @brief Given a path to a JANI model and the property to verify, generate the model and property to be used in the model checking engine
- * @param path_to_model The path to the model file
- * @param property_name The name of the property to verify
- * @param user_constants Value to assign to constants that might be undefined in the input model
+ * @brief Given the ScmSettings referring to a Jani model, generate the model and properties to be used in the model checking engine
+ * @param settings The settings object containing the path to the model and the properties to verify
  * @return Loaded instance of the requested model and property
  */
-SymbolicModelAndProperty parseJaniModelAndProperty(
-    const std::filesystem::path& path_to_model, const std::string& property_name, const std::string& user_constants);
+SymbolicModelAndProperty parseJaniModelAndProperty(const settings::SmcSettings& settings);
 
 }  // namespace smc_storm::parser

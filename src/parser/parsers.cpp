@@ -20,42 +20,68 @@
 #include <storm-parsers/parser/PrismParser.h>
 #include <storm/api/builder.h>
 #include <storm/api/properties.h>
+#include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
 #include <storm/exceptions/NotSupportedException.h>
 #include <storm/utility/macros.h>
 
+#include "settings/smc_settings.hpp"
 #include "parser/parsers.hpp"
 
 namespace smc_storm::parser {
-SymbolicModelAndProperty parseModelAndProperty(
-    const std::filesystem::path& path_to_model, const std::string& property_name, const std::string& user_constants) {
+SymbolicModelAndProperty parseModelAndProperty(const settings::SmcSettings& settings) {
+    // Ensure settings validity
+    STORM_LOG_THROW(settings.validModel(), storm::exceptions::InvalidModelException, "Invalid model file provided.");
+    STORM_LOG_THROW(settings.validProperties(), storm::exceptions::InvalidPropertyException, "Invalid properties provided.");
+    const std::filesystem::path path_to_model(settings.model_file);
     if (path_to_model.extension() == ".jani") {
-        return parseJaniModelAndProperty(path_to_model, property_name, user_constants);
+        return parseJaniModelAndProperty(settings);
     }
     STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Only JANI models are supported for now.");
 }
 
-SymbolicModelAndProperty parseJaniModelAndProperty(
-    const std::filesystem::path& path_to_model, const std::string& property_name, const std::string& user_constants) {
+SymbolicModelAndProperty parseJaniModelAndProperty(const settings::SmcSettings& settings) {
     // Load the required model and property
-    const auto model_and_formulae = storm::parser::JaniParser<storm::RationalNumber>::parse(path_to_model.string(), true);
+    const auto model_and_formulae = storm::parser::JaniParser<storm::RationalNumber>::parse(settings.model_file, true);
     model_and_formulae.first.checkValid();
     const auto model_constants_map = model_and_formulae.first.getConstantsSubstitution();
     // Fill the returned structure
     SymbolicModelAndProperty model_and_property;
     model_and_property.model = storm::storage::SymbolicModelDescription(model_and_formulae.first);
     model_and_property.property.clear();
-    model_and_property.property.reserve(1U);
-    for (const auto& property : model_and_formulae.second) {
-        if (property.getName() == property_name) {
-            // Do not forget to substitute Jani constants in the property, too!
-            model_and_property.property.emplace_back(property.substitute(model_constants_map));
-            break;
+    if (!settings.custom_property.empty()) {
+        // TODO
+        STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Custom properties are not supported yet.");
+    } else {
+        // Get the list of properties from a comma separated list
+        std::vector<std::string> properties_ids = {};
+        std::string properties_string = settings.properties_names;
+        properties_string.erase(
+            std::remove_if(properties_string.begin(), properties_string.end(), [](char c) { return c == ' '; }),
+            std::end(properties_string));
+        std::stringstream properties_stream(properties_string);
+        while (properties_stream.good()) {
+            std::string property_id;
+            std::getline(properties_stream, property_id, ',');
+            properties_ids.emplace_back(property_id);
+        }
+        STORM_LOG_THROW(!properties_ids.empty(), storm::exceptions::InvalidPropertyException, "No properties provided.");
+        model_and_property.property.reserve(properties_ids.size());
+        for (const auto& property_id : properties_ids) {
+            bool property_found = false;
+            for (const auto& property : model_and_formulae.second) {
+                if (property.getName() == property_id) {
+                    // Do not forget to substitute Jani constants in the property, too!
+                    model_and_property.property.emplace_back(property.substitute(model_constants_map));
+                    property_found = true;
+                    break;
+                }
+            }
+            STORM_LOG_THROW(property_found, storm::exceptions::InvalidPropertyException, "Cannot find " << property_id << " in model.");
         }
     }
-    STORM_LOG_THROW(!model_and_property.property.empty(), storm::exceptions::InvalidPropertyException, "Property not found in model.");
     // Add the user-defined constants
-    const auto user_constants_map = model_and_property.model.parseConstantDefinitions(user_constants);
+    const auto user_constants_map = model_and_property.model.parseConstantDefinitions(settings.constants);
     model_and_property.model = model_and_property.model.preprocess(user_constants_map);
     model_and_property.property = storm::api::substituteConstantsInProperties(model_and_property.property, user_constants_map);
     model_and_property.property = storm::api::substituteTranscendentalNumbersInProperties(model_and_property.property);

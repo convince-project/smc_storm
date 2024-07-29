@@ -33,8 +33,8 @@ smc_storm::settings::SmcSettings getSmcSettings(
     const std::string& traces_file, const std::filesystem::path& jani_file, const std::string& property,
     const std::string& constants = "") {
     smc_storm::settings::SmcSettings settings;
-    settings.model = jani_file.string();
-    settings.property_name = property;
+    settings.model_file = jani_file.string();
+    settings.properties_names = property;
     settings.constants = constants;
     // Set Chernoff to default method for better stability in tests
     settings.stat_method = "chernoff";
