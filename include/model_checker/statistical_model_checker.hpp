@@ -39,9 +39,13 @@ class StatisticalModelChecker {
     /*!
      * @brief Generate a new instance of the StatisticalModelChecker, using the provided settings to load the model and the property to
      * verify
+     * @param model
+     * @param property
      * @param settings
      */
-    StatisticalModelChecker(const settings::SmcSettings& settings);
+    StatisticalModelChecker(
+        const storm::storage::SymbolicModelDescription& model, const storm::jani::Property& property,
+        const settings::SmcSettings& settings);
     ~StatisticalModelChecker();
 
     /*!

@@ -36,10 +36,11 @@
 
 #include "model_checker/statistical_model_checker.hpp"
 #include "model_checker/statistical_model_checking_engine.hpp"
-#include "parser/parsers.hpp"
 
 namespace smc_storm::model_checker {
-StatisticalModelChecker::StatisticalModelChecker(const settings::SmcSettings& settings) : _settings(settings) {
+StatisticalModelChecker::StatisticalModelChecker(
+    const storm::storage::SymbolicModelDescription& model, const storm::jani::Property& property, const settings::SmcSettings& settings)
+    : _settings{settings}, _model{model}, _property{property} {
     // Init loggers
     storm::utility::setUp();
     // Check if settings have been already initialized
@@ -47,10 +48,6 @@ StatisticalModelChecker::StatisticalModelChecker(const settings::SmcSettings& se
         // Set some settings objects.
         storm::settings::initializeAll("smc_storm", "smc_storm");
     }
-    const auto model_and_properties = parser::parseModelAndProperty(_settings);
-    STORM_LOG_THROW(model_and_properties.property.size() == 1, storm::exceptions::UnexpectedException, "Only one property is expected.");
-    _model = model_and_properties.model;
-    _property = model_and_properties.property;
 }
 
 StatisticalModelChecker::~StatisticalModelChecker() = default;
@@ -60,8 +57,6 @@ void StatisticalModelChecker::printProperty() const {
 }
 
 void StatisticalModelChecker::check() {
-    STORM_PRINT("CONVINCE Statistical Model Checker\n");
-    STORM_PRINT("Checking model: " << _settings.model_file << std::endl);
     const storm::modelchecker::CheckTask<> check_task(*(_property.front().getRawFormula()), true);
     if (_model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::DTMC) {
         StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>> checker(_model, _settings);

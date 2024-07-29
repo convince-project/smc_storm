@@ -28,7 +28,7 @@
 #include "parser/parsers.hpp"
 
 namespace smc_storm::parser {
-SymbolicModelAndProperty parseModelAndProperty(const smc_storm::settings::SmcSettings& settings) {
+SymbolicModelAndProperty parseModelAndProperty(const smc_storm::settings::UserSettings& settings) {
     // Ensure settings validity
     STORM_LOG_THROW(settings.validModel(), storm::exceptions::InvalidModelException, "Invalid model file provided.");
     STORM_LOG_THROW(settings.validProperties(), storm::exceptions::InvalidPropertyException, "Invalid properties provided.");
@@ -39,7 +39,7 @@ SymbolicModelAndProperty parseModelAndProperty(const smc_storm::settings::SmcSet
     STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Only JANI models are supported for now.");
 }
 
-SymbolicModelAndProperty parseJaniModelAndProperty(const smc_storm::settings::SmcSettings& settings) {
+SymbolicModelAndProperty parseJaniModelAndProperty(const smc_storm::settings::UserSettings& settings) {
     // Load the required model and property
     const auto model_and_formulae = storm::parser::JaniParser<storm::RationalNumber>::parse(settings.model_file, true);
     model_and_formulae.first.checkValid();

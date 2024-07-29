@@ -19,49 +19,26 @@
 #include <filesystem>
 #include <string>
 
+#include "settings/user_settings.hpp"
+
 namespace smc_storm::settings {
 /*!
  * @brief Data structure holding all configurations required by SMC_STORM
  */
 struct SmcSettings {
-    std::string model_file;
-    std::string properties_file = "";
-    std::string properties_names = "";
-    std::string custom_property = "";
-    std::string constants{""};
-    std::string stat_method{""};
-    std::string traces_file{""};
-    double confidence{0.95};
-    double epsilon{0.01};
-    int max_trace_length{1000000};
-    size_t max_n_traces{0U};
-    size_t n_threads{1U};
-    size_t batch_size{100U};
-    bool show_statistics{false};
+    const std::string stat_method;
+    const std::string traces_file;
+    const double confidence;
+    const double epsilon;
+    const int max_trace_length;
+    const size_t max_n_traces;
+    const size_t n_threads;
+    const size_t batch_size;
+    const bool show_statistics;
 
-    bool validModel() const {
-        const bool valid_file = !model_file.empty() && std::filesystem::exists(model_file);
-        const auto extension = std::filesystem::path(model_file).extension();
-        return valid_file && (extension == ".jani" || extension == ".prism");
-    }
-
-    bool validProperties() const {
-        const auto model_extension = std::filesystem::path(model_file).extension();
-        // At least one pf the two property definition should be empty.
-        // If both are empty, all available properties will be verified
-        const bool valid_property_definition = properties_names.empty() || custom_property.empty();
-        // Jani models
-        if (model_extension == ".jani") {
-            // The property file shouldn't be provided, since it is contained in the model itself
-            return properties_file.empty() && valid_property_definition;
-        }
-        // PRISM models
-        if (!properties_file.empty()) {
-            const auto properties_extension = std::filesystem::path(properties_file).extension();
-            const bool valid_properties_file = properties_extension == ".props" && std::filesystem::exists(properties_file);
-            return valid_properties_file && custom_property.empty();
-        }
-        return !custom_property.empty();
-    }
+    SmcSettings(const UserSettings& user_settings)
+        : stat_method{user_settings.stat_method}, traces_file{user_settings.traces_file}, confidence{user_settings.confidence},
+          epsilon{user_settings.epsilon}, max_trace_length{user_settings.max_trace_length}, max_n_traces{user_settings.max_n_traces},
+          n_threads{user_settings.n_threads}, batch_size{user_settings.batch_size}, show_statistics{user_settings.show_statistics} {}
 };
 }  // namespace smc_storm::settings

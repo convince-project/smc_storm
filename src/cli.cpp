@@ -17,15 +17,22 @@
 
 #include "settings/cmd_settings.hpp"
 #include "model_checker/statistical_model_checker.hpp"
+#include "parser/parsers.hpp"
 
 int main (int argc, char *argv[]) {
     // Get the Cmd Arguments
     smc_storm::settings::CmdSettings cmd_settings;
     cmd_settings.parse(argc, argv);
+    const auto user_settings = cmd_settings.getSettings();
+    const auto model_and_properties = smc_storm::parser::parseModelAndProperty(user_settings);
+    const auto mc_settings = smc_storm::settings::SmcSettings(user_settings);
     // Perform model checking
-    const auto smc_settings = cmd_settings.getSettings();
-    smc_storm::model_checker::StatisticalModelChecker smc(smc_settings);
-    smc.printProperty();
-    smc.check();
+    STORM_PRINT("CONVINCE Statistical Model Checker\n");
+    STORM_PRINT("Checking model: " << user_settings.model_file << std::endl);
+    for (const auto& property : model_and_properties.property) {
+        smc_storm::model_checker::StatisticalModelChecker smc(model_and_properties.model, property, mc_settings);
+        smc.printProperty();
+        smc.check();
+    }
     return 0;
 }

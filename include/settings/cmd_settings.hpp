@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "settings/smc_settings.hpp"
+#include "settings/user_settings.hpp"
 #include <argparse/argparse.hpp>
 
 namespace smc_storm::settings {
@@ -89,7 +89,7 @@ class CmdSettings {
         }
     }
 
-    SmcSettings getSettings() const {
+    UserSettings getSettings() const {
         if (!_parsing_done) {
             throw std::runtime_error("Settings not parsed yet");
         }
@@ -99,6 +99,6 @@ class CmdSettings {
   private:
     argparse::ArgumentParser _parser;
     bool _parsing_done = false;
-    SmcSettings _loaded_settings;
+    UserSettings _loaded_settings;
 };
 }  // namespace smc_storm::settings
