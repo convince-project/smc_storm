@@ -16,8 +16,8 @@
  */
 
 #pragma once
-#include <string>
 #include <filesystem>
+#include <string>
 
 namespace smc_storm::settings {
 /*!
@@ -63,6 +63,5 @@ struct SmcSettings {
         }
         return !custom_property.empty();
     }
-
 };
 }  // namespace smc_storm::settings

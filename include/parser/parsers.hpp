@@ -21,6 +21,8 @@
 #include <storm/storage/jani/Property.h>
 #include <storm/storage/SymbolicModelDescription.h>
 
+#include "settings/smc_settings.hpp"
+
 namespace smc_storm::parser {
 /*!
  * @brief A struct that holds a symbolic model and its properties, since Jani contains both in the same file.
@@ -36,13 +38,17 @@ struct SymbolicModelAndProperty {
  * @param settings The settings object containing the path to the model and the properties to verify
  * @return Loaded instance of the requested model and property
  */
-SymbolicModelAndProperty parseModelAndProperty(const settings::SmcSettings& settings);
+SymbolicModelAndProperty parseModelAndProperty(const smc_storm::settings::SmcSettings& settings);
 
 /*!
  * @brief Given the ScmSettings referring to a Jani model, generate the model and properties to be used in the model checking engine
  * @param settings The settings object containing the path to the model and the properties to verify
  * @return Loaded instance of the requested model and property
  */
-SymbolicModelAndProperty parseJaniModelAndProperty(const settings::SmcSettings& settings);
+SymbolicModelAndProperty parseJaniModelAndProperty(const smc_storm::settings::SmcSettings& settings);
+
+std::vector<storm::jani::Property> filterProperties(
+    const std::vector<storm::jani::Property>& properties, const std::vector<std::string>& properties_ids,
+    const std::map<storm::expressions::Variable, storm::expressions::Expression>& model_constants_map);
 
 }  // namespace smc_storm::parser
