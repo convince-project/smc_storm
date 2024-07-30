@@ -36,7 +36,9 @@ class CmdSettings {
         _parser.add_argument("--properties-file")
             .default_value(_loaded_settings.properties_file)
             .help("Path to the properties file (PRISM only).");
-        _parser.add_argument("--properties-name").default_value(_loaded_settings.properties_names).help("Name of the property to check.");
+        _parser.add_argument("--properties-names")
+            .default_value(_loaded_settings.properties_names)
+            .help("Names of the properties to check, separated by commas. If empty, all properties will be checked.");
         _parser.add_argument("--custom-property").default_value(_loaded_settings.custom_property).help("Custom property to check.");
         _parser.add_argument("--stat-method").default_value(_loaded_settings.stat_method).help("Statistical method to use.");
         _parser.add_argument("--traces-file").default_value(_loaded_settings.traces_file).help("Path to the traces file.");
@@ -72,7 +74,7 @@ class CmdSettings {
             _loaded_settings.model_file = _parser.get<std::string>("--model");
             _loaded_settings.constants = _parser.get<std::string>("--constants");
             _loaded_settings.properties_file = _parser.get<std::string>("--properties-file");
-            _loaded_settings.properties_names = _parser.get<std::string>("--properties-name");
+            _loaded_settings.properties_names = _parser.get<std::string>("--properties-names");
             _loaded_settings.custom_property = _parser.get<std::string>("--custom-property");
             _loaded_settings.stat_method = _parser.get<std::string>("--stat-method");
             _loaded_settings.traces_file = _parser.get<std::string>("--traces-file");
