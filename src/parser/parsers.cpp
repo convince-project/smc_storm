@@ -39,7 +39,9 @@ SymbolicModelAndProperty parseModelAndProperties(const smc_storm::settings::User
     } else if (path_to_model.extension() == ".prism") {
         return parsePrismModelAndProperties(settings);
     }
-    STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Unrecognised file extension " << path_to_model.extension() << ": Only .jani and .prism are supported.");
+    STORM_LOG_THROW(
+        false, storm::exceptions::NotSupportedException,
+        "Unrecognised file extension " << path_to_model.extension() << ": Only .jani and .prism are supported.");
 }
 
 SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::UserSettings& settings) {
@@ -49,8 +51,8 @@ SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::
     const auto model_constants_map = model_and_formulae.first.getConstantsSubstitution();
     std::vector<storm::jani::Property> loaded_properties;
     if (!settings.custom_property.empty()) {
-        // TODO
-        STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Custom properties are not supported yet.");
+        const storm::parser::FormulaParser formula_parser(model_and_formulae.first.getManager().getSharedPointer());
+        loaded_properties = formula_parser.parseFromString(settings.custom_property);
     } else {
         // Get the list of properties from a comma separated list
         const auto properties_ids = getRequestedProperties(settings.properties_names);
@@ -64,16 +66,14 @@ SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::
     return model_and_property;
 }
 
-SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings)
-{
+SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings) {
     const auto prism_model = storm::parser::PrismParser::parse(settings.model_file);
     prism_model.checkValidity();
     const auto model_constants_map = prism_model.getConstantsSubstitution();
     const storm::parser::FormulaParser formula_parser(prism_model);
     std::vector<storm::jani::Property> loaded_properties;
     if (!settings.custom_property.empty()) {
-        // TODO
-        STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Custom properties are not supported yet.");
+        loaded_properties = formula_parser.parseFromString(settings.custom_property);
     } else {
         loaded_properties = formula_parser.parseFromFile(settings.properties_file);
         const auto properties_ids = getRequestedProperties(settings.properties_names);
