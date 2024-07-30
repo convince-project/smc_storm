@@ -55,4 +55,6 @@ std::vector<storm::jani::Property> filterProperties(
     const std::vector<storm::jani::Property>& properties, const std::vector<std::string>& properties_ids,
     const std::map<storm::expressions::Variable, storm::expressions::Expression>& model_constants_map);
 
+SymbolicModelAndProperty substituteConstants(const SymbolicModelAndProperty& model_and_properties, const std::string constants);
+
 }  // namespace smc_storm::parser

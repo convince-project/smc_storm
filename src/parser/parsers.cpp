@@ -47,29 +47,17 @@ SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::
     const auto model_and_formulae = storm::parser::JaniParser<storm::RationalNumber>::parse(settings.model_file, true);
     model_and_formulae.first.checkValid();
     const auto model_constants_map = model_and_formulae.first.getConstantsSubstitution();
-    // Fill the returned structure
-    SymbolicModelAndProperty model_and_property;
-    model_and_property.model = storm::storage::SymbolicModelDescription(model_and_formulae.first);
-    model_and_property.property.clear();
+    std::vector<storm::jani::Property> loaded_properties;
     if (!settings.custom_property.empty()) {
         // TODO
         STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Custom properties are not supported yet.");
     } else {
         // Get the list of properties from a comma separated list
         const auto properties_ids = getRequestedProperties(settings.properties_names);
-        model_and_property.property = filterProperties(model_and_formulae.second, properties_ids, model_constants_map);
+        loaded_properties = filterProperties(model_and_formulae.second, properties_ids, model_constants_map);
     }
     // Add the user-defined constants
-    const auto user_constants_map = model_and_property.model.parseConstantDefinitions(settings.constants);
-    model_and_property.model = model_and_property.model.preprocess(user_constants_map);
-    model_and_property.property = storm::api::substituteConstantsInProperties(model_and_property.property, user_constants_map);
-    model_and_property.property = storm::api::substituteTranscendentalNumbersInProperties(model_and_property.property);
-    // Make sure that all properties have no undefined constant
-    for (const auto& property : model_and_property.property) {
-        STORM_LOG_THROW(
-            property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException,
-            "The property uses undefined constants!!!");
-    }
+    auto model_and_property = substituteConstants({model_and_formulae.first, loaded_properties}, settings.constants);
     // Expand the model
     storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
     storm::api::simplifyJaniModel(model_and_property.model.asJaniModel(), model_and_property.property, supported_features);
@@ -91,18 +79,8 @@ SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings:
         const auto properties_ids = getRequestedProperties(settings.properties_names);
         loaded_properties = filterProperties(loaded_properties, properties_ids, model_constants_map);
     }
-    SymbolicModelAndProperty model_and_property {prism_model, loaded_properties};
-    // Add the user-defined constants
-    const auto user_constants_map = model_and_property.model.parseConstantDefinitions(settings.constants);
-    model_and_property.model = model_and_property.model.preprocess(user_constants_map);
-    model_and_property.property = storm::api::substituteConstantsInProperties(model_and_property.property, user_constants_map);
-    model_and_property.property = storm::api::substituteTranscendentalNumbersInProperties(model_and_property.property);
-    // Make sure that all properties have no undefined constant
-    for (const auto& property : model_and_property.property) {
-        STORM_LOG_THROW(
-            property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException,
-            "The property uses undefined constants!!!");
-    }
+    // Substitute constants in the model and properties
+    const auto model_and_property = substituteConstants({prism_model, loaded_properties}, settings.constants);
     return model_and_property;
 }
 
@@ -150,6 +128,22 @@ std::vector<storm::jani::Property> filterProperties(
         }
     }
     return filtered_properties;
+}
+
+SymbolicModelAndProperty substituteConstants(const SymbolicModelAndProperty& model_and_properties, const std::string constants) {
+    SymbolicModelAndProperty ret_model_and_properties;
+    // Add the user-defined constants
+    const auto user_constants_map = model_and_properties.model.parseConstantDefinitions(constants);
+    ret_model_and_properties.model = model_and_properties.model.preprocess(user_constants_map);
+    ret_model_and_properties.property = storm::api::substituteConstantsInProperties(model_and_properties.property, user_constants_map);
+    ret_model_and_properties.property = storm::api::substituteTranscendentalNumbersInProperties(ret_model_and_properties.property);
+    // Make sure that all properties have no undefined constant
+    for (const auto& property : ret_model_and_properties.property) {
+        STORM_LOG_THROW(
+            property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException,
+            "The property uses undefined constants!!!");
+    }
+    return ret_model_and_properties;
 }
 
 }  // namespace smc_storm::parser
