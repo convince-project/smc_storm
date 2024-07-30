@@ -38,14 +38,18 @@ struct SymbolicModelAndProperty {
  * @param settings The settings object containing the path to the model and the properties to verify
  * @return Loaded instance of the requested model and property
  */
-SymbolicModelAndProperty parseModelAndProperty(const smc_storm::settings::UserSettings& settings);
+SymbolicModelAndProperty parseModelAndProperties(const smc_storm::settings::UserSettings& settings);
 
 /*!
  * @brief Given the ScmSettings referring to a Jani model, generate the model and properties to be used in the model checking engine
  * @param settings The settings object containing the path to the model and the properties to verify
  * @return Loaded instance of the requested model and property
  */
-SymbolicModelAndProperty parseJaniModelAndProperty(const smc_storm::settings::UserSettings& settings);
+SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::UserSettings& settings);
+
+SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings);
+
+std::vector<std::string> getRequestedProperties(const std::string& properties_string);
 
 std::vector<storm::jani::Property> filterProperties(
     const std::vector<storm::jani::Property>& properties, const std::vector<std::string>& properties_ids,

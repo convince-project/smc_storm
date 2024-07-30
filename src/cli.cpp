@@ -24,7 +24,7 @@ int main (int argc, char *argv[]) {
     smc_storm::settings::CmdSettings cmd_settings;
     cmd_settings.parse(argc, argv);
     const auto user_settings = cmd_settings.getSettings();
-    const auto model_and_properties = smc_storm::parser::parseModelAndProperty(user_settings);
+    const auto model_and_properties = smc_storm::parser::parseModelAndProperties(user_settings);
     const auto mc_settings = smc_storm::settings::SmcSettings(user_settings);
     // Perform model checking
     STORM_PRINT("CONVINCE Statistical Model Checker\n");

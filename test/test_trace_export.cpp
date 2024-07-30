@@ -47,7 +47,7 @@ smc_storm::settings::UserSettings getSmcSettings(
 template <typename ResultType>
 ResultType getVerificationResult(const smc_storm::settings::UserSettings& settings) {
     const smc_storm::settings::SmcSettings smc_settings(settings);
-    const auto model_and_properties = smc_storm::parser::parseModelAndProperty(settings);
+    const auto model_and_properties = smc_storm::parser::parseModelAndProperties(settings);
     smc_storm::model_checker::StatisticalModelChecker smc(model_and_properties.model, model_and_properties.property[0], smc_settings);
     smc.check();
     return smc.getResult<ResultType>();

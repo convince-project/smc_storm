@@ -16,6 +16,7 @@
  */
 
 #include <storm-parsers/api/storm-parsers.h>
+#include <storm-parsers/parser/FormulaParser.h>
 #include <storm-parsers/parser/JaniParser.h>
 #include <storm-parsers/parser/PrismParser.h>
 #include <storm/api/builder.h>
@@ -28,18 +29,20 @@
 #include "parser/parsers.hpp"
 
 namespace smc_storm::parser {
-SymbolicModelAndProperty parseModelAndProperty(const smc_storm::settings::UserSettings& settings) {
+SymbolicModelAndProperty parseModelAndProperties(const smc_storm::settings::UserSettings& settings) {
     // Ensure settings validity
     STORM_LOG_THROW(settings.validModel(), storm::exceptions::InvalidModelException, "Invalid model file provided.");
     STORM_LOG_THROW(settings.validProperties(), storm::exceptions::InvalidPropertyException, "Invalid properties provided.");
     const std::filesystem::path path_to_model(settings.model_file);
     if (path_to_model.extension() == ".jani") {
-        return parseJaniModelAndProperty(settings);
+        return parseJaniModelAndProperties(settings);
+    } else if (path_to_model.extension() == ".prism") {
+        return parsePrismModelAndProperties(settings);
     }
-    STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Only JANI models are supported for now.");
+    STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Unrecognised file extension " << path_to_model.extension() << ": Only .jani and .prism are supported.");
 }
 
-SymbolicModelAndProperty parseJaniModelAndProperty(const smc_storm::settings::UserSettings& settings) {
+SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::UserSettings& settings) {
     // Load the required model and property
     const auto model_and_formulae = storm::parser::JaniParser<storm::RationalNumber>::parse(settings.model_file, true);
     model_and_formulae.first.checkValid();
@@ -53,20 +56,7 @@ SymbolicModelAndProperty parseJaniModelAndProperty(const smc_storm::settings::Us
         STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Custom properties are not supported yet.");
     } else {
         // Get the list of properties from a comma separated list
-        std::vector<std::string> properties_ids = {};
-        std::string properties_string = settings.properties_names;
-        if (!properties_string.empty()) {
-            properties_string.erase(
-                std::remove_if(properties_string.begin(), properties_string.end(), [](char c) { return c == ' '; }),
-                std::end(properties_string));
-            std::stringstream properties_stream(properties_string);
-            while (properties_stream.good()) {
-                std::string property_id;
-                std::getline(properties_stream, property_id, ',');
-                properties_ids.emplace_back(property_id);
-            }
-            STORM_LOG_THROW(!properties_ids.empty(), storm::exceptions::InvalidPropertyException, "Invalid property names provided.");
-        }
+        const auto properties_ids = getRequestedProperties(settings.properties_names);
         model_and_property.property = filterProperties(model_and_formulae.second, properties_ids, model_constants_map);
     }
     // Add the user-defined constants
@@ -84,6 +74,54 @@ SymbolicModelAndProperty parseJaniModelAndProperty(const smc_storm::settings::Us
     storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
     storm::api::simplifyJaniModel(model_and_property.model.asJaniModel(), model_and_property.property, supported_features);
     return model_and_property;
+}
+
+SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings)
+{
+    const auto prism_model = storm::parser::PrismParser::parse(settings.model_file);
+    prism_model.checkValidity();
+    const auto model_constants_map = prism_model.getConstantsSubstitution();
+    const storm::parser::FormulaParser formula_parser(prism_model);
+    std::vector<storm::jani::Property> loaded_properties;
+    if (!settings.custom_property.empty()) {
+        // TODO
+        STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Custom properties are not supported yet.");
+    } else {
+        loaded_properties = formula_parser.parseFromFile(settings.properties_file);
+        const auto properties_ids = getRequestedProperties(settings.properties_names);
+        loaded_properties = filterProperties(loaded_properties, properties_ids, model_constants_map);
+    }
+    SymbolicModelAndProperty model_and_property {prism_model, loaded_properties};
+    // Add the user-defined constants
+    const auto user_constants_map = model_and_property.model.parseConstantDefinitions(settings.constants);
+    model_and_property.model = model_and_property.model.preprocess(user_constants_map);
+    model_and_property.property = storm::api::substituteConstantsInProperties(model_and_property.property, user_constants_map);
+    model_and_property.property = storm::api::substituteTranscendentalNumbersInProperties(model_and_property.property);
+    // Make sure that all properties have no undefined constant
+    for (const auto& property : model_and_property.property) {
+        STORM_LOG_THROW(
+            property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException,
+            "The property uses undefined constants!!!");
+    }
+    return model_and_property;
+}
+
+std::vector<std::string> getRequestedProperties(const std::string& properties_string) {
+    std::vector<std::string> properties_ids = {};
+    if (!properties_string.empty()) {
+        std::string processed_properties = properties_string;
+        processed_properties.erase(
+            std::remove_if(processed_properties.begin(), processed_properties.end(), [](char c) { return c == ' '; }),
+            std::end(processed_properties));
+        std::stringstream properties_stream(processed_properties);
+        while (properties_stream.good()) {
+            std::string property_id;
+            std::getline(properties_stream, property_id, ',');
+            properties_ids.emplace_back(property_id);
+        }
+        STORM_LOG_THROW(!properties_ids.empty(), storm::exceptions::InvalidPropertyException, "Invalid property names provided.");
+    }
+    return properties_ids;
 }
 
 std::vector<storm::jani::Property> filterProperties(
