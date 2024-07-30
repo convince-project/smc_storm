@@ -22,19 +22,20 @@
 #include <storm/exceptions/NotSupportedException.h>
 
 #include "model_checker/statistical_model_checker.hpp"
-#include "settings/smc_settings.hpp"
+#include "parser/parsers.hpp"
+#include "settings/user_settings.hpp"
 
 const std::filesystem::path TEST_PATH{"test_files"};
 const std::filesystem::path TEST_TRACES_PATH{"test_traces"};
 constexpr char SEPARATOR = ';';
 constexpr char FORBIDDEN_CHAR = ',';
 
-smc_storm::settings::SmcSettings getSmcSettings(
+smc_storm::settings::UserSettings getSmcSettings(
     const std::string& traces_file, const std::filesystem::path& jani_file, const std::string& property,
     const std::string& constants = "") {
-    smc_storm::settings::SmcSettings settings;
-    settings.model = jani_file.string();
-    settings.property_name = property;
+    smc_storm::settings::UserSettings settings;
+    settings.model_file = jani_file.string();
+    settings.properties_names = property;
     settings.constants = constants;
     // Set Chernoff to default method for better stability in tests
     settings.stat_method = "chernoff";
@@ -44,8 +45,10 @@ smc_storm::settings::SmcSettings getSmcSettings(
 }
 
 template <typename ResultType>
-ResultType getVerificationResult(const smc_storm::settings::SmcSettings& settings) {
-    smc_storm::model_checker::StatisticalModelChecker smc(settings);
+ResultType getVerificationResult(const smc_storm::settings::UserSettings& settings) {
+    const smc_storm::settings::SmcSettings smc_settings(settings);
+    const auto model_and_properties = smc_storm::parser::parseModelAndProperties(settings);
+    smc_storm::model_checker::StatisticalModelChecker smc(model_and_properties.model, model_and_properties.property[0], smc_settings);
     smc.check();
     return smc.getResult<ResultType>();
 }

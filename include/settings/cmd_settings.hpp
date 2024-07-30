@@ -16,7 +16,7 @@
  */
 
 #pragma once
-#include "settings/smc_settings.hpp"
+#include "settings/user_settings.hpp"
 #include <argparse/argparse.hpp>
 
 namespace smc_storm::settings {
@@ -33,7 +33,13 @@ class CmdSettings {
         _parser.add_argument("--constants")
             .default_value(_loaded_settings.constants)
             .help("Optional constants for the model / properties.");
-        _parser.add_argument("--property-name").required().help("Property to check.");
+        _parser.add_argument("--properties-file")
+            .default_value(_loaded_settings.properties_file)
+            .help("Path to the properties file (PRISM only).");
+        _parser.add_argument("--properties-names")
+            .default_value(_loaded_settings.properties_names)
+            .help("Names of the properties to check, separated by commas. If empty, all properties will be checked.");
+        _parser.add_argument("--custom-property").default_value(_loaded_settings.custom_property).help("Custom property to check.");
         _parser.add_argument("--stat-method").default_value(_loaded_settings.stat_method).help("Statistical method to use.");
         _parser.add_argument("--traces-file").default_value(_loaded_settings.traces_file).help("Path to the traces file.");
         _parser.add_argument("--confidence").scan<'g', double>().default_value(_loaded_settings.confidence).help("Confidence level.");
@@ -65,9 +71,11 @@ class CmdSettings {
             // Read the configs from cmd
             _parser.parse_args(argc, argv);
             // Set the entries in the loaded_settings variable
-            _loaded_settings.model = _parser.get<std::string>("--model");
+            _loaded_settings.model_file = _parser.get<std::string>("--model");
             _loaded_settings.constants = _parser.get<std::string>("--constants");
-            _loaded_settings.property_name = _parser.get<std::string>("--property-name");
+            _loaded_settings.properties_file = _parser.get<std::string>("--properties-file");
+            _loaded_settings.properties_names = _parser.get<std::string>("--properties-names");
+            _loaded_settings.custom_property = _parser.get<std::string>("--custom-property");
             _loaded_settings.stat_method = _parser.get<std::string>("--stat-method");
             _loaded_settings.traces_file = _parser.get<std::string>("--traces-file");
             _loaded_settings.confidence = _parser.get<double>("--confidence");
@@ -85,7 +93,7 @@ class CmdSettings {
         }
     }
 
-    SmcSettings getSettings() const {
+    UserSettings getSettings() const {
         if (!_parsing_done) {
             throw std::runtime_error("Settings not parsed yet");
         }
@@ -95,6 +103,6 @@ class CmdSettings {
   private:
     argparse::ArgumentParser _parser;
     bool _parsing_done = false;
-    SmcSettings _loaded_settings;
+    UserSettings _loaded_settings;
 };
 }  // namespace smc_storm::settings
