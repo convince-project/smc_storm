@@ -59,6 +59,14 @@ TEST(StatisticalModelCheckerJaniTest, TestNand) {
     EXPECT_NEAR(result, 0.4128626, user_settings.epsilon);
 }
 
+TEST(StatisticalModelCheckerJaniTest, TestDiceCustomProperty) {
+    const std::filesystem::path jani_file = TEST_PATH / "die.jani";
+    auto user_settings = getSettings(jani_file, "");
+    user_settings.custom_property = "P=? [F s=7&d=6]";
+    const double result = getVerificationResult<double>(user_settings);
+    EXPECT_NEAR(result, 1.0 / 6.0, user_settings.epsilon);
+}
+
 TEST(StatisticalModelCheckerJaniTest, TestTrigonometry) {
     const std::filesystem::path jani_file = TEST_PATH / "trigonometry_test.jani";
     {

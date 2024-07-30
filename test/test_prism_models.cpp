@@ -55,6 +55,14 @@ TEST(StatisticalModelCheckerPrismTest, TestBrp) {
     EXPECT_NEAR(result, 4.2333344360436463e-4, user_settings.epsilon);
 }
 
+TEST(StatisticalModelCheckerPrismTest, TestBrpCustomProperty) {
+    const std::filesystem::path prism_file = TEST_PATH / "brp.v1.prism";
+    auto user_settings = getSettings(prism_file, "", "p1", "N=16,MAX=2");
+    user_settings.custom_property = "P=? [ F !(srep=0) & !recv ]";
+    const double result = getVerificationResult<double>(user_settings);
+    EXPECT_NEAR(result, 8.0e-6, user_settings.epsilon);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
