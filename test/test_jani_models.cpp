@@ -45,21 +45,21 @@ ResultType getVerificationResult(const smc_storm::settings::UserSettings& settin
     return smc.getResult<ResultType>();
 }
 
-TEST(StatisticalModelCheckerTest, TestLeaderSync) {
+TEST(StatisticalModelCheckerJaniTest, TestLeaderSync) {
     const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
     const auto user_settings = getSettings(jani_file, "time");
     const double result = getVerificationResult<double>(user_settings);
     EXPECT_NEAR(result, 1.3333333, user_settings.epsilon);
 }
 
-TEST(StatisticalModelCheckerTest, TestNand) {
+TEST(StatisticalModelCheckerJaniTest, TestNand) {
     const std::filesystem::path jani_file = TEST_PATH / "nand.v1.jani";
     const auto user_settings = getSettings(jani_file, "reliable", "N=20,K=2");
     const double result = getVerificationResult<double>(user_settings);
     EXPECT_NEAR(result, 0.4128626, user_settings.epsilon);
 }
 
-TEST(StatisticalModelCheckerTest, TestTrigonometry) {
+TEST(StatisticalModelCheckerJaniTest, TestTrigonometry) {
     const std::filesystem::path jani_file = TEST_PATH / "trigonometry_test.jani";
     {
         const auto user_settings = getSettings(jani_file, "destination_reached_cos");

@@ -33,8 +33,10 @@ class CmdSettings {
         _parser.add_argument("--constants")
             .default_value(_loaded_settings.constants)
             .help("Optional constants for the model / properties.");
-        _parser.add_argument("--properties-file").default_value(_loaded_settings.properties_file).help("Path to the properties file.");
-        _parser.add_argument("--properties-name").default_value(_loaded_settings.properties_names).help("Property to check.");
+        _parser.add_argument("--properties-file")
+            .default_value(_loaded_settings.properties_file)
+            .help("Path to the properties file (PRISM only).");
+        _parser.add_argument("--properties-name").default_value(_loaded_settings.properties_names).help("Name of the property to check.");
         _parser.add_argument("--custom-property").default_value(_loaded_settings.custom_property).help("Custom property to check.");
         _parser.add_argument("--stat-method").default_value(_loaded_settings.stat_method).help("Statistical method to use.");
         _parser.add_argument("--traces-file").default_value(_loaded_settings.traces_file).help("Path to the traces file.");

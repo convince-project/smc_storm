@@ -26,10 +26,12 @@
 const std::filesystem::path TEST_PATH{"test_files"};
 
 smc_storm::settings::UserSettings getSettings(
-    const std::filesystem::path& jani_file, const std::string& property, const std::string& constants = "") {
+    const std::filesystem::path& prism_file, const std::filesystem::path& prop_file, const std::string& prop_name,
+    const std::string& constants = "") {
     smc_storm::settings::UserSettings settings;
-    settings.model_file = jani_file.string();
-    settings.properties_names = property;
+    settings.model_file = prism_file.string();
+    settings.properties_file = prop_file.string();
+    settings.properties_names = prop_name;
     settings.constants = constants;
     // Set Chernoff to default method for better stability in tests
     settings.stat_method = "chernoff";
@@ -45,37 +47,12 @@ ResultType getVerificationResult(const smc_storm::settings::UserSettings& settin
     return smc.getResult<ResultType>();
 }
 
-TEST(StatisticalModelCheckerTest, TestLeaderSync) {
-    const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
-    const auto user_settings = getSettings(jani_file, "time");
+TEST(StatisticalModelCheckerPrismTest, TestBrp) {
+    const std::filesystem::path prism_file = TEST_PATH / "brp.v1.prism";
+    const std::filesystem::path props_file = TEST_PATH / "brp.v1.props";
+    const auto user_settings = getSettings(prism_file, props_file, "p1", "N=16,MAX=2");
     const double result = getVerificationResult<double>(user_settings);
-    EXPECT_NEAR(result, 1.3333333, user_settings.epsilon);
-}
-
-TEST(StatisticalModelCheckerTest, TestNand) {
-    const std::filesystem::path jani_file = TEST_PATH / "nand.v1.jani";
-    const auto user_settings = getSettings(jani_file, "reliable", "N=20,K=2");
-    const double result = getVerificationResult<double>(user_settings);
-    EXPECT_NEAR(result, 0.4128626, user_settings.epsilon);
-}
-
-TEST(StatisticalModelCheckerTest, TestTrigonometry) {
-    const std::filesystem::path jani_file = TEST_PATH / "trigonometry_test.jani";
-    {
-        const auto user_settings = getSettings(jani_file, "destination_reached_cos");
-        const double result = getVerificationResult<double>(user_settings);
-        EXPECT_NEAR(result, 1.0, user_settings.epsilon);
-    }
-    {
-        const auto user_settings = getSettings(jani_file, "destination_reached_cos_bool");
-        const double result = getVerificationResult<double>(user_settings);
-        EXPECT_NEAR(result, 1.0, user_settings.epsilon);
-    }
-    {
-        const auto user_settings = getSettings(jani_file, "destination_reached_sin");
-        const double result = getVerificationResult<double>(user_settings);
-        EXPECT_NEAR(result, 1.0, user_settings.epsilon);
-    }
+    EXPECT_NEAR(result, 4.2333344360436463e-4, user_settings.epsilon);
 }
 
 int main(int argc, char** argv) {
