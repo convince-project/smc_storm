@@ -29,7 +29,8 @@
 
 namespace smc_storm::samples {
 SamplingResults::SamplingResults(const settings::SmcSettings& settings, const state_properties::PropertyType& prop)
-    : _settings{settings}, _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{50U} {
+    // TODO: results_buffer has an hardcoded max. n. of buffered results per thread (6)
+    : _settings{settings}, _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{50U} {
     _n_verified = 0U;
     _n_not_verified = 0U;
     _n_no_info = 0U;
@@ -195,7 +196,17 @@ bool SamplingResults::evaluateChowRobbinsBound() {
     return (_settings.epsilon * _settings.epsilon) < ci_half_width_squared;
 }
 
-void SamplingResults::addBatchResults(const BatchResults& res) {
+void SamplingResults::addBatchResults(const BatchResults& res, const size_t thread_id) {
+    _results_buffer.addResults(res, thread_id);
+    const auto all_threads_res = _results_buffer.getResults();
+    if (all_threads_res) {
+        for (const auto& thread_res : *all_threads_res) {
+            processBatchResults(thread_res);
+        }
+    }
+}
+
+void SamplingResults::processBatchResults(const BatchResults& res) {
     std::scoped_lock<std::mutex> lock(_mtx);
     _n_verified += res.n_verified;
     _n_not_verified += res.n_not_verified;
@@ -248,7 +259,10 @@ double SamplingResults::getProbabilityVerifiedProperty() const {
     return static_cast<double>(_n_verified) / static_cast<double>(n_samples);
 }
 
-bool SamplingResults::newBatchNeeded() const {
+bool SamplingResults::newBatchNeeded(const size_t thread_id) const {
+    // Check if the buffer for the thread is full. Wait for a slot to be available in case
+    _results_buffer.waitForSlotAvailable(thread_id);
+    std::scoped_lock<std::mutex> lock(_mtx);
     // Reward properties require always reaching the target state
     if (_property_type == state_properties::PropertyType::R && (_n_no_info > 0U || _n_not_verified > 0U)) {
         return false;
