@@ -1,50 +1,56 @@
 #include <gtest/gtest.h>
+#include "samples/batch_results.hpp"
 #include "samples/batch_buffer.hpp"
+
+smc_storm::samples::BatchResults createBatchResults(const smc_storm::samples::TraceInformation& res) {
+    smc_storm::samples::BatchResults result(1, smc_storm::state_properties::PropertyType::P);
+    result.addResult(res);
+    return result;
+}
+
+void testBatchResults(const smc_storm::samples::BatchResults& res, size_t n_verified, const size_t n_not_verified, const size_t n_no_info, const size_t max_trace_length) {
+    EXPECT_EQ(res.n_verified, n_verified);
+    EXPECT_EQ(res.n_not_verified, n_not_verified);
+    EXPECT_EQ(res.n_no_info, n_no_info);
+    EXPECT_EQ(res.count, n_verified + n_not_verified + n_no_info);
+    EXPECT_EQ(res.max_trace_length, max_trace_length);
+}
 
 TEST(BatchBufferTest, AddAndGetResults) {
     // Create a BatchBuffer with 2 threads and 3 slots
     smc_storm::samples::BatchBuffer buffer(2, 3);
-
-    // Create some BatchResults
-    smc_storm::samples::BatchResults results1;
-    results1.addData(10);
-    results1.addData(20);
-
-    smc_storm::samples::BatchResults results2;
-    results2.addData(30);
-    results2.addData(40);
-
-    // Add the BatchResults to the buffer
-    buffer.addResults(results1, 0);
-    buffer.addResults(results2, 1);
-
-    // Get the results from the buffer
-    std::optional<std::vector<smc_storm::samples::BatchResults>> results = buffer.getResults();
-
-    // Check that the results are correct
-    ASSERT_TRUE(results.has_value());
-    ASSERT_EQ(results.value().size(), 2);
-
-    ASSERT_EQ(results.value()[0].getData().size(), 2);
-    ASSERT_EQ(results.value()[0].getData()[0], 10);
-    ASSERT_EQ(results.value()[0].getData()[1], 20);
-
-    ASSERT_EQ(results.value()[1].getData().size(), 2);
-    ASSERT_EQ(results.value()[1].getData()[0], 30);
-    ASSERT_EQ(results.value()[1].getData()[1], 40);
-}
-
-TEST(BatchBufferTest, WaitForSlotAvailable) {
-    // Create a BatchBuffer with 2 threads and 3 slots
-    smc_storm::samples::BatchBuffer buffer(2, 3);
-
-    // Call waitForSlotAvailable on thread 0
-    buffer.waitForSlotAvailable(0);
-
-    // Call waitForSlotAvailable on thread 1
-    buffer.waitForSlotAvailable(1);
-
-    // No assertion is needed as this test is to verify that the function does not throw any exceptions
+    buffer.addResults(createBatchResults({10, smc_storm::samples::TraceResult::VERIFIED, 0.0}), 0);
+    EXPECT_EQ(buffer.getResults(), std::nullopt);
+    buffer.addResults(createBatchResults({20, smc_storm::samples::TraceResult::NOT_VERIFIED, 0.0}), 0);
+    EXPECT_EQ(buffer.getResults(), std::nullopt);
+    buffer.addResults(createBatchResults({30, smc_storm::samples::TraceResult::NO_INFO, 0.0}), 0);
+    EXPECT_EQ(buffer.getResults(), std::nullopt);
+    buffer.addResults(createBatchResults({40, smc_storm::samples::TraceResult::VERIFIED, 0.0}), 1);
+    auto buffer_results = buffer.getResults();
+    EXPECT_NE(buffer_results, std::nullopt);
+    EXPECT_EQ(buffer_results->size(), 2);
+    testBatchResults(buffer_results->at(0), 1, 0, 0, 10);
+    testBatchResults(buffer_results->at(1), 1, 0, 0, 40);
+    EXPECT_EQ(buffer.getResults(), std::nullopt);
+    buffer.addResults(createBatchResults({50, smc_storm::samples::TraceResult::NOT_VERIFIED, 0.0}), 1);
+    buffer.addResults(createBatchResults({60, smc_storm::samples::TraceResult::NOT_VERIFIED, 0.0}), 1);
+    buffer_results = buffer.getResults();
+    EXPECT_NE(buffer_results, std::nullopt);
+    EXPECT_EQ(buffer_results->size(), 2);
+    testBatchResults(buffer_results->at(0), 0, 1, 0, 20);
+    testBatchResults(buffer_results->at(1), 0, 1, 0, 50);
+    buffer_results = buffer.getResults();
+    EXPECT_NE(buffer_results, std::nullopt);
+    EXPECT_EQ(buffer_results->size(), 2);
+    testBatchResults(buffer_results->at(0), 0, 0, 1, 30);
+    testBatchResults(buffer_results->at(1), 0, 1, 0, 60);
+    buffer.addResults(createBatchResults({70, smc_storm::samples::TraceResult::VERIFIED, 0.0}), 0);
+    buffer.addResults(createBatchResults({80, smc_storm::samples::TraceResult::NO_INFO, 0.0}), 1);
+    buffer_results = buffer.getResults();
+    EXPECT_NE(buffer_results, std::nullopt);
+    EXPECT_EQ(buffer_results->size(), 2);
+    testBatchResults(buffer_results->at(0), 1, 0, 0, 70);
+    testBatchResults(buffer_results->at(1), 0, 0, 1, 80);
 }
 
 // Add more tests here if needed

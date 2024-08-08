@@ -42,7 +42,9 @@ include(CTest)
 if(BUILD_TESTING)
   find_package(GTest REQUIRED)
   # Unit tests
-  # TODO
+  add_executable(test_batch_buffer test/unit_tests/test_batch_buffer.cpp)
+  target_link_libraries(test_batch_buffer ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
+  gtest_add_tests(TARGET test_batch_buffer)
 
   # System tests
   # Copy the test files in the build folder
