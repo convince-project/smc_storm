@@ -23,7 +23,7 @@
 #include "parser/parsers.hpp"
 #include "settings/user_settings.hpp"
 
-const std::filesystem::path TEST_PATH{"test_files"};
+const std::filesystem::path TEST_PATH{"models"};
 
 smc_storm::settings::UserSettings getSettings(
     const std::filesystem::path& prism_file, const std::filesystem::path& prop_file, const std::string& prop_name,

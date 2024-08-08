@@ -85,11 +85,10 @@ template <typename ModelType, typename StateType>
 std::vector<uint_fast32_t> StatisticalModelCheckingEngine<ModelType, StateType>::getThreadSeeds() const {
     // Get an initial seed for random sampling in each thread
     const uint_fast32_t init_random_seed = std::chrono::system_clock::now().time_since_epoch().count();
-    storm::utility::RandomProbabilityGenerator<ValueType> random_generator(init_random_seed);
     std::vector<uint_fast32_t> thread_seeds{};
     thread_seeds.reserve(_settings.n_threads);
     for (size_t iter = 0U; iter < _settings.n_threads; ++iter) {
-        thread_seeds.emplace_back(random_generator.random_uint(0, std::numeric_limits<uint_fast32_t>::max()));
+        thread_seeds.emplace_back(init_random_seed + iter);
     }
     return thread_seeds;
 }
@@ -155,10 +154,11 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
     const auto thread_seeds = getThreadSeeds();
     std::vector<std::thread> thread_instances;
     thread_instances.reserve(thread_seeds.size());
-    for (const auto& thread_seed : thread_seeds) {
-        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed]() {
+    for (size_t thread_id = 0U; thread_id < _settings.n_threads; ++thread_id) {
+        const size_t thread_seed = thread_seeds[thread_id];
+        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed, thread_id]() {
             const samples::ModelSampling<StateType, ValueType> model_sampler(thread_seed);
-            performSampling(check_task, model_sampler, sampling_results);
+            performSampling(check_task, model_sampler, sampling_results, thread_id);
         });
     }
 
@@ -185,10 +185,11 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
     const auto thread_seeds = getThreadSeeds();
     std::vector<std::thread> thread_instances;
     thread_instances.reserve(thread_seeds.size());
-    for (const auto& thread_seed : thread_seeds) {
-        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed]() {
+    for (size_t thread_id = 0U; thread_id < _settings.n_threads; ++thread_id) {
+        const size_t thread_seed = thread_seeds[thread_id];
+        thread_instances.emplace_back([this, &check_task, &sampling_results, thread_seed, thread_id]() {
             const samples::ModelSampling<StateType, ValueType> model_sampler(thread_seed);
-            performSampling(check_task, model_sampler, sampling_results);
+            performSampling(check_task, model_sampler, sampling_results, thread_id);
         });
     }
 
@@ -208,7 +209,7 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
 template <typename ModelType, typename StateType>
 void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
     const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
-    const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results) {
+    const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results, const size_t thread_id) {
     // TODO: Make sure that this is never set in case of P properties
     const std::string reward_model = check_task.isRewardModelSet() ? check_task.getRewardModel() : "";
     // Prepare exploration information holder.
@@ -231,14 +232,14 @@ void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
     samples::BatchResults batch_results = sampling_results.getBatchResultInstance();
 
     // Now perform the actual sampling
-    while (sampling_results.newBatchNeeded()) {
+    while (sampling_results.newBatchNeeded(thread_id)) {
         batch_results.reset();
         while (batch_results.batchIncomplete()) {
             // Sample a new path
             const auto result = samplePathFromInitialState(state_generation, exploration_information, model_sampler);
             batch_results.addResult(result);
         }
-        sampling_results.addBatchResults(batch_results);
+        sampling_results.addBatchResults(batch_results, thread_id);
     }
     _traces_exporter_ptr.reset();
 }

@@ -121,10 +121,12 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @param check_task The property we are evaluating on the loaded model
      * @param model_sampler Object used to randomly sample next action and states
      * @param sampling_results Object keeping track of the previous sample results and defining if new samples are needed
+     * @param thread_id The ID of the thread performing the sampling, contained in the set [0, n_threads)
      */
     void performSampling(
         const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
-        const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results);
+        const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results,
+        const size_t thread_id);
 
     /*!
      * @brief Sample a single path until we reach a state it doesn't make sense to expand further

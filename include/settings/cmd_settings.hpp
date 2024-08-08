@@ -20,6 +20,8 @@
 #include <argparse/argparse.hpp>
 
 namespace smc_storm::settings {
+constexpr const char* const VERSION = "0.0.3";
+
 /*!
  * @brief Class for generating the settings from the command line arguments
  */
@@ -28,7 +30,7 @@ class CmdSettings {
     /*!
      * @brief Constructor: it declares the available cmd arguments
      */
-    CmdSettings() : _parser("smc_storm") {
+    CmdSettings() : _parser("smc_storm", VERSION) {
         _parser.add_argument("--model").required().help("Path to the model file.");
         _parser.add_argument("--constants")
             .default_value(_loaded_settings.constants)

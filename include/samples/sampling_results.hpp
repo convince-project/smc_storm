@@ -23,6 +23,7 @@
 #include <mutex>
 #include <string>
 
+#include "samples/batch_buffer.hpp"
 #include "samples/batch_results.hpp"
 #include "samples/batch_statistics.hpp"
 #include "samples/trace_information.hpp"
@@ -57,10 +58,11 @@ class SamplingResults {
     BatchResults getBatchResultInstance() const;
 
     /*!
-     * @brief Add the results from a batch to the SampledResults.
+     * @brief Add the results from a batch to the Buffer. If all threads reported results, process the data
      * @param res Collection of results from a single batch. It is expected to be reset afterwards!
+     * @param thread_id The id of the thread that generated the results
      */
-    void addBatchResults(const BatchResults& res);
+    void addBatchResults(const BatchResults& res, const size_t thread_id);
 
     /*!
      * @brief Get the amount of samples that returned the requested result
@@ -82,10 +84,11 @@ class SamplingResults {
     double getProbabilityVerifiedProperty() const;
 
     /*!
-     * @brief Check  if we need to sample another batch of results
+     * @brief Check if we need to sample another batch of results. Blocks computation if the related buffer is full
+     * @param thread_id The id of the thread that is checking if a new batch is needed
      * @return Whether we need to sample a new batch or not.
      */
-    bool newBatchNeeded() const;
+    bool newBatchNeeded(const size_t thread_id) const;
 
     /*!
      * @brief Print the Sampling results to std::out stream
@@ -93,6 +96,12 @@ class SamplingResults {
     void printResults() const;
 
   private:
+    /*!
+     * @brief Process the results of a batch to update the internal state of the SamplingResults object
+     * @param res The results of a batch to process
+     */
+    void processBatchResults(const BatchResults& res);
+
     /*!
      * @brief Check if we have reached the minimum n. of iterations
      * @return Whether we have reached the minimum n. of iterations
@@ -153,12 +162,14 @@ class SamplingResults {
     // Upper bound for n. of samples, coming from Chernoff bounds
     size_t _required_samples;
 
-    // Constants needed for computing whether a new batch is needed
     const settings::SmcSettings& _settings;
+    BatchBuffer _results_buffer;
+
+    // Constants needed for computing whether a new batch is needed
     const double _quantile;
+    const size_t _min_iterations;
     // Evaluator of choice to define whether we need more samples or not
     std::function<bool()> _bound_function;
-    const size_t _min_iterations;
 };
 
 }  // namespace smc_storm::samples
