@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
-#include "samples/batch_results.hpp"
 #include "samples/batch_buffer.hpp"
+#include "samples/batch_results.hpp"
+#include <gtest/gtest.h>
 
 smc_storm::samples::BatchResults createBatchResults(const smc_storm::samples::TraceInformation& res) {
     smc_storm::samples::BatchResults result(1, smc_storm::state_properties::PropertyType::P);
@@ -8,7 +8,9 @@ smc_storm::samples::BatchResults createBatchResults(const smc_storm::samples::Tr
     return result;
 }
 
-void testBatchResults(const smc_storm::samples::BatchResults& res, size_t n_verified, const size_t n_not_verified, const size_t n_no_info, const size_t max_trace_length) {
+void testBatchResults(
+    const smc_storm::samples::BatchResults& res, size_t n_verified, const size_t n_not_verified, const size_t n_no_info,
+    const size_t max_trace_length) {
     EXPECT_EQ(res.n_verified, n_verified);
     EXPECT_EQ(res.n_not_verified, n_not_verified);
     EXPECT_EQ(res.n_no_info, n_no_info);
