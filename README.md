@@ -34,8 +34,8 @@ After cloning this repository, execute the following commands:
 ```bash
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release && make -j4
-# optionally, run the unit tests to make sure everything works as expected
-./test_models
+# optionally, run the automatic unit tests to make sure everything works as expected
+ctest
 ```
 ## Run the executable
 To make the smc_storm executable usable from any folder, we suggest to add the following line to your `~/.bashrc` file or run it before start using the tool:
@@ -53,11 +53,11 @@ smc_storm --help
 ## Examples
 ```bash
 # Example 1
-smc_storm --model <path-to-smc-storm-repo>/test/test_files/leader_sync.3-2.v1.jani --property-name eventually_elected --batch-size 200
+smc_storm --model <path-to-smc-storm-repo>/test/system_tests/models/leader_sync.3-2.v1.jani --property-name eventually_elected --batch-size 200
 # Example 2
-smc_storm --model <path-to-smc-storm-repo>/test/test_files/nand.v1.jani --property-name reliable --constants "N=20,K=2" --epsilon 0.01 --confidence 0.95 --n-threads 5 --show-statistics
+smc_storm --model <path-to-smc-storm-repo>/test/system_tests/models/nand.v1.jani --property-name reliable --constants "N=20,K=2" --epsilon 0.01 --confidence 0.95 --n-threads 5 --show-statistics
 # Example 3 (rm added to make sure the csv file doesn't exist at smc_storm execution time)
-rm -f exported_traces.csv && smc_storm --model <path-to-smc-storm-repo>/test/test_files/leader_sync.3-2.v1.jani --property-name time --traces-file exported_traces.csv --show-statistics --max-n-traces 5
+rm -f exported_traces.csv && smc_storm --model <path-to-smc-storm-repo>/test/system_tests/models/leader_sync.3-2.v1.jani --property-name time --traces-file exported_traces.csv --show-statistics --max-n-traces 5
 ```
 
 ### Verifying sin and cos support
@@ -67,7 +67,7 @@ It can be run as in the following example:
 
 ```bash
 export PATH=$PATH:<path-to-smc-storm-repo>/build/bin
-smc_storm --model <path-to-smc-storm-repo>/test/test_files/trigonometry_test.jani --property-name destination_reached_sin --epsilon 0.01 --confidence 0.95 --max-trace-length 400
+smc_storm --model <path-to-smc-storm-repo>/test/system_tests/models/trigonometry_test.jani --property-name destination_reached_sin --epsilon 0.01 --confidence 0.95 --max-trace-length 400
 ```
 
 Available properties:

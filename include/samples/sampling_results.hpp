@@ -23,9 +23,9 @@
 #include <mutex>
 #include <string>
 
+#include "samples/batch_buffer.hpp"
 #include "samples/batch_results.hpp"
 #include "samples/batch_statistics.hpp"
-#include "samples/batch_buffer.hpp"
 #include "samples/trace_information.hpp"
 #include "settings/smc_settings.hpp"
 #include "state_properties/property_type.hpp"
@@ -101,7 +101,7 @@ class SamplingResults {
      * @param res The results of a batch to process
      */
     void processBatchResults(const BatchResults& res);
-  
+
     /*!
      * @brief Check if we have reached the minimum n. of iterations
      * @return Whether we have reached the minimum n. of iterations
@@ -164,7 +164,7 @@ class SamplingResults {
 
     const settings::SmcSettings& _settings;
     BatchBuffer _results_buffer;
-  
+
     // Constants needed for computing whether a new batch is needed
     const double _quantile;
     const size_t _min_iterations;

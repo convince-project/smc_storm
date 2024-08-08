@@ -21,8 +21,8 @@
 
 #include <condition_variable>
 #include <deque>
-#include <optional>
 #include <mutex>
+#include <optional>
 #include <vector>
 
 namespace smc_storm::samples {
@@ -34,7 +34,7 @@ struct BatchResults;
  * @brief Object to synchronize batch results between threads
  */
 class BatchBuffer {
-public:
+  public:
     /*!
      * @brief Constructor for the BatchBuffer object
      * @param n_threads Amount of threads used in the specific run instance
@@ -61,7 +61,8 @@ public:
      * @param thread_id The id of the thread that is waiting
      */
     void waitForSlotAvailable(const size_t thread_id) const;
-private:
+
+  private:
     const size_t _n_slots;
     // TODO: Consider to use a ring-buffer instead of a deque or vector of Batch results
     std::vector<std::deque<BatchResults>> _results_buffer;
