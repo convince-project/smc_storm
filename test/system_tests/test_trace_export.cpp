@@ -25,7 +25,7 @@
 #include "parser/parsers.hpp"
 #include "settings/user_settings.hpp"
 
-const std::filesystem::path TEST_PATH{"test_files"};
+const std::filesystem::path TEST_PATH{"models"};
 const std::filesystem::path TEST_TRACES_PATH{"test_traces"};
 constexpr char SEPARATOR = ';';
 constexpr char FORBIDDEN_CHAR = ',';
