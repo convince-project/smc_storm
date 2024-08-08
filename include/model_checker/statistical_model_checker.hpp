@@ -17,6 +17,8 @@
 
 #pragma once
 
+// Include map to prevent include error arising from including "storm/storage/jani/Property.h"
+#include <map>
 #include <vector>
 
 #include <storm/storage/jani/Property.h>
