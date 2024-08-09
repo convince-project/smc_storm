@@ -26,19 +26,32 @@ namespace smc_storm::samples {
 BatchBuffer::BatchBuffer(const size_t n_threads, const size_t n_slots) : _n_slots{n_slots}, _results_buffer(n_threads) {
     STORM_LOG_THROW(n_threads > 0U, storm::exceptions::IllegalArgumentException, "Number of threads must be positive");
     STORM_LOG_THROW(n_slots > 0U, storm::exceptions::IllegalArgumentException, "Number of slots must be positive");
+    _ok = true;
+}
+
+void BatchBuffer::cancel() {
+    std::lock_guard<std::mutex> lock(_buffer_mutex);
+    _ok = false;
+    std::for_each(_results_buffer.begin(), _results_buffer.end(), [](auto& thread_results) { thread_results.clear(); });
+    _buffer_cv.notify_all();
 }
 
 void BatchBuffer::addResults(const BatchResults& results, const size_t thread_id) {
     STORM_LOG_THROW(thread_id < _results_buffer.size(), storm::exceptions::IllegalArgumentException, "Thread id out of bounds");
     std::lock_guard<std::mutex> lock(_buffer_mutex);
-    STORM_LOG_THROW(_results_buffer[thread_id].size() < _n_slots, storm::exceptions::IllegalArgumentException, "Buffer is full");
-    _results_buffer.at(thread_id).emplace_back(results);
+    if (_ok) {
+        STORM_LOG_THROW(_results_buffer[thread_id].size() < _n_slots, storm::exceptions::IllegalArgumentException, "Buffer is full");
+        _results_buffer.at(thread_id).emplace_back(results);
+    }
 }
 
 std::optional<std::vector<BatchResults>> BatchBuffer::getResults() {
     std::vector<BatchResults> results;
     {
         std::lock_guard<std::mutex> lock(_buffer_mutex);
+        if (!_ok) {
+            return std::nullopt;
+        }
         if (std::any_of(
                 _results_buffer.begin(), _results_buffer.end(), [](const auto& thread_results) { return thread_results.empty(); })) {
             return std::nullopt;
@@ -55,7 +68,7 @@ std::optional<std::vector<BatchResults>> BatchBuffer::getResults() {
 void BatchBuffer::waitForSlotAvailable(const size_t thread_id) const {
     STORM_LOG_THROW(thread_id < _results_buffer.size(), storm::exceptions::IllegalArgumentException, "Thread id out of bounds");
     std::unique_lock<std::mutex> lock(_buffer_mutex);
-    _buffer_cv.wait(lock, [this, thread_id] { return _results_buffer[thread_id].size() < _n_slots; });
+    _buffer_cv.wait(lock, [this, thread_id] { return !_ok || _results_buffer[thread_id].size() < _n_slots; });
 }
 
 }  // namespace smc_storm::samples

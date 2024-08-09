@@ -33,6 +33,7 @@ SamplingResults::SamplingResults(const settings::SmcSettings& settings, const st
     : _settings{settings},
       _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{
                                                                                                                              50U} {
+    _keep_sampling = true;
     _n_verified = 0U;
     _n_not_verified = 0U;
     _n_no_info = 0U;
@@ -55,36 +56,32 @@ void SamplingResults::initBoundFunction() {
     if (stat_method.empty()) {
         stat_method = is_reward_prop ? "chow_robbins" : "adaptive";
     }
-    // Assign the correct bound function
     if (is_reward_prop) {
-        // All iteration bounds related to Reward properties
-        if ("chernoff" == stat_method) {
-            updateChernoffBound();
-            _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
-        } else if ("z_interval" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateZInterval, this);
-        } else if ("chow_robbins" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateChowRobbinsBound, this);
-        }
-    } else {
-        if ("chernoff" == stat_method) {
-            updateChernoffBound();
-            _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
-        } else if ("wald" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateWaldBound, this);
-        } else if ("agresti" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateAgrestiBound, this);
-        } else if ("wilson" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateWilsonBound, this);
-        } else if ("wilson_corrected" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateWilsonCorrectedBound, this);
-        } else if ("clopper_pearson" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateClopperPearsonBound, this);
-        } else if ("adaptive" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateAdaptiveBound, this);
-        } else if ("arcsine" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateArcsineBound, this);
-        }
+        STORM_LOG_THROW(
+            stat_method == "chernoff" || stat_method == "chow_robbins", storm::exceptions::OutOfRangeException,
+            "Invalid bound method " << stat_method << " for reward properties.");
+    }
+
+    // Assign the correct bound function
+    if ("chernoff" == stat_method) {
+        updateChernoffBound();
+        _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
+    } else if ("chow_robbins" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateChowRobbinsBound, this);
+    } else if ("wald" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateWaldBound, this);
+    } else if ("agresti" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateAgrestiBound, this);
+    } else if ("wilson" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateWilsonBound, this);
+    } else if ("wilson_corrected" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateWilsonCorrectedBound, this);
+    } else if ("clopper_pearson" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateClopperPearsonBound, this);
+    } else if ("adaptive" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateAdaptiveBound, this);
+    } else if ("arcsine" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateArcsineBound, this);
     }
     STORM_LOG_THROW(_bound_function, storm::exceptions::NotImplementedException, "Could not find bounds method " << stat_method);
 }
@@ -182,19 +179,18 @@ bool SamplingResults::evaluateArcsineBound() {
     return abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) > _settings.epsilon * 2.0;
 }
 
-bool SamplingResults::evaluateZInterval() {
-    // Following https://www.statisticshowto.com/probability-and-statistics/confidence-interval/#CIZ2
-    if (_reward_stats.dim == 0U) {
+bool SamplingResults::evaluateChowRobbinsBound() {
+    const double variance = calculateVariance();
+    const size_t n_samples = _n_verified + _n_not_verified;
+    if (_property_type == state_properties::PropertyType::R) {
+        STORM_LOG_THROW(n_samples == _reward_stats.dim, storm::exceptions::UnexpectedException, "Mismatch in n. of samples.");
+    }
+    if (n_samples == 0U) {
         // No sample yet! Keep getting samples!
         return true;
     }
-    const double ci_half_width = _quantile * _reward_stats.variance / sqrt(_reward_stats.dim);
-    return ci_half_width > _settings.epsilon;
-}
-
-bool SamplingResults::evaluateChowRobbinsBound() {
     // Based on "On the Asymptotic Theory of Fixed-Width Sequential Confidence Intervals for the Mean" paper (1965).
-    const double ci_half_width_squared = _reward_stats.variance * _quantile * _quantile / static_cast<double>(_reward_stats.dim);
+    const double ci_half_width_squared = variance * _quantile * _quantile / static_cast<double>(n_samples);
     return (_settings.epsilon * _settings.epsilon) < ci_half_width_squared;
 }
 
@@ -202,14 +198,18 @@ void SamplingResults::addBatchResults(const BatchResults& res, const size_t thre
     _results_buffer.addResults(res, thread_id);
     const auto all_threads_res = _results_buffer.getResults();
     if (all_threads_res) {
+        std::scoped_lock<std::mutex> lock(_mtx);
         for (const auto& thread_res : *all_threads_res) {
             processBatchResults(thread_res);
+        }
+        updateSamplingStatus();
+        if (!_keep_sampling) {
+            _results_buffer.cancel();
         }
     }
 }
 
 void SamplingResults::processBatchResults(const BatchResults& res) {
-    std::scoped_lock<std::mutex> lock(_mtx);
     _n_verified += res.n_verified;
     _n_not_verified += res.n_not_verified;
     _n_no_info += res.n_no_info;
@@ -263,18 +263,32 @@ double SamplingResults::getProbabilityVerifiedProperty() const {
 
 bool SamplingResults::newBatchNeeded(const size_t thread_id) const {
     // Check if the buffer for the thread is full. Wait for a slot to be available in case
+    {
+        std::scoped_lock<std::mutex> lock(_mtx);
+        if (!_keep_sampling) {
+            return false;
+        }
+    }
     _results_buffer.waitForSlotAvailable(thread_id);
+    // The result might be available in the meanwhile, so use the _keep_sampling as return
     std::scoped_lock<std::mutex> lock(_mtx);
+    return _keep_sampling;
+}
+
+void SamplingResults::updateSamplingStatus() {
     // Reward properties require always reaching the target state
     if (_property_type == state_properties::PropertyType::R && (_n_no_info > 0U || _n_not_verified > 0U)) {
-        return false;
+        _keep_sampling = false;
+        return;
     }
     const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
     if (_settings.max_n_traces > 0U && n_samples >= _settings.max_n_traces) {
-        return false;
+        _keep_sampling = false;
+        return;
     }
     if (!minIterationsReached()) {
-        return true;
+        _keep_sampling = true;
+        return;
     }
     // Check if we never reached a terminal states
     if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
@@ -282,7 +296,7 @@ bool SamplingResults::newBatchNeeded(const size_t thread_id) const {
             false, storm::exceptions::UnexpectedException,
             "More than half the generated traces do not reach the terminal state. Aborting.");
     }
-    return _bound_function();
+    _keep_sampling = _bound_function();
 }
 
 double SamplingResults::calculateQuantile(const double& confidence) {
