@@ -262,10 +262,15 @@ double SamplingResults::getProbabilityVerifiedProperty() const {
 
 bool SamplingResults::newBatchNeeded(const size_t thread_id) const {
     // Check if the buffer for the thread is full. Wait for a slot to be available in case
-    if (_keep_sampling) {
-        _results_buffer.waitForSlotAvailable(thread_id);
+    {
+        std::scoped_lock<std::mutex> lock(_mtx);
+        if (!_keep_sampling) {
+            return false;
+        }
     }
+    _results_buffer.waitForSlotAvailable(thread_id);
     // The result might be available in the meanwhile, so use the _keep_sampling as return
+    std::scoped_lock<std::mutex> lock(_mtx);
     return _keep_sampling;
 }
 
