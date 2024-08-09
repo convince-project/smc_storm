@@ -55,36 +55,31 @@ void SamplingResults::initBoundFunction() {
     if (stat_method.empty()) {
         stat_method = is_reward_prop ? "chow_robbins" : "adaptive";
     }
-    // Assign the correct bound function
     if (is_reward_prop) {
-        // All iteration bounds related to Reward properties
-        if ("chernoff" == stat_method) {
-            updateChernoffBound();
-            _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
-        } else if ("z_interval" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateZInterval, this);
-        } else if ("chow_robbins" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateChowRobbinsBound, this);
-        }
-    } else {
-        if ("chernoff" == stat_method) {
-            updateChernoffBound();
-            _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
-        } else if ("wald" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateWaldBound, this);
-        } else if ("agresti" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateAgrestiBound, this);
-        } else if ("wilson" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateWilsonBound, this);
-        } else if ("wilson_corrected" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateWilsonCorrectedBound, this);
-        } else if ("clopper_pearson" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateClopperPearsonBound, this);
-        } else if ("adaptive" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateAdaptiveBound, this);
-        } else if ("arcsine" == stat_method) {
-            _bound_function = std::bind(&SamplingResults::evaluateArcsineBound, this);
-        }
+        STORM_LOG_THROW(stat_method == "chernoff" || stat_method == "chow_robbins",
+                        storm::exceptions::OutOfRangeException, "Invalid bound method " << stat_method << " for reward properties.");
+    }
+    
+    // Assign the correct bound function
+    if ("chernoff" == stat_method) {
+        updateChernoffBound();
+        _bound_function = std::bind(&SamplingResults::evaluateChernoffBound, this);
+    } else if ("chow_robbins" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateChowRobbinsBound, this);
+    } else if ("wald" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateWaldBound, this);
+    } else if ("agresti" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateAgrestiBound, this);
+    } else if ("wilson" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateWilsonBound, this);
+    } else if ("wilson_corrected" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateWilsonCorrectedBound, this);
+    } else if ("clopper_pearson" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateClopperPearsonBound, this);
+    } else if ("adaptive" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateAdaptiveBound, this);
+    } else if ("arcsine" == stat_method) {
+        _bound_function = std::bind(&SamplingResults::evaluateArcsineBound, this);
     }
     STORM_LOG_THROW(_bound_function, storm::exceptions::NotImplementedException, "Could not find bounds method " << stat_method);
 }
@@ -182,19 +177,18 @@ bool SamplingResults::evaluateArcsineBound() {
     return abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) > _settings.epsilon * 2.0;
 }
 
-bool SamplingResults::evaluateZInterval() {
-    // Following https://www.statisticshowto.com/probability-and-statistics/confidence-interval/#CIZ2
-    if (_reward_stats.dim == 0U) {
+bool SamplingResults::evaluateChowRobbinsBound() {
+    const double variance = calculateVariance();
+    const size_t n_samples = _n_verified + _n_not_verified;
+    if (_property_type == state_properties::PropertyType::R) {
+        STORM_LOG_THROW(n_samples == _reward_stats.dim, storm::exceptions::UnexpectedException, "Mismatch in n. of samples.");
+    }
+    if (n_samples == 0U) {
         // No sample yet! Keep getting samples!
         return true;
     }
-    const double ci_half_width = _quantile * _reward_stats.variance / sqrt(_reward_stats.dim);
-    return ci_half_width > _settings.epsilon;
-}
-
-bool SamplingResults::evaluateChowRobbinsBound() {
     // Based on "On the Asymptotic Theory of Fixed-Width Sequential Confidence Intervals for the Mean" paper (1965).
-    const double ci_half_width_squared = _reward_stats.variance * _quantile * _quantile / static_cast<double>(_reward_stats.dim);
+    const double ci_half_width_squared = variance * _quantile * _quantile / static_cast<double>(n_samples);
     return (_settings.epsilon * _settings.epsilon) < ci_half_width_squared;
 }
 
@@ -202,6 +196,7 @@ void SamplingResults::addBatchResults(const BatchResults& res, const size_t thre
     _results_buffer.addResults(res, thread_id);
     const auto all_threads_res = _results_buffer.getResults();
     if (all_threads_res) {
+        std::scoped_lock<std::mutex> lock(_mtx);
         for (const auto& thread_res : *all_threads_res) {
             processBatchResults(thread_res);
         }
@@ -209,7 +204,6 @@ void SamplingResults::addBatchResults(const BatchResults& res, const size_t thre
 }
 
 void SamplingResults::processBatchResults(const BatchResults& res) {
-    std::scoped_lock<std::mutex> lock(_mtx);
     _n_verified += res.n_verified;
     _n_not_verified += res.n_not_verified;
     _n_no_info += res.n_no_info;
