@@ -33,6 +33,7 @@ SamplingResults::SamplingResults(const settings::SmcSettings& settings, const st
     : _settings{settings},
       _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{
                                                                                                                              50U} {
+    _keep_sampling = true;
     _n_verified = 0U;
     _n_not_verified = 0U;
     _n_no_info = 0U;
@@ -200,6 +201,10 @@ void SamplingResults::addBatchResults(const BatchResults& res, const size_t thre
         for (const auto& thread_res : *all_threads_res) {
             processBatchResults(thread_res);
         }
+        updateSamplingStatus();
+        if (!_keep_sampling) {
+            _results_buffer.cancel();
+        }
     }
 }
 
@@ -257,18 +262,27 @@ double SamplingResults::getProbabilityVerifiedProperty() const {
 
 bool SamplingResults::newBatchNeeded(const size_t thread_id) const {
     // Check if the buffer for the thread is full. Wait for a slot to be available in case
-    _results_buffer.waitForSlotAvailable(thread_id);
-    std::scoped_lock<std::mutex> lock(_mtx);
+    if (_keep_sampling) {
+        _results_buffer.waitForSlotAvailable(thread_id);
+    }
+    // The result might be available in the meanwhile, so use the _keep_sampling as return
+    return _keep_sampling;
+}
+
+void SamplingResults::updateSamplingStatus() {
     // Reward properties require always reaching the target state
     if (_property_type == state_properties::PropertyType::R && (_n_no_info > 0U || _n_not_verified > 0U)) {
-        return false;
+        _keep_sampling = false;
+        return;
     }
     const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
     if (_settings.max_n_traces > 0U && n_samples >= _settings.max_n_traces) {
-        return false;
+        _keep_sampling = false;
+        return;
     }
     if (!minIterationsReached()) {
-        return true;
+        _keep_sampling = true;
+        return;
     }
     // Check if we never reached a terminal states
     if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
@@ -276,7 +290,7 @@ bool SamplingResults::newBatchNeeded(const size_t thread_id) const {
             false, storm::exceptions::UnexpectedException,
             "More than half the generated traces do not reach the terminal state. Aborting.");
     }
-    return _bound_function();
+    _keep_sampling = _bound_function();
 }
 
 double SamplingResults::calculateQuantile(const double& confidence) {

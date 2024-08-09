@@ -44,6 +44,11 @@ class BatchBuffer {
     ~BatchBuffer() = default;
 
     /*!
+     * @brief Cancel the buffer, unblocking all threads and preventing new samples from being added
+     */
+    void cancel();
+
+    /*!
      * @brief Add results to the buffer. Will throw if the buffer is full
      * @param results The results to add
      * @param thread_id The id of the thread that generated the results
@@ -64,6 +69,8 @@ class BatchBuffer {
 
   private:
     const size_t _n_slots;
+    // Whether the buffer is still active or it was canceled
+    bool _ok;
     // TODO: Consider to use a ring-buffer instead of a deque or vector of Batch results
     std::vector<std::deque<BatchResults>> _results_buffer;
     mutable std::mutex _buffer_mutex;

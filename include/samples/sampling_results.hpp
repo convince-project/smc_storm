@@ -103,6 +103,11 @@ class SamplingResults {
     void processBatchResults(const BatchResults& res);
 
     /*!
+     * @brief Check if we can continue the sampling process (not yet converged to a result and valid samples). Update the internal variable
+     */
+    void updateSamplingStatus();
+
+    /*!
      * @brief Check if we have reached the minimum n. of iterations
      * @return Whether we have reached the minimum n. of iterations
      */
@@ -161,6 +166,8 @@ class SamplingResults {
     mutable std::mutex _mtx;
     // The kind of property we need to evaluate
     const state_properties::PropertyType _property_type;
+    // Whether we should continue sampling or not (since convergence is reached or other conditions fired)
+    bool _keep_sampling;
     // Variables to keep track of the sampled traces results (Used for P properties)
     size_t _n_verified;
     size_t _n_not_verified;
