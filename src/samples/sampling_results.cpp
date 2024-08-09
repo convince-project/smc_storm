@@ -57,10 +57,11 @@ void SamplingResults::initBoundFunction() {
         stat_method = is_reward_prop ? "chow_robbins" : "adaptive";
     }
     if (is_reward_prop) {
-        STORM_LOG_THROW(stat_method == "chernoff" || stat_method == "chow_robbins",
-                        storm::exceptions::OutOfRangeException, "Invalid bound method " << stat_method << " for reward properties.");
+        STORM_LOG_THROW(
+            stat_method == "chernoff" || stat_method == "chow_robbins", storm::exceptions::OutOfRangeException,
+            "Invalid bound method " << stat_method << " for reward properties.");
     }
-    
+
     // Assign the correct bound function
     if ("chernoff" == stat_method) {
         updateChernoffBound();

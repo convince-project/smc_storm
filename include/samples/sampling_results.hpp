@@ -120,16 +120,16 @@ class SamplingResults {
      * @return The compute variance
      */
     inline double calculateVariance() const {
-      // Probability properties
-      if (_property_type == state_properties::PropertyType::P) {
-        // For Bernoulli distribution, he variance is computed as p(1-p) where p is the probability of success
-        const double successes = static_cast<double>(_n_verified);
-        const double failures = static_cast<double>(_n_not_verified);
-        const double n_samples = successes + failures;
-        return (n_samples * successes - successes * successes) / (n_samples * n_samples);
-      }
-      // Reward properties
-      return _reward_stats.variance;
+        // Probability properties
+        if (_property_type == state_properties::PropertyType::P) {
+            // For Bernoulli distribution, he variance is computed as p(1-p) where p is the probability of success
+            const double successes = static_cast<double>(_n_verified);
+            const double failures = static_cast<double>(_n_not_verified);
+            const double n_samples = successes + failures;
+            return (n_samples * successes - successes * successes) / (n_samples * n_samples);
+        }
+        // Reward properties
+        return _reward_stats.variance;
     }
 
     /*!
