@@ -103,11 +103,33 @@ class SamplingResults {
     void processBatchResults(const BatchResults& res);
 
     /*!
+     * @brief Check if we can continue the sampling process (not yet converged to a result and valid samples). Update the internal variable
+     */
+    void updateSamplingStatus();
+
+    /*!
      * @brief Check if we have reached the minimum n. of iterations
      * @return Whether we have reached the minimum n. of iterations
      */
     inline bool minIterationsReached() const {
         return _n_verified + _n_not_verified >= _min_iterations;
+    }
+
+    /*!
+     * @brief Calculate the variance of the collected samples, distinguishing between P and E properties
+     * @return The compute variance
+     */
+    inline double calculateVariance() const {
+        // Probability properties
+        if (_property_type == state_properties::PropertyType::P) {
+            // For Bernoulli distribution, he variance is computed as p(1-p) where p is the probability of success
+            const double successes = static_cast<double>(_n_verified);
+            const double failures = static_cast<double>(_n_not_verified);
+            const double n_samples = successes + failures;
+            return (n_samples * successes - successes * successes) / (n_samples * n_samples);
+        }
+        // Reward properties
+        return _reward_stats.variance;
     }
 
     /*!
@@ -129,9 +151,7 @@ class SamplingResults {
     void initBoundFunction();
 
     // Collection of bound functions to use. Return value is whether more batches are needed.
-    // Chernoff bounds work both for P and R properties
-    bool evaluateChernoffBound();
-    // The following iteration bounds work only on proportions (P properties)
+    // The following iteration bounds work only on P properties
     bool evaluateWaldBound();
     bool evaluateAgrestiBound();
     bool evaluateWilsonBound();
@@ -139,13 +159,15 @@ class SamplingResults {
     bool evaluateClopperPearsonBound();
     bool evaluateAdaptiveBound();
     bool evaluateArcsineBound();
-    // The following iteration bounds work for R properties
-    bool evaluateZInterval();
+    // The following iteration bounds work R properties, too
+    bool evaluateChernoffBound();
     bool evaluateChowRobbinsBound();
 
     mutable std::mutex _mtx;
     // The kind of property we need to evaluate
     const state_properties::PropertyType _property_type;
+    // Whether we should continue sampling or not (since convergence is reached or other conditions fired)
+    bool _keep_sampling;
     // Variables to keep track of the sampled traces results (Used for P properties)
     size_t _n_verified;
     size_t _n_not_verified;
