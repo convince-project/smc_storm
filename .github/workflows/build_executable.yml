@@ -56,14 +56,14 @@ jobs:
                     mkdir external_dependencies/storm/build
                     cd external_dependencies/storm/build
                     cmake -DSTORM_USE_SPOT_SHIPPED=ON ..
-                    make
+                    make storm-cli
             - name: Build smc_storm
               run: |
                     export STORM_BUILD_DIR=$PWD/external_dependencies/storm/build
                     mkdir build
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
-                    make storm-cli
+                    make
             - name: Run linting
               run: |
                     ./scripts/check-clang-style.bash
