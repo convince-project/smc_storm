@@ -19,10 +19,10 @@
 #include <storm-parsers/parser/FormulaParser.h>
 #include <storm/api/builder.h>
 #include <storm/api/properties.h>
-#include <storm/storage/expressions/ExpressionManager.h>
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
 #include <storm/exceptions/NotSupportedException.h>
+#include <storm/storage/expressions/ExpressionManager.h>
 #include <storm/utility/macros.h>
 
 #include "parser/parsers.hpp"
