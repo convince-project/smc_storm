@@ -63,7 +63,7 @@ jobs:
                     mkdir build
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
-                    make
+                    make storm-cli
             - name: Run linting
               run: |
                     ./scripts/check-clang-style.bash
