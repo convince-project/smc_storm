@@ -17,10 +17,9 @@
 
 #include <storm-parsers/api/storm-parsers.h>
 #include <storm-parsers/parser/FormulaParser.h>
-#include <storm-parsers/parser/JaniParser.h>
-#include <storm-parsers/parser/PrismParser.h>
 #include <storm/api/builder.h>
 #include <storm/api/properties.h>
+#include <storm/storage/expressions/ExpressionManager.h>
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
 #include <storm/exceptions/NotSupportedException.h>
@@ -67,7 +66,7 @@ SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::
 }
 
 SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings) {
-    const auto prism_model = storm::parser::PrismParser::parse(settings.model_file);
+    const auto prism_model = storm::api::parseProgram(settings.model_file);
     prism_model.checkValidity();
     const auto model_constants_map = prism_model.getConstantsSubstitution();
     const storm::parser::FormulaParser formula_parser(prism_model);
