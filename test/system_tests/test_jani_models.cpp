@@ -86,6 +86,20 @@ TEST(StatisticalModelCheckerJaniTest, TestTrigonometry) {
     }
 }
 
+TEST(StatisticalModelCheckerJaniTest, TestArray) {
+    const std::filesystem::path jani_file = TEST_PATH / "array_test.jani";
+    {
+        const auto user_settings = getSettings(jani_file, "property_no_array_access");
+        const double result = getVerificationResult<double>(user_settings);
+        EXPECT_NEAR(result, 1.0, user_settings.epsilon);
+    }
+    {
+        const auto user_settings = getSettings(jani_file, "property_with_array_access");
+        const double result = getVerificationResult<double>(user_settings);
+        EXPECT_NEAR(result, 1.0, user_settings.epsilon);
+    }
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

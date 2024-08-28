@@ -56,7 +56,7 @@ jobs:
                     mkdir external_dependencies/storm/build
                     cd external_dependencies/storm/build
                     cmake -DSTORM_USE_SPOT_SHIPPED=ON ..
-                    make
+                    make storm-cli
             - name: Build smc_storm
               run: |
                     export STORM_BUILD_DIR=$PWD/external_dependencies/storm/build

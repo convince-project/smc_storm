@@ -17,13 +17,12 @@
 
 #include <storm-parsers/api/storm-parsers.h>
 #include <storm-parsers/parser/FormulaParser.h>
-#include <storm-parsers/parser/JaniParser.h>
-#include <storm-parsers/parser/PrismParser.h>
 #include <storm/api/builder.h>
 #include <storm/api/properties.h>
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
 #include <storm/exceptions/NotSupportedException.h>
+#include <storm/storage/expressions/ExpressionManager.h>
 #include <storm/utility/macros.h>
 
 #include "parser/parsers.hpp"
@@ -46,7 +45,11 @@ SymbolicModelAndProperty parseModelAndProperties(const smc_storm::settings::User
 
 SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::UserSettings& settings) {
     // Load the required model and property
-    const auto model_and_formulae = storm::parser::JaniParser<storm::RationalNumber>::parse(settings.model_file, true);
+    storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
+    // Removing the array feature ensures the array entries are substituted with the expanded name.
+    // e.g. array[0] -> array_at_0
+    supported_features.remove(storm::jani::ModelFeature::Arrays);
+    auto model_and_formulae = storm::api::parseJaniModel(settings.model_file, supported_features);
     model_and_formulae.first.checkValid();
     const auto model_constants_map = model_and_formulae.first.getConstantsSubstitution();
     std::vector<storm::jani::Property> loaded_properties;
@@ -59,15 +62,11 @@ SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::
         loaded_properties = filterProperties(model_and_formulae.second, properties_ids, model_constants_map);
     }
     // Add the user-defined constants
-    auto model_and_property = substituteConstants({model_and_formulae.first, loaded_properties}, settings.constants);
-    // Expand the model
-    storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
-    storm::api::simplifyJaniModel(model_and_property.model.asJaniModel(), model_and_property.property, supported_features);
-    return model_and_property;
+    return substituteConstants({model_and_formulae.first, loaded_properties}, settings.constants);
 }
 
 SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings) {
-    const auto prism_model = storm::parser::PrismParser::parse(settings.model_file);
+    const auto prism_model = storm::api::parseProgram(settings.model_file);
     prism_model.checkValidity();
     const auto model_constants_map = prism_model.getConstantsSubstitution();
     const storm::parser::FormulaParser formula_parser(prism_model);
