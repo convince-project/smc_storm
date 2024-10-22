@@ -20,7 +20,7 @@
 #include <argparse/argparse.hpp>
 
 namespace smc_storm::settings {
-constexpr const char* const VERSION = "0.0.3";
+constexpr const char* const VERSION = "0.0.4";
 
 /*!
  * @brief Class for generating the settings from the command line arguments
@@ -60,6 +60,10 @@ class CmdSettings {
             .scan<'i', size_t>()
             .default_value(_loaded_settings.batch_size)
             .help("Batch size for the sampling.");
+        _parser.add_argument("--disable-explored-states-caching")
+            .default_value(false)
+            .implicit_value(true)
+            .help("Disable storage of the explored states.");
         _parser.add_argument("--show-statistics").default_value(false).implicit_value(true).help("Show statistics after checking.");
     }
 
@@ -86,6 +90,7 @@ class CmdSettings {
             _loaded_settings.max_n_traces = _parser.get<size_t>("--max-n-traces");
             _loaded_settings.n_threads = _parser.get<size_t>("--n-threads");
             _loaded_settings.batch_size = _parser.get<size_t>("--batch-size");
+            _loaded_settings.cache_explored_states = !_parser.get<bool>("--disable-explored-states-caching");
             _loaded_settings.show_statistics = _parser.get<bool>("--show-statistics");
             _parsing_done = true;
         } catch (const std::exception& err) {

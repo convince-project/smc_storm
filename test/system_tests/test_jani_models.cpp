@@ -26,13 +26,14 @@
 const std::filesystem::path TEST_PATH{"models"};
 
 smc_storm::settings::UserSettings getSettings(
-    const std::filesystem::path& jani_file, const std::string& property, const std::string& constants = "") {
+    const std::filesystem::path& jani_file, const std::string& property, const std::string& constants = "", const bool cache = true) {
     smc_storm::settings::UserSettings settings;
     settings.model_file = jani_file.string();
     settings.properties_names = property;
     settings.constants = constants;
     // Set Chernoff to default method for better stability in tests
     settings.stat_method = "chernoff";
+    settings.cache_explored_states = cache;
     return settings;
 }
 
@@ -52,9 +53,23 @@ TEST(StatisticalModelCheckerJaniTest, TestLeaderSync) {
     EXPECT_NEAR(result, 1.3333333, user_settings.epsilon);
 }
 
+TEST(StatisticalModelCheckerJaniTest, TestLeaderSyncNoCache) {
+    const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
+    const auto user_settings = getSettings(jani_file, "time", "", false);
+    const double result = getVerificationResult<double>(user_settings);
+    EXPECT_NEAR(result, 1.3333333, user_settings.epsilon);
+}
+
 TEST(StatisticalModelCheckerJaniTest, TestNand) {
     const std::filesystem::path jani_file = TEST_PATH / "nand.v1.jani";
     const auto user_settings = getSettings(jani_file, "reliable", "N=20,K=2");
+    const double result = getVerificationResult<double>(user_settings);
+    EXPECT_NEAR(result, 0.4128626, user_settings.epsilon);
+}
+
+TEST(StatisticalModelCheckerJaniTest, TestNandNoCache) {
+    const std::filesystem::path jani_file = TEST_PATH / "nand.v1.jani";
+    const auto user_settings = getSettings(jani_file, "reliable", "N=20,K=2", false);
     const double result = getVerificationResult<double>(user_settings);
     EXPECT_NEAR(result, 0.4128626, user_settings.epsilon);
 }

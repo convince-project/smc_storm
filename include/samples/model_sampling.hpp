@@ -21,37 +21,33 @@
 #include <utility>
 #include <vector>
 
+#include "state_properties/state_description.hpp"
 #include <storm/utility/ConstantsComparator.h>
 
 namespace smc_storm::samples {
 
 template <typename StateType, typename ValueType>
-class ExplorationInformation;
-
-template <typename StateType, typename ValueType>
 class ModelSampling {
   public:
-    typedef StateType ActionType;
+    typedef size_t ActionType;
     ModelSampling();
     ModelSampling(const uint_fast32_t& seed);
 
     /*!
      * @brief Sample a single action leaving the current state depending on the sampling strategy (for StatisticalMC)
-     * @param current_state_id The state ID the action must start from
-     * @param exploration_information Model-related data, associating state and action IDs together
-     * @return The sampled action ID
+     * @param current_state The current state to sample the next action from
+     * @return The index of the next action to take
      */
-    ActionType sampleActionOfState(
-        const StateType& current_state_id, const ExplorationInformation<StateType, ValueType>& exploration_information) const;
+    ActionType sampleActionOfState(const state_properties::StateDescription<StateType, ValueType>& current_state) const;
 
     /*!
      * @brief Sample the state that will be reached by selecting a specific action (for StatisticalMC)
-     * @param chosenAction The ID of the selected action
+     * @param chosenAction The index of the selected next action
      * @param exploration_information Model-related data, associating state and action IDs together
      * @return The sampled state ID
      */
     StateType sampleSuccessorFromAction(
-        const ActionType& chosenAction, const ExplorationInformation<StateType, ValueType>& exploration_information) const;
+        const ActionType& chosenAction, const state_properties::StateDescription<StateType, ValueType>& current_state) const;
 
   private:
     // A random number generator

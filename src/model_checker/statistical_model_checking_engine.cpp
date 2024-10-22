@@ -59,8 +59,8 @@
 
 namespace smc_storm {
 namespace model_checker {
-template <typename ModelType, typename StateType>
-bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandleStatic(
+template <typename ModelType, bool StoreExploredStates>
+bool StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::canHandleStatic(
     const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) {
     // Prepare the fragment defined our supported formulas
     // This allows all (atomic) property operators + the unary NOT logic operator on atomic properties (e.g. !F(s=2))
@@ -76,13 +76,13 @@ bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandleStatic(
     return is_formula_supported && is_only_init_state_relevant;
 }
 
-template <typename ModelType, typename StateType>
-bool StatisticalModelCheckingEngine<ModelType, StateType>::traceStorageEnabled() const {
+template <typename ModelType, bool StoreExploredStates>
+bool StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::traceStorageEnabled() const {
     return !_settings.traces_file.empty();
 }
 
-template <typename ModelType, typename StateType>
-std::vector<uint_fast32_t> StatisticalModelCheckingEngine<ModelType, StateType>::getThreadSeeds() const {
+template <typename ModelType, bool StoreExploredStates>
+std::vector<uint_fast32_t> StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::getThreadSeeds() const {
     // Get an initial seed for random sampling in each thread
     const uint_fast32_t init_random_seed = std::chrono::system_clock::now().time_since_epoch().count();
     std::vector<uint_fast32_t> thread_seeds{};
@@ -93,8 +93,8 @@ std::vector<uint_fast32_t> StatisticalModelCheckingEngine<ModelType, StateType>:
     return thread_seeds;
 }
 
-template <typename ModelType, typename StateType>
-StatisticalModelCheckingEngine<ModelType, StateType>::StatisticalModelCheckingEngine(
+template <typename ModelType, bool StoreExploredStates>
+StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::StatisticalModelCheckingEngine(
     const storm::storage::SymbolicModelDescription& in_model, const settings::SmcSettings& settings)
     : _model{in_model}, _settings{settings} {
     // Verify model validity
@@ -102,14 +102,14 @@ StatisticalModelCheckingEngine<ModelType, StateType>::StatisticalModelCheckingEn
     STORM_LOG_THROW(verifySettingsValid(), storm::exceptions::InvalidSettingsException, "Invalid settings provided: cannot evaluate!");
 }
 
-template <typename ModelType, typename StateType>
-bool StatisticalModelCheckingEngine<ModelType, StateType>::canHandle(
+template <typename ModelType, bool StoreExploredStates>
+bool StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::canHandle(
     const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) const {
     return canHandleStatic(check_task);
 }
 
-template <typename ModelType, typename StateType>
-bool StatisticalModelCheckingEngine<ModelType, StateType>::verifyModelValid() const {
+template <typename ModelType, bool StoreExploredStates>
+bool StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::verifyModelValid() const {
     bool is_model_valid = false;
     bool is_model_deterministic = false;
     if (_model.isJaniModel()) {
@@ -123,8 +123,8 @@ bool StatisticalModelCheckingEngine<ModelType, StateType>::verifyModelValid() co
     return is_model_valid;
 }
 
-template <typename ModelType, typename StateType>
-bool StatisticalModelCheckingEngine<ModelType, StateType>::verifySettingsValid() const {
+template <typename ModelType, bool StoreExploredStates>
+bool StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::verifySettingsValid() const {
     bool is_settings_valid = true;
     if (_settings.n_threads == 0U) {
         STORM_LOG_ERROR("The number of threads must be greater than 0!");
@@ -145,8 +145,8 @@ bool StatisticalModelCheckingEngine<ModelType, StateType>::verifySettingsValid()
     return is_settings_valid;
 }
 
-template <typename ModelType, typename StateType>
-std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeProbabilities(
+template <typename ModelType, bool StoreExploredStates>
+std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::computeProbabilities(
     const storm::Environment& env, const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) {
     // Prepare the results holder
     samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::P);
@@ -176,8 +176,9 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
         estimated_success_prob, estimated_success_prob);
 }
 
-template <typename ModelType, typename StateType>
-std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine<ModelType, StateType>::computeReachabilityRewards(
+template <typename ModelType, bool StoreExploredStates>
+std::unique_ptr<storm::modelchecker::CheckResult>
+StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::computeReachabilityRewards(
     const storm::Environment& env, const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) {
     // Prepare the results holder
     samples::SamplingResults sampling_results(_settings, state_properties::PropertyType::R);
@@ -206,24 +207,16 @@ std::unique_ptr<storm::modelchecker::CheckResult> StatisticalModelCheckingEngine
     return std::make_unique<storm::modelchecker::ExplicitQuantitativeCheckResult<ValueType>>(avg_reward, avg_reward);
 }
 
-template <typename ModelType, typename StateType>
-void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
+template <typename ModelType, bool StoreExploredStates>
+void StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::performSampling(
     const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
     const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results, const size_t thread_id) {
     // TODO: Make sure that this is never set in case of P properties
     const std::string reward_model = check_task.isRewardModelSet() ? check_task.getRewardModel() : "";
     // Prepare exploration information holder.
     const bool export_traces = traceStorageEnabled();
-    samples::ExplorationInformation<StateType, ValueType> exploration_information(export_traces);
-    exploration_information.newRowGroup(0);
-
     // Prepare object for sampling next states
-    StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), reward_model, exploration_information);
-    // Generate the initial state so we know where to start the simulation.
-    state_generation.computeInitialStates();
-    STORM_LOG_THROW(
-        state_generation.getNumberOfInitialStates() == 1, storm::exceptions::InvalidModelException,
-        "Currently only models with one initial state are supported by the exploration engine.");
+    StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), reward_model, export_traces);
 
     if (export_traces) {
         // Prepare the traces export object
@@ -236,7 +229,7 @@ void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
         batch_results.reset();
         while (batch_results.batchIncomplete()) {
             // Sample a new path
-            const auto result = samplePathFromInitialState(state_generation, exploration_information, model_sampler);
+            const auto result = samplePathFromInitialState(state_generation, model_sampler);
             batch_results.addResult(result);
         }
         sampling_results.addBatchResults(batch_results, thread_id);
@@ -244,46 +237,30 @@ void StatisticalModelCheckingEngine<ModelType, StateType>::performSampling(
     _traces_exporter_ptr.reset();
 }
 
-template <typename ModelType, typename StateType>
-samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::samplePathFromInitialState(
-    StateGeneration<StateType, ValueType>& state_generation, samples::ExplorationInformation<StateType, ValueType>& exploration_information,
-    const samples::ModelSampling<StateType, ValueType>& model_sampler) const {
+template <typename ModelType, bool StoreExploredStates>
+samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::samplePathFromInitialState(
+    StateGeneration<StateType, ValueType>& state_generation, const samples::ModelSampling<StateType, ValueType>& model_sampler) const {
     samples::TraceInformation trace_information;
     trace_information.trace_length = 0U;
     trace_information.outcome = samples::TraceResult::NO_INFO;
     trace_information.reward = 0.0;
-    // Start the search from the initial state.
-    StateType current_state_id = state_generation.getFirstInitialState();
-
-    const bool check_global_property = state_generation.getIsTerminalVerified();
-
+    const auto& property = state_generation.getPropertyDescription();
+    const bool check_global_property = property.getIsTerminalVerified();
+    const size_t lower_bound = property.getLowerBound();
+    const size_t upper_bound = property.getUpperBound();
     // As long as we didn't find a terminal (accepting or rejecting) state in the search, sample a new successor.
     samples::TraceResult path_result = samples::TraceResult::NO_INFO;
+    state_generation.loadInitialState();
     while (path_result == samples::TraceResult::NO_INFO) {
-        STORM_LOG_TRACE("Current state is: " << current_state_id << ".");
-        // If we need to export the traces, the exporter instance will exist
+        const auto& state_processing_result = state_generation.processLoadedState();
         if (_traces_exporter_ptr) {
-            _traces_exporter_ptr->addNextState(exploration_information.getCompressedState(current_state_id));
+            _traces_exporter_ptr->addNextState(state_processing_result.getCompressedState());
         }
-        state_properties::StateInfoType state_info = state_properties::state_info::NO_INFO;
-
-        // If the state is not yet explored, we need to retrieve its behaviors.
-        if (exploration_information.isUnexplored(current_state_id)) {
-            STORM_LOG_TRACE("State was not yet explored.");
-            // Explore the previously unexplored state.
-            state_info = exploreState(state_generation, current_state_id, exploration_information);
-        } else {
-            state_info = exploration_information.getStateInfo(current_state_id);
-        }
-
-        // Add the reward for being at the current state
-        if (state_generation.rewardLoaded()) {
-            // TODO: this if statement is extremely redundant!
-            trace_information.reward += exploration_information.getStateReward(current_state_id);
-        }
+        trace_information.reward += state_processing_result.getReward();
 
         // Do the check before emplacing back to get the correct n. of steps!
-        const bool min_steps_done = trace_information.trace_length >= state_generation.getLowerBound();
+        const bool min_steps_done = trace_information.trace_length >= lower_bound;
+        const auto& state_info = state_processing_result.getStateInfo();
         // Once here, we know the info related to the current state and we can decide whether to stop or continue!
         if (min_steps_done && state_properties::state_info::checkSatisfyTarget(state_info) && !check_global_property) {
             path_result = samples::TraceResult::VERIFIED;
@@ -294,7 +271,7 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::
         } else {
             // The state was neither a target nor a terminal state
             // Check if we reached the max n. of samples or we can continue sampling
-            if (trace_information.trace_length >= state_generation.getUpperBound()) {
+            if (trace_information.trace_length >= upper_bound) {
                 // If we went over the upper bound, stop sampling
                 // TODO: Global properties might require special handling, however STORM has no support for Bounded Global properties
                 STORM_LOG_TRACE("We reached the Upper bound. Stopping path expansion!");
@@ -305,20 +282,10 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::
                 break;
             } else {
                 // Sample the next state by picking the next action.
-                const ActionType chosen_action = model_sampler.sampleActionOfState(current_state_id, exploration_information);
-                STORM_LOG_TRACE("Sampled action " << chosen_action << " in state " << current_state_id << ".");
-                // Add reward for the chosen action
-                if (state_generation.rewardLoaded()) {
-                    // TODO: Redundant if!
-                    trace_information.reward += exploration_information.getActionReward(chosen_action);
-                }
-                // Get the next state given the chosen action and the prob. distr. of reachable states.
-                const StateType next_state_id = model_sampler.sampleSuccessorFromAction(chosen_action, exploration_information);
-                STORM_LOG_TRACE(
-                    "Sampled successor " << next_state_id << " according to action " << chosen_action << " of state " << current_state_id
-                                         << ".");
-                // Update the n. of steps and current state
-                current_state_id = next_state_id;
+                const size_t chosen_action_id = model_sampler.sampleActionOfState(state_processing_result);
+                const StateType next_state = model_sampler.sampleSuccessorFromAction(chosen_action_id, state_processing_result);
+                trace_information.reward += state_processing_result.getActions()[chosen_action_id].second;
+                state_generation.load(next_state);
                 ++trace_information.trace_length;
             }
         }
@@ -331,96 +298,9 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StateType>::
     return trace_information;
 }
 
-template <typename ModelType, typename StateType>
-state_properties::StateInfoType StatisticalModelCheckingEngine<ModelType, StateType>::exploreState(
-    StateGeneration<StateType, ValueType>& state_generation, const StateType& current_state_id,
-    samples::ExplorationInformation<StateType, ValueType>& exploration_information) const {
-    // At start, we know nothing about this state
-    state_properties::StateInfoType state_info = state_properties::state_info::NO_INFO;
-    const size_t reward_index = state_generation.getRewardIndex();
-    const bool rewards_needed = state_generation.rewardLoaded();
-
-    auto unexplored_it = exploration_information.findUnexploredState(current_state_id);
-    STORM_LOG_THROW(
-        exploration_information.unexploredStatesEnd() != unexplored_it, storm::exceptions::UnexpectedException,
-        "Cannot retrieve unexplored state.");
-    const storm::generator::CompressedState& compressed_state = unexplored_it->second;
-
-    exploration_information.assignStateToNextRowGroup(current_state_id);
-    STORM_LOG_TRACE(
-        "Assigning row group " << exploration_information.getRowGroup(current_state_id) << " to state " << current_state_id << ".");
-    state_generation.load(compressed_state);
-
-    // Get the expanded current state
-    const storm::generator::StateBehavior<ValueType, StateType> expanded_state = state_generation.expand();
-
-    if (rewards_needed) {
-        exploration_information.addStateReward(current_state_id, expanded_state.getStateRewards().at(reward_index));
-    }
-
-    if (state_generation.isTargetState()) {
-        state_info |= state_properties::state_info::SATISFY_TARGET;
-    }
-    if (state_generation.isConditionState()) {
-        // Clumsily check whether we have found a state that forms a trivial BMEC.
-        bool other_successor = false;
-        for (const auto& choice : expanded_state) {
-            for (const auto& [next_state_id, _] : choice) {
-                if (next_state_id != current_state_id) {
-                    // We found a successor that goes to a new state, no termination yet!
-                    other_successor = true;
-                    break;
-                }
-            }
-        }
-        if (!other_successor) {
-            // Can't find a successor: we reached a terminal state
-            state_info |= state_properties::state_info::IS_TERMINAL;
-        } else {
-            // If the state was neither a trivial (non-accepting) terminal state
-            // nor a target state, we need to store its behavior. Next, we insert
-            // the state + related actions into our matrix structure.
-            StateType start_action = exploration_information.getActionCount();
-            exploration_information.addActionsToMatrix(expanded_state.getNumberOfChoices());
-
-            ActionType local_action = 0;
-
-            for (const auto& single_action : expanded_state) {
-                const ActionType action_id = start_action + local_action;
-                if (rewards_needed) {
-                    exploration_information.addActionReward(action_id, single_action.getRewards().at(reward_index));
-                }
-                for (const auto& [next_state_id, likelihood] : single_action) {
-                    exploration_information.getRowOfMatrix(action_id).emplace_back(next_state_id, likelihood);
-                    STORM_LOG_TRACE(
-                        "Found transition " << current_state_id << "-[" << (action_id) << ", " << likelihood << "]-> " << next_state_id
-                                            << ".");
-                }
-                ++local_action;
-            }
-
-            // Terminate the row group.
-            exploration_information.terminateCurrentRowGroup();
-        }
-
-    } else {
-        state_info |= state_properties::state_info::BREAK_CONDITION;
-    }
-
-    if (!state_properties::state_info::checkNoInfo(state_info)) {
-        exploration_information.addStateInfo(current_state_id, state_info);
-    }
-
-    // Check whether we need to add a dummy action to the exploration information object
-    if (state_properties::state_info::checkBreakCondition(state_info) || state_properties::state_info::checkIsTerminal(state_info)) {
-        exploration_information.addActionsToMatrix(1);
-        exploration_information.newRowGroup();
-    }
-    exploration_information.removeUnexploredState(unexplored_it);
-    return state_info;
-}
-
-template class StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, uint32_t>;
-template class StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>, uint32_t>;
+template class StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, true>;
+template class StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>, true>;
+template class StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, false>;
+template class StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>, false>;
 }  // namespace model_checker
 }  // namespace smc_storm

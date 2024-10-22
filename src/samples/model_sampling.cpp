@@ -18,12 +18,11 @@
 #include <chrono>
 
 #include <storm/settings/modules/CoreSettings.h>
-#include <storm/settings/modules/ExplorationSettings.h>
 #include <storm/settings/SettingsManager.h>
 
+#include <storm/exceptions/IllegalFunctionCallException.h>
 #include <storm/utility/macros.h>
 
-#include "samples/exploration_information.hpp"
 #include "samples/model_sampling.hpp"
 
 namespace smc_storm::samples {
@@ -46,35 +45,36 @@ ModelSampling<StateType, ValueType>::ModelSampling(const uint_fast32_t& seed)
 
 // Methods used by Statistical Model Checking Engine
 template <typename StateType, typename ValueType>
-StateType ModelSampling<StateType, ValueType>::sampleActionOfState(
-    const StateType& current_state_id, const ExplorationInformation<StateType, ValueType>& exploration_information) const {
-    // TODO: For now we pick a random action leaving the current state, with uniform probability
-    // For DTMCs this will make no difference (we only have one leaving action), for MDPs we can implement smarter strategies later on
-    const size_t row_group_id = exploration_information.getRowGroup(current_state_id);
-    const ActionType first_action_id = exploration_information.getStartRowOfGroup(row_group_id);
-    const size_t n_actions = exploration_information.getRowGroupSize(row_group_id);
+typename ModelSampling<StateType, ValueType>::ActionType ModelSampling<StateType, ValueType>::sampleActionOfState(
+    const state_properties::StateDescription<StateType, ValueType>& current_state) const {
+    // TODO: For now we pick a random action leaving the current state, with
+    // uniform probability For DTMCs this will make no difference (we only have
+    // one leaving action), for MDPs we can implement smarter strategies later on
+    const size_t n_actions = current_state.getActions().size();
+    STORM_LOG_THROW(n_actions > 0U, storm::exceptions::IllegalFunctionCallException, "No actions available in the current state.");
     if (n_actions == 1U) {
-        return first_action_id;
+        return 0U;
     }
-    std::uniform_int_distribution<ActionType> distribution(first_action_id, first_action_id + n_actions - 1U);
-    return distribution(_random_generator);
+    return std::uniform_int_distribution<ActionType>(0U, n_actions - 1U)(_random_generator);
 }
 
 template <typename StateType, typename ValueType>
 StateType ModelSampling<StateType, ValueType>::sampleSuccessorFromAction(
-    const ActionType& chosen_action, const ExplorationInformation<StateType, ValueType>& exploration_information) const {
-    const std::vector<storm::storage::MatrixEntry<StateType, ValueType>>& row = exploration_information.getRowOfMatrix(chosen_action);
-    if (row.size() == 1) {
-        return row.front().getColumn();
+    const ActionType& chosenAction, const state_properties::StateDescription<StateType, ValueType>& current_state) const {
+    // Randomly select a target state, based on the transition probabilities
+    const auto& action_targets = current_state.getActions()[chosenAction].first;
+    if (action_targets.size() == 1) {
+        return action_targets.front().second;
     }
-    std::vector<ValueType> probabilities(row.size());
-    std::transform(row.begin(), row.end(), probabilities.begin(), [](const storm::storage::MatrixEntry<StateType, ValueType>& entry) {
-        return entry.getValue();
+    std::vector<ValueType> probabilities(action_targets.size());
+    std::transform(action_targets.begin(), action_targets.end(), probabilities.begin(), [](const std::pair<ValueType, StateType>& entry) {
+        return entry.first;
     });
-    std::discrete_distribution<StateType> distribution(probabilities.begin(), probabilities.end());
-    return row[distribution(_random_generator)].getColumn();
+    std::discrete_distribution<size_t> distribution(probabilities.begin(), probabilities.end());
+    return action_targets[distribution(_random_generator)].second;
 }
 
 template class ModelSampling<uint32_t, double>;
+template class ModelSampling<storm::generator::CompressedState, double>;
 
 }  // namespace smc_storm::samples
