@@ -37,6 +37,7 @@ struct UserSettings {
     size_t max_n_traces{0U};
     size_t n_threads{1U};
     size_t batch_size{100U};
+    bool cache_explored_states{true};
     bool show_statistics{false};
 
     bool validModel() const {

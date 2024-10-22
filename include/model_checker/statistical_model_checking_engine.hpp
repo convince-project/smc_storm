@@ -58,13 +58,13 @@ class StateGeneration;
 /*!
  * @brief The implementation of the ModelChecking engine
  * @tparam ModelType Definition of the kind of model to evaluate (e.g. DTMC, MDP, ...)
- * @tparam StateType Variable type used to identify the states in the model
+ * @tparam StoreExploredStates Boolean flag to enable the storage of the generated traces
  */
-template <typename ModelType, typename StateType = uint32_t>
+template <typename ModelType, bool StoreExploredStates>
 class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModelChecker<ModelType> {
   public:
     typedef typename ModelType::ValueType ValueType;
-    typedef StateType ActionType;
+    typedef std::conditional_t<StoreExploredStates, uint32_t, storm::generator::CompressedState> StateType;
 
     /*!
      * @brief Constructor for the StatisticalModelCheckingEngine
@@ -131,26 +131,11 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
     /*!
      * @brief Sample a single path until we reach a state it doesn't make sense to expand further
      * @param state_generation A representation of the model, to sample the states from
-     * @param exploration_information Information about the previous explorations (to optimize computation)
      * @param model_sampler Object used to randomly sample next action and states
      * @return A pair with the Information attached to the reached state and the accumulated reward
      */
     samples::TraceInformation samplePathFromInitialState(
-        StateGeneration<StateType, ValueType>& state_generation,
-        samples::ExplorationInformation<StateType, ValueType>& exploration_information,
-        const samples::ModelSampling<StateType, ValueType>& model_sampler) const;
-
-    /*!
-     * @brief Explore a single, unexplored state
-     * @param state_generation A representation of the model, to sample the states from
-     * @param current_state_id The ID of the state we are exploring
-     * @param currentState A compressed representation of the actual state
-     * @param exploration_information Information about the previous explorations (to optimize computation)
-     * @return A description of the input state for evaluation
-     */
-    state_properties::StateInfoType exploreState(
-        StateGeneration<StateType, ValueType>& state_generation, const StateType& current_state_id,
-        samples::ExplorationInformation<StateType, ValueType>& exploration_information) const;
+        StateGeneration<StateType, ValueType>& state_generation, const samples::ModelSampling<StateType, ValueType>& model_sampler) const;
 
     // The model to check.
     const storm::storage::SymbolicModelDescription _model;

@@ -58,11 +58,17 @@ void StatisticalModelChecker::printProperty() const {
 
 void StatisticalModelChecker::check() {
     const storm::modelchecker::CheckTask<> check_task(*(_property.front().getRawFormula()), true);
-    if (_model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::DTMC) {
-        StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>> checker(_model, _settings);
+    if (_settings.cache_explored_states && _model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::DTMC) {
+        StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, true> checker(_model, _settings);
         _result = checker.check(check_task);
-    } else if (_model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::MDP) {
-        StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>> checker(_model, _settings);
+    } else if (_settings.cache_explored_states && _model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::MDP) {
+        StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>, true> checker(_model, _settings);
+        _result = checker.check(check_task);
+    } else if (!_settings.cache_explored_states && _model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::DTMC) {
+        StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, false> checker(_model, _settings);
+        _result = checker.check(check_task);
+    } else if (!_settings.cache_explored_states && _model.getModelType() == storm::storage::SymbolicModelDescription::ModelType::MDP) {
+        StatisticalModelCheckingEngine<storm::models::sparse::Mdp<double>, false> checker(_model, _settings);
         _result = checker.check(check_task);
     } else {
         STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Only DTMC and MDP models are supported.");

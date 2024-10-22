@@ -22,36 +22,37 @@
 
 #include <storm/generator/CompressedState.h>
 #include <storm/generator/NextStateGenerator.h>
-#include <storm/storage/sparse/StateStorage.h>
 #include <storm/storage/SymbolicModelDescription.h>
 
+#include "model_checker/state_expansion_handler.hpp"
 #include "state_properties/property_description.hpp"
+#include "state_properties/state_description.hpp"
 
 namespace smc_storm {
-namespace samples {
-template <typename StateType, typename ValueType>
-class ExplorationInformation;
-}  // namespace samples
-
 namespace model_checker {
+template <typename StateType>
+concept StoreExpandedStates = !std::is_same_v<StateType, storm::generator::CompressedState>;
+
 /*!
  * @brief Class that loads an input model and property to generate states and verify if the input property holds.
- * @tparam StateType Variab;e type to identify states and actions
+ * @tparam StateType Variable type to identify states and actions
  * @tparam ValueType Variable type of computed results (e.g. rewards)
  */
 template <typename StateType, typename ValueType>
 class StateGeneration {
+    using StateIdType = std::conditional_t<StoreExpandedStates<StateType>, StateType, uint32_t>;
+
   public:
     /*!
      * @brief Extension of the constructor above, in case we evaluate Rewards
      * @param model The model to generate the next states from
      * @param formula The formula to evaluate on the generated states
      * @param reward_model Name of the reward model to use for assigning costs on states and actions. Empty for P properties
-     * @param exploration_information Structure that keeps track of the already explored states
+     * @param store_compressed_states Whether to store the explored compressed states (for trace generation)
      */
     StateGeneration(
         const storm::storage::SymbolicModelDescription& model, const storm::logic::Formula& formula, const std::string& reward_model,
-        samples::ExplorationInformation<StateType, ValueType>& exploration_information);
+        const bool store_compressed_states);
 
     /*!
      * @brief Get the variable information related to the loaded model
@@ -62,32 +63,26 @@ class StateGeneration {
     }
 
     /*!
-     * @brief Check if a reward model is loaded and therefore it needs to be evaluated
-     * @return true if we loaded a reward model, false otherwise
+     * @brief Load the initial state in the NextStateGenerator (basically a model reset).
      */
-    inline bool rewardLoaded() const {
-        return std::numeric_limits<size_t>::max() != _reward_model_index;
-    }
-
-    /*!
-     * @brief Get the index of the reward model of our interest
-     * @return Index matching to the reward model we are evaluating
-     */
-    inline size_t getRewardIndex() const {
-        return _reward_model_index;
-    }
+    void loadInitialState();
 
     /*!
      * @brief Load a compressed state in the NextStateGenerator
      * @param state The compressed state to load
      */
-    void load(const storm::generator::CompressedState& state);
+    void load(const StateType& state_id);
 
-    /*!
-     * @brief Get the initial states of the loaded model
-     * @return A list of state IDs
-     */
-    std::vector<StateType> getInitialStates();
+    const state_properties::StateDescription<StateType, ValueType>& processLoadedState();
+
+    const state_properties::PropertyDescription& getPropertyDescription() const {
+        return _property_description;
+    }
+
+  private:
+    void initStateToIdCallback();
+
+    void initNextStateGenerator(const storm::storage::SymbolicModelDescription& model, const std::string& reward_model);
 
     /*!
      * @brief Expand the loaded state to get the next states
@@ -95,58 +90,34 @@ class StateGeneration {
      */
     storm::generator::StateBehavior<ValueType, StateType> expand();
 
+    void exploreState(const StateIdType state_id, const storm::generator::CompressedState& compressed_state);
+
     void computeInitialStates();
 
-    StateType getFirstInitialState() const;
-
-    std::size_t getNumberOfInitialStates() const;
-
     /*!
-     * @brief Check whether the loaded state satisfies the condition formula
-     * @return true if the condition formula is satisfied, false otherwise
+     * @brief Check if a reward model is loaded and therefore it needs to be evaluated
+     * @return true if we loaded a reward model, false otherwise
      */
-    bool isConditionState() const;
-
-    /*!
-     * @brief Check whether the loaded state satisfies the target formula
-     * @return true if the target formula is satisfied, false otherwise
-     */
-    bool isTargetState() const;
-
-    /*!
-     * @brief Getter for the min amount of steps to compute before checking for target and condition formulae
-     * @return The lower bound of the property
-     */
-    inline size_t getLowerBound() const {
-        return _property_description.getLowerBound();
+    inline bool rewardLoaded() const {
+        return std::numeric_limits<size_t>::max() != _reward_model_index;
     }
 
-    /*!
-     * @brief Getter for the max amount of steps, after which the property is marked as unsatisfied
-     * @return The upper bound of the property
-     */
-    inline size_t getUpperBound() const {
-        return _property_description.getUpperBound();
-    }
+    // Generator extracting the next states from the current one and the input model.
+    std::unique_ptr<storm::generator::NextStateGenerator<ValueType, StateIdType>> _generator_ptr;
+    // Current state.
+    StateType _loaded_state;
+    std::unique_ptr<state_properties::StateDescription<StateType, ValueType>> _state_description_ptr;
+    // Vector of initial states (normally only one).
+    std::vector<StateType> _initial_states;
 
-    /*!
-     * @brief Flag indicating that a terminal state should be considered as verified, regardless of the target formula
-     * @return true if any terminal state that does not break the condition formula is verified, false otherwise
-     */
-    inline bool getIsTerminalVerified() const {
-        return _property_description.getIsTerminalVerified();
-    }
-
-  private:
-    void initStateToIdCallback(samples::ExplorationInformation<StateType, ValueType>& exploration_information);
-
-    std::unique_ptr<storm::generator::NextStateGenerator<ValueType, StateType>> _generator_ptr;
-    std::unique_ptr<storm::storage::sparse::StateStorage<StateType>> _state_storage_ptr;
+    model_checker::StateExpansionHandler<StateType, ValueType> _state_expansion_handler;
 
     state_properties::PropertyDescription _property_description;
     size_t _reward_model_index = std::numeric_limits<size_t>::max();
 
-    std::function<StateType(const storm::generator::CompressedState&)> _state_to_id_callback;
+    const bool _store_compressed_states;
+
+    std::function<StateIdType(const storm::generator::CompressedState&)> _state_to_id_callback;
 };
 
 }  // namespace model_checker

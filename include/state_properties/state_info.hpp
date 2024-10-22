@@ -27,7 +27,7 @@ typedef uint8_t StateInfoType;
  * @brief Keep a list of constexpr values that represent state properties. A state can get more than one value assigned.
  */
 namespace state_info {
-constexpr StateInfoType NO_INFO = 0U;          // The state does not match with any of the State Infos  below
+constexpr StateInfoType NO_INFO = 0U;          // The state does not match with any of the State Infos below
 constexpr StateInfoType IS_TERMINAL = 1U;      // The state is Terminal (no action brings to a different state)
 constexpr StateInfoType BREAK_CONDITION = 2U;  // The state doesn't satisfy the condition formula
 constexpr StateInfoType SATISFY_TARGET = 4U;   // The state satisfies the target formula

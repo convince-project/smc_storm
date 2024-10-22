@@ -41,7 +41,7 @@ class PropertyDescription {
     PropertyDescription(const storm::logic::Formula& formula);
 
     /*!
-     * @brief Property already epxressed in terms of condition and target expressions, for compatibility
+     * @brief Property already expressed in terms of condition and target expressions, for compatibility
      * @param condition_expr An expression
      * @param target_expr An expression
      */
