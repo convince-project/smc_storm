@@ -51,8 +51,7 @@
 #include <storm/exceptions/InvalidPropertyException.h>
 #include <storm/exceptions/InvalidSettingsException.h>
 
-#include "model_checker/state_generation.hpp"
-#include "samples/exploration_information.hpp"
+#include "state_generation/state_generation.hpp"
 #include "state_properties/property_type.hpp"
 
 #include "model_checker/statistical_model_checking_engine.hpp"
@@ -216,7 +215,7 @@ void StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::performSamp
     // Prepare exploration information holder.
     const bool export_traces = traceStorageEnabled();
     // Prepare object for sampling next states
-    StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), reward_model, export_traces);
+    state_generation::StateGeneration<StateType, ValueType> state_generation(_model, check_task.getFormula(), reward_model, export_traces);
 
     if (export_traces) {
         // Prepare the traces export object
@@ -239,7 +238,8 @@ void StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::performSamp
 
 template <typename ModelType, bool StoreExploredStates>
 samples::TraceInformation StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::samplePathFromInitialState(
-    StateGeneration<StateType, ValueType>& state_generation, const samples::ModelSampling<StateType, ValueType>& model_sampler) const {
+    state_generation::StateGeneration<StateType, ValueType>& state_generation,
+    const samples::ModelSampling<StateType, ValueType>& model_sampler) const {
     samples::TraceInformation trace_information;
     trace_information.trace_length = 0U;
     trace_information.outcome = samples::TraceResult::NO_INFO;

@@ -45,16 +45,12 @@ namespace state_properties {
 class PropertyDescription;
 }  // namespace state_properties
 
-namespace samples {
-template <typename StateType, typename ValueType>
-class ExplorationInformation;
-}  // namespace samples
-
-namespace model_checker {
-
+namespace state_generation {
 template <typename StateType, typename ValueType>
 class StateGeneration;
+}  // namespace state_generation
 
+namespace model_checker {
 /*!
  * @brief The implementation of the ModelChecking engine
  * @tparam ModelType Definition of the kind of model to evaluate (e.g. DTMC, MDP, ...)
@@ -135,7 +131,8 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @return A pair with the Information attached to the reached state and the accumulated reward
      */
     samples::TraceInformation samplePathFromInitialState(
-        StateGeneration<StateType, ValueType>& state_generation, const samples::ModelSampling<StateType, ValueType>& model_sampler) const;
+        state_generation::StateGeneration<StateType, ValueType>& state_generation,
+        const samples::ModelSampling<StateType, ValueType>& model_sampler) const;
 
     // The model to check.
     const storm::storage::SymbolicModelDescription _model;

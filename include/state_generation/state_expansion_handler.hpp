@@ -22,10 +22,10 @@
 #include <storm/generator/CompressedState.h>
 #include <storm/storage/sparse/StateStorage.h>
 
-#include "samples/exploration_information.hpp"
+#include "state_generation/exploration_information.hpp"
 
 namespace smc_storm {
-namespace model_checker {
+namespace state_generation {
 
 /*!
  * @brief Class that loads an input model and property to generate states and verify if the input property holds.
@@ -97,7 +97,7 @@ template <typename ValueType>
 class StateExpansionHandler<uint32_t, ValueType> {
   private:
     std::unique_ptr<storm::storage::sparse::StateStorage<uint32_t>> _state_storage_ptr;
-    samples::ExplorationInformation<uint32_t, ValueType> _exploration_information;
+    state_generation::ExplorationInformation<uint32_t, ValueType> _exploration_information;
 
   public:
     StateExpansionHandler() {}
@@ -121,10 +121,10 @@ class StateExpansionHandler<uint32_t, ValueType> {
      * @brief Get the reference to the previous explored states container
      * @return ExplorationInformation instance
      */
-    samples::ExplorationInformation<uint32_t, ValueType>& getExplorationInformation() {
+    state_generation::ExplorationInformation<uint32_t, ValueType>& getExplorationInformation() {
         return _exploration_information;
     }
 };
 
-}  // namespace model_checker
+}  // namespace state_generation
 }  // namespace smc_storm

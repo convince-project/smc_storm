@@ -32,7 +32,7 @@
 #include "state_properties/state_description.hpp"
 #include "state_properties/state_info.hpp"
 
-namespace smc_storm::samples {
+namespace smc_storm::state_generation {
 /*!
  * @brief Class holding information about the explored states
  * @tparam StateType variable type for state and action identifiers
@@ -89,4 +89,4 @@ class ExplorationInformation {
 
     IdToStateMap _unexplored_states;
 };
-}  // namespace smc_storm::samples
+}  // namespace smc_storm::state_generation

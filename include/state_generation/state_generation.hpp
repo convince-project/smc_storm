@@ -24,12 +24,12 @@
 #include <storm/generator/NextStateGenerator.h>
 #include <storm/storage/SymbolicModelDescription.h>
 
-#include "model_checker/state_expansion_handler.hpp"
+#include "state_generation/state_expansion_handler.hpp"
 #include "state_properties/property_description.hpp"
 #include "state_properties/state_description.hpp"
 
 namespace smc_storm {
-namespace model_checker {
+namespace state_generation {
 template <typename StateType>
 concept StoreExpandedStates = !std::is_same_v<StateType, storm::generator::CompressedState>;
 
@@ -110,7 +110,7 @@ class StateGeneration {
     // Vector of initial states (normally only one).
     std::vector<StateType> _initial_states;
 
-    model_checker::StateExpansionHandler<StateType, ValueType> _state_expansion_handler;
+    state_generation::StateExpansionHandler<StateType, ValueType> _state_expansion_handler;
 
     state_properties::PropertyDescription _property_description;
     size_t _reward_model_index = std::numeric_limits<size_t>::max();
@@ -120,5 +120,5 @@ class StateGeneration {
     std::function<StateIdType(const storm::generator::CompressedState&)> _state_to_id_callback;
 };
 
-}  // namespace model_checker
+}  // namespace state_generation
 }  // namespace smc_storm

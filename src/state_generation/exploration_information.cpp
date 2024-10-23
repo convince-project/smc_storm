@@ -18,9 +18,9 @@
 #include <storm/exceptions/IllegalFunctionCallException.h>
 #include <storm/utility/macros.h>
 
-#include "samples/exploration_information.hpp"
+#include "state_generation/exploration_information.hpp"
 
-namespace smc_storm::samples {
+namespace smc_storm::state_generation {
 
 template <typename StateType, typename ValueType>
 ExplorationInformation<StateType, ValueType>::ExplorationInformation() {
@@ -78,4 +78,4 @@ void ExplorationInformation<StateType, ValueType>::addUnexploredState(
 }
 
 template class ExplorationInformation<uint32_t, double>;
-}  // namespace smc_storm::samples
+}  // namespace smc_storm::state_generation
