@@ -23,9 +23,9 @@
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidOperationException.h>
 
-#include "model_checker/state_generation.hpp"
+#include "state_generation/state_generation.hpp"
 
-namespace smc_storm::model_checker {
+namespace smc_storm::state_generation {
 
 template <typename StateType, typename ValueType>
 StateGeneration<StateType, ValueType>::StateGeneration(
@@ -105,7 +105,11 @@ void StateGeneration<StateType, ValueType>::exploreState(
             other_successor = std::any_of(
                 _state_expansion_handler.getNextStates().begin(), _state_expansion_handler.getNextStates().end(),
                 [this, state_id](const storm::generator::CompressedState& next_state) {
-                    return _state_expansion_handler.getHashValue(next_state) != state_id;
+                    if (_state_expansion_handler.getHashValue(next_state) != state_id) {
+                        return true;
+                    }
+                    // If the Hash Tag is the same, check for the state itself (very slow)
+                    return next_state != _loaded_state;
                 });
         }
         if (!other_successor) {
@@ -195,4 +199,4 @@ void StateGeneration<StateType, ValueType>::initNextStateGenerator(
 
 template class StateGeneration<uint32_t, double>;
 template class StateGeneration<storm::generator::CompressedState, double>;
-}  // namespace smc_storm::model_checker
+}  // namespace smc_storm::state_generation
