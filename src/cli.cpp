@@ -27,7 +27,7 @@ int main(int argc, char* argv[]) {
     const auto model_and_properties = smc_storm::parser::parseModelAndProperties(user_settings);
     const auto mc_settings = smc_storm::settings::SmcSettings(user_settings);
     // Perform model checking
-    STORM_PRINT("CONVINCE Statistical Model Checker\n");
+    STORM_PRINT("Welcome to SMC Storm\n");
     STORM_PRINT("Checking model: " << user_settings.model_file << std::endl);
     for (const auto& property : model_and_properties.property) {
         smc_storm::model_checker::StatisticalModelChecker smc(model_and_properties.model, property, mc_settings);
