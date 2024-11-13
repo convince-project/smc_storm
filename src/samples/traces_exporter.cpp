@@ -83,7 +83,7 @@ void TracesExporter::addNextState(const storm::generator::CompressedState& state
     }
     // Integers
     for (const auto& int_info : _var_info.integerVariables) {
-        const uint_fast64_t int_value = state.getAsInt(int_info.bitOffset, int_info.bitWidth) + int_info.lowerBound;
+        const int_fast64_t int_value = state.getAsInt(int_info.bitOffset, int_info.bitWidth) + int_info.lowerBound;
         _file << int_value << ";";
     }
     _file << "\n";
