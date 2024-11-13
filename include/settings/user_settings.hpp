@@ -37,6 +37,8 @@ struct UserSettings {
     size_t max_n_traces{0U};
     size_t n_threads{1U};
     size_t batch_size{100U};
+    bool stop_after_failure{false};
+    bool store_only_not_verified{false};
     bool cache_explored_states{true};
     bool show_statistics{false};
 

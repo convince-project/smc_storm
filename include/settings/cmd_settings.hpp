@@ -55,6 +55,14 @@ class CmdSettings {
             .default_value(_loaded_settings.max_n_traces)
             .help("Maximum number of traces to generate (for debugging reasons, "
                   "overrides stat_method. 0 -> unset).");
+        _parser.add_argument("--store-only-not-verified-traces")
+            .default_value(false)
+            .implicit_value(true)
+            .help("When exporting traces, discard all the ones that are not failing.");
+        _parser.add_argument("--stop-after-failure")
+            .default_value(false)
+            .implicit_value(true)
+            .help("Stop generating traces after the first non-verified one is found.");
         _parser.add_argument("--n-threads").scan<'i', size_t>().default_value(_loaded_settings.n_threads).help("Number of threads to use.");
         _parser.add_argument("--batch-size")
             .scan<'i', size_t>()

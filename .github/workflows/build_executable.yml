@@ -5,7 +5,6 @@ on:
   push:
     branches: 
       - "main"
-      - "add-clang-format-check"
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
   schedule:  # This is a weekly schedule, running only on the "main" branch every Sunday at midnight
@@ -66,6 +65,8 @@ jobs:
                     make
             - name: Run linting
               run: |
+                    clang-format --version
+                    clang-tidy --version
                     ./scripts/check-clang-style.bash
             - name: Run tests
               run: |

@@ -36,6 +36,10 @@ class TracesExporter {
     TracesExporter(const std::filesystem::path& path_to_file, const storm::generator::VariableInformation& var_info);
     ~TracesExporter();
 
+    inline void setExportOnlyFailures() {
+        _export_only_failures = true;
+    }
+
     // TODO: Add information about the taken action and the current reward
     /*!
      * @brief Add a new line to the current trace, using the provided state
@@ -49,8 +53,16 @@ class TracesExporter {
     void addCurrentTraceResult(const TraceInformation& result);
 
   private:
+    /*!
+     * @brief Write the provided state into the loaded file.
+     * @param state The state description to write in the file.
+     */
+    void writeNextState(const storm::generator::CompressedState& state);
+
     std::ofstream _file;
     const storm::generator::VariableInformation& _var_info;
+    bool _export_only_failures = false;
+    std::vector<storm::generator::CompressedState> _current_trace_states;
     size_t _trace_counter;
     size_t _n_variables;
 };
