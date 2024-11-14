@@ -135,11 +135,12 @@ bool StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::verifySetti
             is_settings_valid = false;
         }
         STORM_LOG_WARN_COND(
-            _settings.max_n_traces > 0U,
+            _settings.max_n_traces > 0U || (_settings.stop_after_failure && _settings.store_only_not_verified),
             "The amount of generated traces might be very large if left unbounded. Consider setting `--max-n-traces`.");
     } else {
         STORM_LOG_WARN_COND(
-            _settings.max_n_traces == 0U, "The amount of generated traces is bounded. This might affect reliability of the results.");
+            _settings.max_n_traces == 0U && !_settings.stop_after_failure,
+            "The amount of generated traces is limited. This might affect reliability of the results.");
     }
     return is_settings_valid;
 }
@@ -220,6 +221,9 @@ void StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::performSamp
     if (export_traces) {
         // Prepare the traces export object
         _traces_exporter_ptr = std::make_unique<samples::TracesExporter>(_settings.traces_file, state_generation.getVariableInformation());
+        if (_settings.store_only_not_verified) {
+            _traces_exporter_ptr->setExportOnlyFailures();
+        }
     }
     samples::BatchResults batch_results = sampling_results.getBatchResultInstance();
 

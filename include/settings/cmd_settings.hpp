@@ -55,6 +55,14 @@ class CmdSettings {
             .default_value(_loaded_settings.max_n_traces)
             .help("Maximum number of traces to generate (for debugging reasons, "
                   "overrides stat_method. 0 -> unset).");
+        _parser.add_argument("--store-only-not-verified-traces")
+            .default_value(false)
+            .implicit_value(true)
+            .help("When exporting traces, discard all the ones that are not failing.");
+        _parser.add_argument("--stop-after-failure")
+            .default_value(false)
+            .implicit_value(true)
+            .help("Stop generating traces after the first non-verified one is found.");
         _parser.add_argument("--n-threads").scan<'i', size_t>().default_value(_loaded_settings.n_threads).help("Number of threads to use.");
         _parser.add_argument("--batch-size")
             .scan<'i', size_t>()
@@ -88,6 +96,8 @@ class CmdSettings {
             _loaded_settings.epsilon = _parser.get<double>("--epsilon");
             _loaded_settings.max_trace_length = _parser.get<int>("--max-trace-length");
             _loaded_settings.max_n_traces = _parser.get<size_t>("--max-n-traces");
+            _loaded_settings.store_only_not_verified = _parser.get<bool>("--store-only-not-verified-traces");
+            _loaded_settings.stop_after_failure = _parser.get<bool>("--stop-after-failure");
             _loaded_settings.n_threads = _parser.get<size_t>("--n-threads");
             _loaded_settings.batch_size = _parser.get<size_t>("--batch-size");
             _loaded_settings.cache_explored_states = !_parser.get<bool>("--disable-explored-states-caching");

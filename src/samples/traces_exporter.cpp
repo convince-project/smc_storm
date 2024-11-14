@@ -52,6 +52,7 @@ TracesExporter::TracesExporter(const std::filesystem::path& path_to_file, const 
     }
     // No real variables, since they can only be transient
     _file << "\n\n";
+    _current_trace_states.clear();
 }
 
 TracesExporter::~TracesExporter() {
@@ -59,16 +60,31 @@ TracesExporter::~TracesExporter() {
 }
 
 void TracesExporter::addCurrentTraceResult(const TraceInformation& result) {
-    _file << _trace_counter << ";;" << toString(result.outcome) << ";;";
-    _trace_counter++;
-    // Add one to account for the empty column between locations and remaining variables
-    for (size_t i = 0; i < _n_variables + 1U; i++) {
-        _file << ";";
+    if (!_export_only_failures || result.outcome == smc_storm::samples::TraceResult::NOT_VERIFIED) {
+        // In case we are not exporting only failures, this vector will be empty
+        for (const auto& state : _current_trace_states) {
+            writeNextState(state);
+        }
+        _file << _trace_counter << ";;" << toString(result.outcome) << ";;";
+        _trace_counter++;
+        // Add one to account for the empty column between locations and remaining variables
+        for (size_t i = 0; i < _n_variables + 1U; i++) {
+            _file << ";";
+        }
+        _file << "\n\n";
     }
-    _file << "\n\n";
+    _current_trace_states.clear();
 }
 
 void TracesExporter::addNextState(const storm::generator::CompressedState& state) {
+    if (_export_only_failures) {
+        _current_trace_states.emplace_back(state);
+    } else {
+        writeNextState(state);
+    }
+}
+
+void TracesExporter::writeNextState(const storm::generator::CompressedState& state) {
     _file << _trace_counter << ";;;;";
     // Locations
     for (const auto& loc_info : _var_info.locationVariables) {
@@ -88,4 +104,5 @@ void TracesExporter::addNextState(const storm::generator::CompressedState& state
     }
     _file << "\n";
 }
+
 }  // namespace smc_storm::samples

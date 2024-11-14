@@ -286,6 +286,10 @@ void SamplingResults::updateSamplingStatus() {
         _keep_sampling = false;
         return;
     }
+    if (_settings.stop_after_failure && _n_not_verified > 0U) {
+        _keep_sampling = false;
+        return;
+    }
     if (!minIterationsReached()) {
         _keep_sampling = true;
         return;
