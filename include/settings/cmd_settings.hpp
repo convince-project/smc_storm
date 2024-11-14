@@ -96,6 +96,8 @@ class CmdSettings {
             _loaded_settings.epsilon = _parser.get<double>("--epsilon");
             _loaded_settings.max_trace_length = _parser.get<int>("--max-trace-length");
             _loaded_settings.max_n_traces = _parser.get<size_t>("--max-n-traces");
+            _loaded_settings.store_only_not_verified = _parser.get<bool>("--store-only-not-verified-traces");
+            _loaded_settings.stop_after_failure = _parser.get<bool>("--stop-after-failure");
             _loaded_settings.n_threads = _parser.get<size_t>("--n-threads");
             _loaded_settings.batch_size = _parser.get<size_t>("--batch-size");
             _loaded_settings.cache_explored_states = !_parser.get<bool>("--disable-explored-states-caching");
