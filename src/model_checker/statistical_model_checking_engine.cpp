@@ -63,7 +63,7 @@ bool StatisticalModelCheckingEngine<ModelType, StoreExploredStates>::canHandleSt
     const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task) {
     // Prepare the fragment defined our supported formulas
     // This allows all (atomic) property operators + the unary NOT logic operator on atomic properties (e.g. !F(s=2))
-    storm::logic::FragmentSpecification const fragment =
+    const storm::logic::FragmentSpecification fragment =
         storm::logic::prctl().setNestedOperatorsAllowed(false).setUnaryBooleanPathFormulasAllowed(true).setOperatorAtTopLevelRequired(
             false);
     const storm::logic::Formula& formula = check_task.getFormula();
