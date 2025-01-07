@@ -34,7 +34,7 @@ TracesExporter::TracesExporter(const std::filesystem::path& path_to_file, const 
     STORM_LOG_THROW(!std::filesystem::exists(absolute_path), storm::exceptions::NotSupportedException, "The file already exists!");
     _n_variables = var_info.locationVariables.size() + var_info.booleanVariables.size() + var_info.integerVariables.size();
     STORM_LOG_THROW(_n_variables > 0U, storm::exceptions::NotSupportedException, "The provided VariableInformation is empty!");
-    storm::utility::openFile(absolute_path.string(), _file);
+    storm::io::openFile(absolute_path.string(), _file);
     // Write the header
     _file << "Trace number;;Result;;";
     // Locations
@@ -56,7 +56,7 @@ TracesExporter::TracesExporter(const std::filesystem::path& path_to_file, const 
 }
 
 TracesExporter::~TracesExporter() {
-    storm::utility::closeFile(_file);
+    storm::io::closeFile(_file);
 }
 
 void TracesExporter::addCurrentTraceResult(const TraceInformation& result) {
