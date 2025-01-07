@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
     build:
-        runs-on: ubuntu-24.04
+        runs-on: ubuntu-latest
         steps:
             # Checkout this repository
             - name: Checkout repository
@@ -37,6 +37,15 @@ jobs:
             - name: Install dependencies
               run: |
                     sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
+            - name: Install lint dependencies
+              run: |
+                    sudo apt install clang-14 clang-tidy-14 clang-format-14 g++-12
+                    echo "---- Print info about clang ----"
+                    clang-14 -v
+                    echo "---- Print info about clang-format ----"
+                    clang-format-14 --version
+                    echo "---- Print info about clang-tidy ----"
+                    clang-tidy-14 --version
             - name: Get STORM last commit hash
               id: get-storm-commit
               run: |
@@ -65,8 +74,6 @@ jobs:
                     make
             - name: Run linting
               run: |
-                    clang-format-14 --version
-                    clang-tidy-14 --version
                     ./scripts/check-clang-style.bash
             - name: Run tests
               run: |
