@@ -39,7 +39,7 @@ jobs:
                     sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Install lint dependencies
               run: |
-                    sudo apt install clang-14 clang-tidy-14 clang-format-14 g++-12
+                    sudo apt install clang-14 clang-tidy-14 clang-format-14 g++-14
                     echo "---- Print info about clang ----"
                     clang-14 -v
                     echo "---- Print info about clang-format ----"
