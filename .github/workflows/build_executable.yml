@@ -65,8 +65,8 @@ jobs:
                     make
             - name: Run linting
               run: |
-                    clang-format --version
-                    clang-tidy --version
+                    clang-format-14 --version
+                    clang-tidy-14 --version
                     ./scripts/check-clang-style.bash
             - name: Run tests
               run: |
