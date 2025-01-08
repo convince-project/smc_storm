@@ -75,7 +75,7 @@ jobs:
                 tidy-checks: ''  # Use .clang-tidy config file
                 files-changed-only: false
                 thread-comments: false
-                ignore: '.github|external_dependencies|docs|scripts'
+                ignore: '.github|external_dependencies|docs|scripts|build'
             - name: Run tests
               run: |
                     cd build
