@@ -20,6 +20,22 @@ jobs:
         runs-on: ubuntu-latest
         container: ubuntu:24.04
         steps:
+            - name: Update apt
+              run: |
+                    sudo apt update
+              # install the dependencies
+            - name: Install dependencies
+              run: |
+                    sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
+            - name: Install linters
+              run: |
+                    sudo apt install clang clang-tidy clang-format g++-12 gcc-12
+                    echo "---- Print info about clang ----"
+                    clang-14 -v
+                    echo "---- Print info about clang-format ----"
+                    clang-format-14 --version
+                    echo "---- Print info about clang-tidy ----"
+                    clang-tidy-14 --version
             # Checkout this repository
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -34,19 +50,6 @@ jobs:
             # Enable ccache
             - name: ccache
               uses: hendrikmuhs/ccache-action@v1.2
-              # install the dependencies
-            - name: Install dependencies
-              run: |
-                    sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
-            - name: Configure linters
-              run: |
-                    sudo apt install clang clang-tidy clang-format g++-12 gcc-12
-                    echo "---- Print info about clang ----"
-                    clang-14 -v
-                    echo "---- Print info about clang-format ----"
-                    clang-format-14 --version
-                    echo "---- Print info about clang-tidy ----"
-                    clang-tidy-14 --version
             - name: Get STORM last commit hash
               id: get-storm-commit
               run: |
