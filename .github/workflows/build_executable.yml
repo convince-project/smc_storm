@@ -63,19 +63,8 @@ jobs:
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
-            - name: Run linters
-              uses: cpp-linter/cpp-linter-action@main
-              id: linter
-              continue-on-error: false
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              with:
-                version: 14
-                style: file  # Use .clang-format config file
-                tidy-checks: ''  # Use .clang-tidy config file
-                files-changed-only: false
-                thread-comments: false
-                ignore: '.github|external_dependencies|docs|scripts|build'
+            - name: Run pre-commit linters
+              uses: pre-commit/action@v3.0.1
             - name: Run tests
               run: |
                     cd build
