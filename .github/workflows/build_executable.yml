@@ -38,7 +38,6 @@ jobs:
             - name: Install dependencies
               run: |
                     sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
-            - name: Get STORM last commit hash
             - name: Configure linters
               run: |
                     sudo apt install clang clang-tidy clang-format g++-12 gcc-12
@@ -48,6 +47,7 @@ jobs:
                     clang-format-14 --version
                     echo "---- Print info about clang-tidy ----"
                     clang-tidy-14 --version
+            - name: Get STORM last commit hash
               id: get-storm-commit
               run: |
                     cd external_dependencies/storm
