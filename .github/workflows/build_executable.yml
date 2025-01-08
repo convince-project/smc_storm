@@ -3,7 +3,7 @@ name: Build tests and archive executable
 on:
   pull_request:
   push:
-    branches: 
+    branches:
       - "main"
     tags:
       - "[0-9]+.[0-9]+.[0-9]+"
@@ -18,7 +18,24 @@ concurrency:
 jobs:
     build:
         runs-on: ubuntu-latest
+        container: ubuntu:22.04
         steps:
+            - name: Update apt
+              run: |
+                    apt update
+              # install the dependencies
+            - name: Install dependencies
+              run: |
+                    apt install -y build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
+            - name: Install linters
+              run: |
+                    apt install -y clang clang-tidy clang-format g++-12 gcc-12
+                    echo "---- Print info about clang ----"
+                    clang -v
+                    echo "---- Print info about clang-format ----"
+                    clang-format --version
+                    echo "---- Print info about clang-tidy ----"
+                    clang-tidy --version
             # Checkout this repository
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -33,10 +50,6 @@ jobs:
             # Enable ccache
             - name: ccache
               uses: hendrikmuhs/ccache-action@v1.2
-              # install the dependencies
-            - name: Install dependencies
-              run: |
-                    sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Get STORM last commit hash
               id: get-storm-commit
               run: |
@@ -63,10 +76,8 @@ jobs:
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
-            - name: Run linting
+            - name: Run linters
               run: |
-                    clang-format --version
-                    clang-tidy --version
                     ./scripts/check-clang-style.bash
             - name: Run tests
               run: |

@@ -197,7 +197,7 @@
 					"destinations": [
 						{
 							"location": "l",
-							"probability": { "exp": 0.5 }, 
+							"probability": { "exp": 0.5 },
 							"assignments": [
 								{
 									"ref": "s",
@@ -359,9 +359,9 @@
 					]
 				}
 			]
-			
+
 		}
-	], 
+	],
 	"system": {
 		"elements": [ { "automaton": "die" } ]
 	}
