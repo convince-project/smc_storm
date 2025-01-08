@@ -18,7 +18,7 @@ concurrency:
 jobs:
     build:
         runs-on: ubuntu-latest
-        container: ubuntu:24.04
+        container: ubuntu:22.04
         steps:
             - name: Update apt
               run: |
@@ -31,11 +31,11 @@ jobs:
               run: |
                     apt install -y clang clang-tidy clang-format g++-12 gcc-12
                     echo "---- Print info about clang ----"
-                    clang-14 -v
+                    clang -v
                     echo "---- Print info about clang-format ----"
-                    clang-format-14 --version
+                    clang-format --version
                     echo "---- Print info about clang-tidy ----"
-                    clang-tidy-14 --version
+                    clang-tidy --version
             # Checkout this repository
             - name: Checkout repository
               uses: actions/checkout@v4
