@@ -18,6 +18,7 @@ concurrency:
 jobs:
     build:
         runs-on: ubuntu-latest
+        container: ubuntu:24.04
         steps:
             # Checkout this repository
             - name: Checkout repository
@@ -38,6 +39,15 @@ jobs:
               run: |
                     sudo apt install build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Get STORM last commit hash
+            - name: Configure linters
+              run: |
+                    sudo apt install clang clang-tidy clang-format g++-12 gcc-12
+                    echo "---- Print info about clang ----"
+                    clang-14 -v
+                    echo "---- Print info about clang-format ----"
+                    clang-format-14 --version
+                    echo "---- Print info about clang-tidy ----"
+                    clang-tidy-14 --version
               id: get-storm-commit
               run: |
                     cd external_dependencies/storm
@@ -63,11 +73,9 @@ jobs:
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
-            - name: Install linters
+            - name: Run linters
               run: |
-                    python3 -m pip install clang-format==14.0.0 clang-tidy==14.0.0
-            - name: Run pre-commit linters
-              uses: pre-commit/action@v3.0.1
+                    ./scripts/check-clang-style.bash
             - name: Run tests
               run: |
                     cd build
