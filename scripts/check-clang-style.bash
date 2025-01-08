@@ -6,8 +6,8 @@ CODE_ROOT=$(dirname $(dirname $(realpath "${BASH_SOURCE[0]}")))
 pushd $CODE_ROOT > /dev/null || exit
 # Apply clang-format to all source files
 
-clang-tidy-14 --config-file=.clang-tidy --warnings-as-errors=* -p=build src/**/*.cpp src/*.cpp include/**/*.hpp test/**/*.cpp && \
-clang-format-14 --style=file src/**/*.cpp src/*.cpp include/**/*.hpp test/**/*.cpp --dry-run --Werror
+clang-tidy --config-file=.clang-tidy --warnings-as-errors=* -p=build src/**/*.cpp src/*.cpp include/**/*.hpp test/**/*.cpp && \
+clang-format --style=file src/**/*.cpp src/*.cpp include/**/*.hpp test/**/*.cpp --dry-run --Werror
 
 if [ $? -ne 0 ]; then
     echo "Error: clang-tidy or clang-format failed"
