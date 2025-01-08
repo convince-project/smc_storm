@@ -63,6 +63,9 @@ jobs:
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
+            - name: Install linters
+              run: |
+                    python3 -m pip install clang-format==14.0.0 clang-tidy==14.0.0
             - name: Run pre-commit linters
               uses: pre-commit/action@v3.0.1
             - name: Run tests
