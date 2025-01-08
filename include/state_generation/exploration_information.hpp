@@ -87,6 +87,6 @@ class ExplorationInformation {
     // Vector containing the explored states (attention, the vector id is not the state ID)
     std::vector<std::unique_ptr<state_properties::StateDescription<StateType, ValueType>>> _state_description_ptrs;
 
-    IdToStateMap _unexplored_states;
+    IdToStateMap unexplored_states;
 };
 }  // namespace smc_storm::state_generation

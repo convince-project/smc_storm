@@ -54,18 +54,18 @@ void ExplorationInformation<StateType, ValueType>::addStateDescription(
 template <typename StateType, typename ValueType>
 typename ExplorationInformation<StateType, ValueType>::const_iterator ExplorationInformation<StateType, ValueType>::findUnexploredState(
     const StateType& state) const {
-    return _unexplored_states.find(state);
+    return unexplored_states.find(state);
 }
 
 template <typename StateType, typename ValueType>
 typename ExplorationInformation<StateType, ValueType>::const_iterator ExplorationInformation<StateType, ValueType>::unexploredStatesEnd()
     const {
-    return _unexplored_states.end();
+    return unexplored_states.end();
 }
 
 template <typename StateType, typename ValueType>
 void ExplorationInformation<StateType, ValueType>::removeUnexploredState(const_iterator it) {
-    _unexplored_states.erase(it);
+    unexplored_states.erase(it);
 }
 
 template <typename StateType, typename ValueType>
@@ -74,7 +74,7 @@ void ExplorationInformation<StateType, ValueType>::addUnexploredState(
     if (state_id >= _state_to_vect_idx.size()) {
         _state_to_vect_idx.resize(state_id + 1, UNEXPLORED_MARKER);
     }
-    _unexplored_states[state_id] = compressed_state;
+    unexplored_states[state_id] = compressed_state;
 }
 
 template class ExplorationInformation<uint32_t, double>;
