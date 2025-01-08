@@ -76,9 +76,8 @@ jobs:
                     cd build
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
-            - name: Run linters
-              run: |
-                    ./scripts/check-clang-style.bash
+            - name: Run pre-commit linters
+              uses: pre-commit/action@v3.0.1
             - name: Run tests
               run: |
                     cd build
