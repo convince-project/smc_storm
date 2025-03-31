@@ -27,11 +27,12 @@
 
 #include <storm/utility/ConstantsComparator.h>
 
-#include "samples/model_sampling.hpp"
+#include "model_checker/smc_plugin_instance.hpp"
 #include "samples/sampling_results.hpp"
 #include "samples/trace_information.hpp"
 #include "samples/traces_exporter.hpp"
 #include "settings/smc_settings.hpp"
+#include "state_generation/action_scheduler.hpp"
 #include "state_properties/state_info.hpp"
 
 // Fwd declaration for storm::Environment
@@ -48,26 +49,35 @@ class PropertyDescription;
 namespace state_generation {
 template <typename StateType, typename ValueType>
 class StateGeneration;
+
+template <typename ValueType>
+class StateGenerationCacheless;
 }  // namespace state_generation
 
 namespace model_checker {
 /*!
  * @brief The implementation of the ModelChecking engine
  * @tparam ModelType Definition of the kind of model to evaluate (e.g. DTMC, MDP, ...)
- * @tparam StoreExploredStates Boolean flag to enable the storage of the generated traces
+ * @tparam Whether we are caching the previously expanded data, to re-use them and speed-up evaluation
  */
-template <typename ModelType, bool StoreExploredStates>
+template <typename ModelType, bool CacheData>
 class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModelChecker<ModelType> {
   public:
-    typedef typename ModelType::ValueType ValueType;
-    typedef std::conditional_t<StoreExploredStates, uint32_t, storm::generator::CompressedState> StateType;
+    using ValueType = typename ModelType::ValueType;
+    using StateType = uint32_t;
+    using StateGeneratorType = std::conditional_t<
+        CacheData, state_generation::StateGeneration<StateType, ValueType>, state_generation::StateGenerationCacheless<ValueType>>;
+    using TraceExportType = std::conditional_t<CacheData, samples::CompressedStateTraceExporter, samples::UncompressedStateTraceExporter>;
 
     /*!
      * @brief Constructor for the StatisticalModelCheckingEngine
      * @param in_model the model to perform the evaluation on
      * @param settings A collection of settings, used to configure the engine
+     * @param loaded_plugins All the plugins loaded from the model definition.
      */
-    StatisticalModelCheckingEngine(const storm::storage::SymbolicModelDescription& in_model, const settings::SmcSettings& settings);
+    StatisticalModelCheckingEngine(
+        const storm::storage::SymbolicModelDescription& in_model, const settings::SmcSettings& settings,
+        const std::vector<SmcPluginInstance>& loaded_plugins = {});
 
     /*!
      * @brief Check if the provided property is supported by the engine
@@ -104,6 +114,17 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
         const storm::modelchecker::CheckTask<storm::logic::EventuallyFormula, ValueType>& check_task) override;
 
   private:
+    /*!
+     * @brief Instantiate a StateGenerator object depending on the loaded settings
+     * @param random_generator A random number generator used for sampling destinations
+     * @return A generic state generator instance
+     */
+    std::unique_ptr<StateGeneratorType> generateStateGenerator(
+        const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
+        std::default_random_engine& random_generator) const;
+
+    void instantiateTraceGenerator(const StateGeneratorType& state_generator);
+
     bool verifyModelValid() const;
 
     bool verifySettingsValid() const;
@@ -115,29 +136,28 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
     /*!
      * @brief Generates samples from a model and counts how many times a given property is satisfied
      * @param check_task The property we are evaluating on the loaded model
-     * @param model_sampler Object used to randomly sample next action and states
+     * @param rnd_gen A random number generator unique to sampling instance
      * @param sampling_results Object keeping track of the previous sample results and defining if new samples are needed
      * @param thread_id The ID of the thread performing the sampling, contained in the set [0, n_threads)
      */
     void performSampling(
-        const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
-        const samples::ModelSampling<StateType, ValueType>& model_sampler, samples::SamplingResults& sampling_results,
-        const size_t thread_id);
+        const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task, std::default_random_engine& rnd_gen,
+        samples::SamplingResults& sampling_results, const size_t thread_id);
 
     /*!
      * @brief Sample a single path until we reach a state it doesn't make sense to expand further
      * @param state_generation A representation of the model, to sample the states from
-     * @param model_sampler Object used to randomly sample next action and states
+     * @param action_sampler Object used to randomly sample next action to take
      * @return A pair with the Information attached to the reached state and the accumulated reward
      */
     samples::TraceInformation samplePathFromInitialState(
-        state_generation::StateGeneration<StateType, ValueType>& state_generation,
-        const samples::ModelSampling<StateType, ValueType>& model_sampler) const;
+        StateGeneratorType& state_generation, const state_generation::ActionScheduler<ValueType>& action_sampler) const;
 
     // The model to check.
-    const storm::storage::SymbolicModelDescription _model;
-    const settings::SmcSettings _settings;
-    std::unique_ptr<samples::TracesExporter> _traces_exporter_ptr;
+    std::reference_wrapper<const storm::storage::SymbolicModelDescription> _model;
+    std::reference_wrapper<const settings::SmcSettings> _settings;
+    std::reference_wrapper<const std::vector<SmcPluginInstance>> _loaded_plugins;
+    std::unique_ptr<TraceExportType> _traces_exporter_ptr;
 };
 }  // namespace model_checker
 }  // namespace smc_storm

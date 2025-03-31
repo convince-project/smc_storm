@@ -15,14 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <boost/math/distributions/beta.hpp>
-#include <boost/math/distributions/normal.hpp>
-
-#include <storm/exceptions/NotImplementedException.h>
-#include <storm/exceptions/OutOfRangeException.h>
 #include <storm/exceptions/UnexpectedException.h>
 
-#include <storm/utility/constants.h>
 #include <storm/utility/macros.h>
 
 #include "samples/sampling_results.hpp"

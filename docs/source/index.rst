@@ -11,5 +11,6 @@ Contents
    :maxdepth: 2
 
    installation
+   reference
    tutorials
    API/api

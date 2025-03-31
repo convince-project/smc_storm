@@ -22,6 +22,7 @@
 
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidOperationException.h>
+#include <storm/utility/constants.h>
 
 #include "state_generation/state_generation.hpp"
 
@@ -30,87 +31,106 @@ namespace smc_storm::state_generation {
 template <typename StateType, typename ValueType>
 StateGeneration<StateType, ValueType>::StateGeneration(
     const storm::storage::SymbolicModelDescription& model, const storm::logic::Formula& formula, const std::string& reward_model,
-    const bool store_compressed_states)
-    : _property_description(formula), _store_compressed_states(store_compressed_states) {
+    const bool store_compressed_states, std::default_random_engine& random_generator)
+    : StateGenerationBase<ValueType>(formula, store_compressed_states, random_generator) {
     initNextStateGenerator(model, reward_model);
     initStateToIdCallback();
     computeInitialStates();
 }
 
 template <typename StateType, typename ValueType>
-void StateGeneration<StateType, ValueType>::loadInitialState() {
-    load(_initial_states.at(0));
+void StateGeneration<StateType, ValueType>::resetModel() {
+    loadNewState(_initial_states.at(0));
 }
 
 template <typename StateType, typename ValueType>
-void StateGeneration<StateType, ValueType>::load(const StateType& state) {
-    _loaded_state = state;
+const AvailableActions<ValueType>& StateGeneration<StateType, ValueType>::getAvailableActions() {
+    const auto& actions = _loaded_state_description.value().get().getActions();
+    _available_actions.resize(actions.size());
+    for (size_t idx = 0U; idx < actions.size(); idx++) {
+        _available_actions[idx] = std::make_pair(idx, actions[idx].second);
+    }
+    return _available_actions;
 }
 
 template <typename StateType, typename ValueType>
-const state_properties::StateDescription<StateType, ValueType>& StateGeneration<StateType, ValueType>::processLoadedState() {
-    if constexpr (StoreExpandedStates<StateType>) {
-        if (_state_expansion_handler.getExplorationInformation().isUnexplored(_loaded_state)) {
-            auto unexplored_it = _state_expansion_handler.getExplorationInformation().findUnexploredState(_loaded_state);
-            exploreState(_loaded_state, unexplored_it->second);
-            _state_expansion_handler.getExplorationInformation().removeUnexploredState(unexplored_it);
-            _state_expansion_handler.getExplorationInformation().addStateDescription(_loaded_state, std::move(_state_description_ptr));
-        }
-        return _state_expansion_handler.getExplorationInformation().getStateDescription(_loaded_state);
+ValueType StateGeneration<StateType, ValueType>::runAction(const uint64_t action_id) {
+    const auto& available_destinations = _loaded_state_description.value().get().getActions()[action_id].first;
+    size_t selected_dest_id = 0U;
+    if (available_destinations.size() > 1U) {
+        std::vector<ValueType> dest_probabilities(available_destinations.size());
+        std::transform(available_destinations.begin(), available_destinations.end(), dest_probabilities.begin(), [](const auto& entry) {
+            return entry.first;
+        });
+        selected_dest_id =
+            std::discrete_distribution<size_t>(dest_probabilities.begin(), dest_probabilities.end())(this->_random_generator.get());
+    }
+    loadNewState(available_destinations[selected_dest_id].second);
+    // The destinations rewards are already factored in the action reward in Storm's NextStateGenerators
+    return storm::utility::zero<ValueType>();
+}
+
+template <typename StateType, typename ValueType>
+ValueType StateGeneration<StateType, ValueType>::getStateReward() {
+    return _loaded_state_description.value().get().getReward();
+}
+
+template <typename StateType, typename ValueType>
+state_properties::StateInfoType StateGeneration<StateType, ValueType>::getStateInfo() {
+    return _loaded_state_description.value().get().getStateInfo();
+}
+
+template <typename StateType, typename ValueType>
+const storm::generator::CompressedState& StateGeneration<StateType, ValueType>::getCurrentState() const {
+    return _loaded_state_description.value().get().getCompressedState();
+}
+
+template <typename StateType, typename ValueType>
+void StateGeneration<StateType, ValueType>::loadNewState(const StateType state_id) {
+    _loaded_state = state_id;
+    if (_state_expansion_handler.getExplorationInformation().isUnexplored(_loaded_state)) {
+        auto unexplored_it = _state_expansion_handler.getExplorationInformation().findUnexploredState(_loaded_state);
+        auto state_desc_ptr = exploreState(_loaded_state, unexplored_it->second);
+        _loaded_state_description = *state_desc_ptr;
+        _state_expansion_handler.getExplorationInformation().removeUnexploredState(unexplored_it);
+        _state_expansion_handler.getExplorationInformation().addStateDescription(_loaded_state, std::move(state_desc_ptr));
     } else {
-        exploreState(_state_expansion_handler.getHashValue(_loaded_state), _loaded_state);
-        return *_state_description_ptr;
+        _loaded_state_description = _state_expansion_handler.getExplorationInformation().getStateDescription(_loaded_state);
     }
 }
 
 template <typename StateType, typename ValueType>
-void StateGeneration<StateType, ValueType>::exploreState(
-    const StateIdType state_id, const storm::generator::CompressedState& compressed_state) {
+std::unique_ptr<typename StateGeneration<StateType, ValueType>::StateDescription> StateGeneration<StateType, ValueType>::exploreState(
+    const StateType state_id, const storm::generator::CompressedState& compressed_state) {
     // At start, we know nothing about this state
     state_properties::StateInfoType state_info = state_properties::state_info::NO_INFO;
 
-    _state_description_ptr = std::make_unique<state_properties::StateDescription<StateType, ValueType>>();
-    if (_store_compressed_states) {
-        _state_description_ptr->setCompressedState(compressed_state);
-    }
-    if constexpr (!StoreExpandedStates<StateType>) {
-        // This is the data structure holding the next states generated during expansion
-        _state_expansion_handler.clearNextStates();
+    auto state_desc_ptr = std::make_unique<StateDescription>();
+
+    if (this->_store_compressed_states) {
+        state_desc_ptr->setCompressedState(compressed_state);
     }
     _generator_ptr->load(compressed_state);
-    const storm::generator::StateBehavior<ValueType, StateIdType> expanded_state = _generator_ptr->expand(_state_to_id_callback);
+    const storm::generator::StateBehavior<ValueType, StateType> expanded_state = _generator_ptr->expand(_state_to_id_callback);
 
     if (rewardLoaded()) {
-        _state_description_ptr->setReward(expanded_state.getStateRewards().at(_reward_model_index));
+        state_desc_ptr->setReward(expanded_state.getStateRewards().at(_reward_model_index));
     }
 
-    if (_generator_ptr->satisfies(_property_description.getTargetExpression())) {
+    if (_generator_ptr->satisfies(this->_property_description.getTargetExpression())) {
         state_info |= state_properties::state_info::SATISFY_TARGET;
     }
-    if (_generator_ptr->satisfies(_property_description.getConditionExpression())) {
+    if (_generator_ptr->satisfies(this->_property_description.getConditionExpression())) {
         // Check if there is any transition to a different state
         bool other_successor = false;
-        if constexpr (StoreExpandedStates<StateType>) {
-            // In case StoreExpandedStates<StateType> is true, we can simply check the ID
-            for (const auto& choice : expanded_state) {
-                for (const auto& [next_state_id, _] : choice) {
-                    if (next_state_id != _loaded_state) {
-                        // We found a successor that goes to a new state, no termination yet!
-                        other_successor = true;
-                        break;
-                    }
+        for (const auto& choice : expanded_state) {
+            for (const auto& [next_state_id, _] : choice) {
+                if (next_state_id != _loaded_state) {
+                    // We found a successor that goes to a new state, no termination yet!
+                    other_successor = true;
+                    break;
                 }
             }
-        } else {
-            other_successor = std::any_of(
-                _state_expansion_handler.getNextStates().begin(), _state_expansion_handler.getNextStates().end(),
-                [this, state_id](const storm::generator::CompressedState& next_state) {
-                    if (_state_expansion_handler.getHashValue(next_state) != state_id) {
-                        return true;
-                    }
-                    // If the Hash Tag is the same, check for the state itself (very slow)
-                    return next_state != _loaded_state;
-                });
         }
         if (!other_successor) {
             // Can't find a successor: we reached a terminal state
@@ -123,31 +143,22 @@ void StateGeneration<StateType, ValueType>::exploreState(
                 action_transitions.clear();
                 action_transitions.reserve(choice.size());
                 for (const auto& [next_state_id, likelihood] : choice) {
-                    if constexpr (StoreExpandedStates<StateType>) {
-                        action_transitions.emplace_back(likelihood, next_state_id);
-                    } else {
-                        action_transitions.emplace_back(likelihood, _state_expansion_handler.getNextStates().at(next_state_id));
-                    }
+                    action_transitions.emplace_back(likelihood, next_state_id);
                 }
-                _state_description_ptr->addAction(action_transitions, action_reward);
+                state_desc_ptr->addAction(action_transitions, action_reward);
             }
         }
 
     } else {
         state_info |= state_properties::state_info::BREAK_CONDITION;
     }
-    _state_description_ptr->setStateInfo(state_info);
+    state_desc_ptr->setStateInfo(state_info);
+    return state_desc_ptr;
 }
 
 template <typename StateType, typename ValueType>
 void StateGeneration<StateType, ValueType>::computeInitialStates() {
-    if constexpr (StoreExpandedStates<StateType>) {
-        _initial_states = _generator_ptr->getInitialStates(_state_to_id_callback);
-    } else {
-        _state_expansion_handler.clearNextStates();
-        _generator_ptr->getInitialStates(_state_to_id_callback);
-        _initial_states = _state_expansion_handler.getNextStates();
-    }
+    _initial_states = _generator_ptr->getInitialStates(_state_to_id_callback);
     STORM_LOG_THROW(
         _initial_states.size() == 1, storm::exceptions::InvalidModelException,
         "Currently only models with one initial state are supported by the exploration engine.");
@@ -170,7 +181,7 @@ void StateGeneration<StateType, ValueType>::initNextStateGenerator(
     _generator_ptr.reset();
     if (model.isJaniModel()) {
         const storm::jani::Model& jani_model = model.asJaniModel();
-        _generator_ptr = std::make_unique<storm::generator::JaniNextStateGenerator<ValueType, StateIdType>>(jani_model, gen_options);
+        _generator_ptr = std::make_unique<storm::generator::JaniNextStateGenerator<ValueType, StateType>>(jani_model, gen_options);
         for (const storm::jani::Variable& variable : jani_model.getGlobalVariables().getBooleanVariables()) {
             if (variable.isTransient()) {
                 label_to_expression_mapping[variable.getName()] = jani_model.getLabelExpression(variable);
@@ -178,7 +189,7 @@ void StateGeneration<StateType, ValueType>::initNextStateGenerator(
         }
     } else if (model.isPrismProgram()) {
         const storm::prism::Program& prism_program = model.asPrismProgram();
-        _generator_ptr = std::make_unique<storm::generator::PrismNextStateGenerator<ValueType, StateIdType>>(prism_program, gen_options);
+        _generator_ptr = std::make_unique<storm::generator::PrismNextStateGenerator<ValueType, StateType>>(prism_program, gen_options);
         label_to_expression_mapping = prism_program.getLabelToExpressionMapping();
     }
     STORM_LOG_THROW(
@@ -194,9 +205,8 @@ void StateGeneration<StateType, ValueType>::initNextStateGenerator(
         STORM_LOG_THROW(rewardLoaded(), storm::exceptions::UnexpectedException, "Cannot find required model " << reward_model);
     }
     // Prepare the expressions we need to verify
-    _property_description.generateExpressions(model.getManager(), label_to_expression_mapping);
+    this->_property_description.generateExpressions(model.getManager(), label_to_expression_mapping);
 }
 
 template class StateGeneration<uint32_t, double>;
-template class StateGeneration<storm::generator::CompressedState, double>;
 }  // namespace smc_storm::state_generation

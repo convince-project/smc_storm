@@ -10,14 +10,22 @@
       "name": "normal_array",
       "type": {
         "kind": "array",
-        "base": "int"
+        "base": {
+          "kind": "array",
+          "base": "int"
+        }
       },
       "transient": false,
       "initial-value": {
         "op": "ac",
         "var": "__array_iterator",
         "length": 15,
-        "exp": 0
+        "exp": {
+          "op": "ac",
+          "var": "__array_iterator_2",
+          "length": 15,
+          "exp": 0
+        }
       }
     },
     {
@@ -54,7 +62,11 @@
                 {
                   "ref": {
                     "op": "aa",
-                    "exp": "normal_array",
+                    "exp": {
+                      "op": "aa",
+                      "exp": "normal_array",
+                      "index": "next_id"
+                    },
                     "index": "next_id"
                   },
                   "value": "next_id",
@@ -129,7 +141,11 @@
               "op": "=",
               "left": {
                 "op": "aa",
-                "exp": "normal_array",
+                "exp": {
+                  "op": "aa",
+                  "exp": "normal_array",
+                  "index": 10
+                },
                 "index": 10
               },
               "right": 10

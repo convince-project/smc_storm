@@ -1,0 +1,156 @@
+{
+	"jani-version": 1,
+	"name": "dice.jani",
+	"type": "dtmc",
+	"comment": "smc-plugins should be added among the features, but this requires changes in storm core, so we skip for now.",
+	"features": [ "derived-operators" ],
+	"variables": [
+		{
+			"name": "n_throws",
+			"type": "int",
+			"initial-value": 0
+		},
+		{
+			"name": "dice_throw_result",
+			"type": "int",
+			"initial-value": 0
+		},
+		{
+			"name": "dice_throws_sum",
+			"type": "int",
+			"initial-value": 0
+		}
+	],
+	"actions": [
+		{
+            "name": "extract_number"
+        },
+        {
+            "name": "sum_result"
+        },
+		{
+            "name": "update_state"
+        }
+    ],
+	"automata": [
+		{
+			"name": "dice",
+			"locations": [{ "name": "throw" }, { "name": "sum" }, { "name": "count" }],
+			"initial-locations": ["throw"],
+			"edges": [
+				{
+					"action": "extract_number",
+					"location": "throw",
+					"destinations": [
+						{
+							"location": "sum"
+						}
+					]
+				},
+				{
+					"action": "sum_result",
+					"location": "sum",
+					"destinations": [
+						{
+							"location": "count"
+						}
+					]
+				},
+				{
+					"action": "update_state",
+					"location": "count",
+					"destinations": [
+						{
+							"location": "throw",
+							"assignments": [
+								{
+									"ref": "n_throws",
+									"value": {
+                                        "left": "n_throws",
+                                        "op": "+",
+                                        "right": 1
+                                    }
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"system": {
+		"elements": [ { "automaton": "dice" } ]
+	},
+	"properties": [
+		{
+			"name": "sum-to-nine-in-three",
+			"comment": "Likelihood that the sum of the throws is greater than 30 after 3 throws.",
+			"expression": {
+				"op": "filter",
+				"fun": "max",
+				"states": { "op": "initial" },
+				"values": {
+					"op": "Pmin",
+					"exp": {
+						"op": "U",
+						"left": {
+							"op": "<",
+							"left": "n_throws",
+							"right": 3
+						},
+						"right": {
+							"op": "=",
+							"left": "dice_throws_sum",
+							"right": 9
+						}
+					}
+				}
+			}
+		}
+	],
+	"plugins": [
+		{
+			"plugin_id": "uniform_random_smc_plugin",
+			"automaton_id": "dice",
+			"action_name": "extract_number",
+			"init": [
+				{
+					"name": "verbose",
+					"type": "bool",
+					"value": false,
+					"comment": "Whether to printout all steps in the plugin or not"
+				},
+				{
+					"name": "faces",
+					"type": "int",
+					"value": 3
+				}
+			],
+			"output": [
+				{
+					"ref": "dice_throw_result",
+					"value": "result"
+				}
+			]
+		},
+		{
+			"plugin_id": "int_accumulation_smc_plugin",
+			"automaton_id": "dice",
+			"action_name": "sum_result",
+			"input": [
+				{
+					"name": "input_value",
+					"type": "int",
+					"value": "dice_throw_result",
+					"comment": "The value to add."
+				}
+			],
+			"output": [
+				{
+					"ref": "dice_throws_sum",
+					"value": "accumulated_value"
+				}
+			]
+		}
+	]
+}

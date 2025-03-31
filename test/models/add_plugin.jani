@@ -1,0 +1,175 @@
+{
+	"jani-version": 1,
+	"name": "add-plugin-test.jani",
+	"type": "dtmc",
+	"comment": "smc-plugins should be added among the features, but this requires changes in storm core, so we skip for now.",
+	"features": [ "derived-operators" ],
+	"variables": [
+		{
+			"name": "curr_val",
+			"type": "int",
+			"initial-value": -10
+		},
+		{
+			"name": "sum_plugin",
+			"type": "int",
+			"initial-value": 0
+		},
+		{
+			"name": "sum_classic",
+			"type": "int",
+			"initial-value": 0
+		}
+	],
+	"actions": [
+        {
+            "name": "increase_val"
+        },
+		{
+            "name": "add_count"
+        }
+    ],
+	"automata": [
+		{
+			"name": "sum_plugin_automaton",
+			"locations": [{ "name": "l" }],
+			"initial-locations": ["l"],
+			"edges": [
+				{
+					"action": "add_count",
+					"location": "l",
+					"destinations": [
+						{
+							"location": "l"
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "sum_classic_automaton",
+			"locations": [{ "name": "l" }],
+			"initial-locations": ["l"],
+			"edges": [
+				{
+					"action": "add_count",
+					"location": "l",
+					"destinations": [
+						{
+							"location": "l",
+							"assignments": [
+								{
+									"ref": "sum_classic",
+									"value": {
+										"op": "+",
+										"left": "sum_classic",
+										"right": "curr_val"
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"name": "value_stepper",
+			"locations": [{ "name": "increase_val" }, { "name": "add_count" }],
+			"initial-locations": ["increase_val"],
+			"edges": [
+				{
+					"action": "increase_val",
+					"location": "increase_val",
+					"destinations": [
+						{
+							"location": "add_count",
+							"assignments": [
+								{
+									"ref": "curr_val",
+									"value": {
+										"op": "+",
+										"left": "curr_val",
+										"right": 1
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"action": "add_count",
+					"location": "add_count",
+					"destinations": [
+						{
+							"location": "increase_val"
+						}
+					]
+				}
+			]
+		}
+	],
+	"system": {
+		"elements": [ { "automaton": "sum_plugin_automaton" }, { "automaton": "sum_classic_automaton" }, { "automaton": "value_stepper" } ],
+		"syncs": [
+			{
+				"result": "increase_val",
+				"synchronise": [
+					null, null, "increase_val"
+				]
+			},
+			{
+				"result": "add_count",
+				"synchronise": [
+					"add_count", "add_count", "add_count"
+				]
+			}
+		]
+	},
+	"properties": [
+		{
+			"name": "working",
+			"expression": {
+				"op": "filter",
+				"fun": "max",
+				"states": { "op": "initial" },
+				"values": {
+					"op": "Pmin",
+					"exp": {
+						"op": "U",
+						"left": {
+							"op": "=",
+							"left": "sum_plugin",
+							"right": "sum_classic"
+						},
+						"right": {
+							"op": ">",
+							"left": "curr_val",
+							"right": 9
+						}
+					}
+				}
+			}
+		}
+	],
+	"plugins": [
+		{
+			"plugin_id": "int_accumulation_smc_plugin",
+			"automaton_id": "sum_plugin_automaton",
+			"action_name": "add_count",
+			"input": [
+				{
+					"name": "input_value",
+					"type": "int",
+					"value": "curr_val",
+					"comment": "The value to add."
+				}
+			],
+			"output": [
+				{
+					"ref": "sum_plugin",
+					"value": "accumulated_value"
+				}
+			]
+		}
+	]
+}

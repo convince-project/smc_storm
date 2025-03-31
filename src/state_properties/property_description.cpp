@@ -60,7 +60,8 @@ PropertyDescription::PropertyDescription(const storm::logic::Formula& formula) {
         processUnaryBooleanPathFormula(dynamic_cast<const storm::logic::UnaryBooleanPathFormula&>(formula));
         return;
     }
-    STORM_LOG_THROW(false, storm::exceptions::NotImplementedException, "The provided formula is not supported");
+    STORM_LOG_THROW(
+        false, storm::exceptions::NotImplementedException, "The provided formula \"" << formula.toString() << "\" is not supported");
 }
 
 PropertyDescription::PropertyDescription(

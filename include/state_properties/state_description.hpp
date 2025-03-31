@@ -32,7 +32,7 @@ template <typename StateType, typename ValueType>
 class StateDescription {
   protected:
     // Each entry is the transition probability and the target state
-    typedef std::vector<std::pair<ValueType, StateType>> ActionTransitions;
+    using ActionTransitions = std::vector<std::pair<ValueType, StateType>>;
     std::optional<storm::generator::CompressedState> _compressed_state = std::nullopt;
     state_properties::StateInfoType _state_info = state_properties::state_info::NO_INFO;
     ValueType _reward = 0.0;

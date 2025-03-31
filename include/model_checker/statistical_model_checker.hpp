@@ -24,6 +24,7 @@
 #include <storm/storage/jani/Property.h>
 #include <storm/storage/SymbolicModelDescription.h>
 
+#include "model_checker/smc_plugin_instance.hpp"
 #include "settings/smc_settings.hpp"
 
 // Forward declaration of CheckResult type from Storm
@@ -46,8 +47,9 @@ class StatisticalModelChecker {
      * @param settings
      */
     StatisticalModelChecker(
-        const storm::storage::SymbolicModelDescription& model, const storm::jani::Property& property,
-        const settings::SmcSettings& settings);
+        const storm::storage::SymbolicModelDescription& model, const storm::jani::Property& property, const settings::SmcSettings& settings,
+        const std::vector<SmcPluginInstance>& loaded_plugins = {});
+
     ~StatisticalModelChecker();
 
     /*!
@@ -69,9 +71,10 @@ class StatisticalModelChecker {
     ResultType getResult() const;
 
   private:
-    settings::SmcSettings _settings;
-    storm::storage::SymbolicModelDescription _model;
-    std::vector<storm::jani::Property> _property;
+    std::reference_wrapper<const settings::SmcSettings> _settings;
+    std::reference_wrapper<const storm::storage::SymbolicModelDescription> _model;
+    std::reference_wrapper<const storm::jani::Property> _property;
+    std::reference_wrapper<const std::vector<SmcPluginInstance>> _loaded_plugins;
     std::unique_ptr<storm::modelchecker::CheckResult> _result;
 };
 }  // namespace smc_storm::model_checker
