@@ -47,11 +47,10 @@ jobs:
                 ref: master
                 path: external_dependencies/storm
             # Checkout dependency on smc_verifiable_plugins
-            # TODO: Switch the project back to convince-project after the PR there is merged
             - name: Checkout smc_verifiable_plugins
               uses: actions/checkout@v4
               with:
-                repository: boschresearch/smc_verifiable_plugins
+                repository: convince-project/smc_verifiable_plugins
                 ref: main
                 path: external_dependencies/smc_verifiable_plugins
             # Enable ccache
@@ -80,7 +79,8 @@ jobs:
               run: |
                     mkdir external_dependencies/smc_verifiable_plugins/build
                     cd external_dependencies/smc_verifiable_plugins/build
-                    cmake .. -DCMAKE_BUILD_TYPE=Release
+                    cmake -DCMAKE_BUILD_TYPE=Release ..
+                    make
             - name: Build smc_storm
               run: |
                     export STORM_BUILD_DIR=$PWD/external_dependencies/storm/build
