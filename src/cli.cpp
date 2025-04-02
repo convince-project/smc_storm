@@ -15,11 +15,15 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "model_checker/model_and_settings_validation.hpp"
 #include "model_checker/statistical_model_checker.hpp"
 #include "parser/parsers.hpp"
 #include "settings/cmd_settings.hpp"
+#include "utils/storm_utilities.hpp"
+#include <storm/exceptions/InvalidSettingsException.h>
 
 int main(int argc, char* argv[]) {
+    smc_storm::utils::stormSetUp();
     // Get the Cmd Arguments
     smc_storm::settings::CmdSettings cmd_settings;
     cmd_settings.parse(argc, argv);
@@ -29,8 +33,13 @@ int main(int argc, char* argv[]) {
     // Perform model checking
     STORM_PRINT("Welcome to SMC Storm\n");
     STORM_PRINT("Checking model: " << user_settings.model_file << std::endl);
-    for (const auto& property : model_and_properties.property) {
-        smc_storm::model_checker::StatisticalModelChecker smc(model_and_properties.model, property, mc_settings);
+    // Validate user inputs
+    STORM_LOG_THROW(
+        smc_storm::model_checker::areModelAndSettingsValid(model_and_properties, mc_settings), storm::exceptions::InvalidSettingsException,
+        "Provided settings are invalid. Try adjusting them and run smc_storm again.");
+    for (const auto& property : model_and_properties.properties) {
+        smc_storm::model_checker::StatisticalModelChecker smc(
+            model_and_properties.model, property, mc_settings, model_and_properties.plugins);
         smc.printProperty();
         smc.check();
     }

@@ -1,0 +1,149 @@
+{
+	"jani-version": 1,
+	"name": "counters_test",
+	"type": "mdp",
+	"features": [ "derived-operators" ],
+	"variables": [
+		{
+			"name": "counter_ones",
+			"type": "int",
+			"initial-value": 0
+		},
+		{
+			"name": "counter_tens",
+			"type": "int",
+			"initial-value": 0
+		}
+	],
+    "actions": [
+        {"name": "plus_one"},
+        {"name": "plus_ten"}
+    ],
+	"properties": [
+		{
+			"name": "counters_ok",
+			"expression": {
+				"op": "filter",
+				"fun": "max",
+				"states": { "op": "initial" },
+				"values": {
+					"op": "Pmin",
+					"exp": {
+						"op": "U",
+						"left": {
+                            "op": "∧",
+                            "left": {
+                                "op": "≤",
+                                "left": "counter_ones",
+                                "right": 9
+                            },
+                            "right": {
+                                "op": "≤",
+                                "left": "counter_tens",
+                                "right": 1
+                            }
+                        },
+						"right": {
+							"op": "∧",
+                            "left": {
+                                "op": "=",
+                                "left": "counter_ones",
+                                "right": 9
+                            },
+                            "right": {
+                                "op": "=",
+                                "left": "counter_tens",
+                                "right": 1
+                            }
+						}
+					}
+				}
+			}
+		}
+	],
+	"automata": [
+		{
+			"name": "aut_0",
+			"locations": [{ "name": "l" }],
+			"initial-locations": ["l"],
+			"edges": [
+				{
+					"action": "plus_ten",
+					"location": "l",
+					"destinations": [
+						{
+							"location": "l",
+							"assignments": [
+								{
+									"ref": "counter_tens",
+									"value": {
+                                        "op": "+",
+                                        "left": "counter_tens",
+                                        "right": 1
+									}
+								}
+							]
+						}
+					]
+				},
+				{
+					"action": "plus_one",
+					"location": "l",
+					"destinations": [
+						{
+							"location": "l",
+							"assignments": [
+								{
+									"ref": "counter_ones",
+									"value": {
+											"op": "+",
+											"left": "counter_ones",
+											"right": 1
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+        {
+			"name": "aut_1",
+			"locations": [{ "name": "init" }, {"name": "final"}],
+			"initial-locations": ["init"],
+			"edges": [
+				{
+					"location": "init",
+                    "action": "plus_ten",
+					"destinations": [
+						{
+							"location": "init",
+							"probability": {
+                                "exp": 0.1
+                            }
+						},
+                        {
+							"location": "final",
+							"probability": {
+                                "exp": 0.9
+                            }
+						}
+					]
+				}
+			]
+		}
+	],
+	"system": {
+		"elements": [ { "automaton": "aut_0" }, { "automaton": "aut_1" } ],
+        "syncs": [
+            {
+                "synchronise": ["plus_one", null],
+                "result": "plus_one"
+            },
+            {
+                "synchronise": ["plus_ten", "plus_ten"],
+                "result": "plus_ten"
+            }
+        ]
+	}
+}

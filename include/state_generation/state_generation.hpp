@@ -25,13 +25,12 @@
 #include <storm/storage/SymbolicModelDescription.h>
 
 #include "state_generation/state_expansion_handler.hpp"
+#include "state_generation/state_generation_base.hpp"
 #include "state_properties/property_description.hpp"
 #include "state_properties/state_description.hpp"
 
 namespace smc_storm {
 namespace state_generation {
-template <typename StateType>
-concept StoreExpandedStates = !std::is_same_v<StateType, storm::generator::CompressedState>;
 
 /*!
  * @brief Class that loads an input model and property to generate states and verify if the input property holds.
@@ -39,20 +38,20 @@ concept StoreExpandedStates = !std::is_same_v<StateType, storm::generator::Compr
  * @tparam ValueType Variable type of computed results (e.g. rewards)
  */
 template <typename StateType, typename ValueType>
-class StateGeneration {
-    using StateIdType = std::conditional_t<StoreExpandedStates<StateType>, StateType, uint32_t>;
-
+class StateGeneration : public StateGenerationBase<ValueType> {
   public:
+    using StateDescription = state_properties::StateDescription<StateType, ValueType>;
     /*!
      * @brief Extension of the constructor above, in case we evaluate Rewards
      * @param model The model to generate the next states from
      * @param formula The formula to evaluate on the generated states
      * @param reward_model Name of the reward model to use for assigning costs on states and actions. Empty for P properties
      * @param store_compressed_states Whether to store the explored compressed states (for trace generation)
+     * @param random_generator A random number generator, used to pick one of the possible destinations
      */
     StateGeneration(
         const storm::storage::SymbolicModelDescription& model, const storm::logic::Formula& formula, const std::string& reward_model,
-        const bool store_compressed_states);
+        const bool store_compressed_states, std::default_random_engine& random_generator);
 
     /*!
      * @brief Get the variable information related to the loaded model
@@ -63,34 +62,41 @@ class StateGeneration {
     }
 
     /*!
-     * @brief Load the initial state in the NextStateGenerator (basically a model reset).
+     * @brief Load the initial state in the model.
      */
-    void loadInitialState();
+    void resetModel() override;
 
     /*!
-     * @brief Load a compressed state in the NextStateGenerator
-     * @param state The compressed state to load
+     * @brief Return the set of available actions from the current state
+     * @return A vector of pairs with action ID and associated reward
      */
-    void load(const StateType& state_id);
+    const AvailableActions<ValueType>& getAvailableActions() override;
 
-    const state_properties::StateDescription<StateType, ValueType>& processLoadedState();
+    /// @copydoc StateGenerationBase<ValueType>::runAction(const uint64_t action_id)
+    ValueType runAction(const uint64_t action_id) override;
 
-    const state_properties::PropertyDescription& getPropertyDescription() const {
-        return _property_description;
-    }
+    /*!
+     * @brief Get the reward associated to the current state
+     * @return The reward associated to the curr. state
+     */
+    ValueType getStateReward() override;
+
+    /*!
+     * @brief Retrieve the state's information, checking how it evaluates against the requested property
+     * @return Whether the state satisfies or not the property, or is in a terminal state
+     */
+    state_properties::StateInfoType getStateInfo() override;
+
+    const storm::generator::CompressedState& getCurrentState() const;
 
   private:
     void initStateToIdCallback();
 
     void initNextStateGenerator(const storm::storage::SymbolicModelDescription& model, const std::string& reward_model);
 
-    /*!
-     * @brief Expand the loaded state to get the next states
-     * @return A generator used to access the generated information
-     */
-    storm::generator::StateBehavior<ValueType, StateType> expand();
+    void loadNewState(const StateType state_id);
 
-    void exploreState(const StateIdType state_id, const storm::generator::CompressedState& compressed_state);
+    std::unique_ptr<StateDescription> exploreState(const StateType state_id, const storm::generator::CompressedState& compressed_state);
 
     void computeInitialStates();
 
@@ -103,21 +109,19 @@ class StateGeneration {
     }
 
     // Generator extracting the next states from the current one and the input model.
-    std::unique_ptr<storm::generator::NextStateGenerator<ValueType, StateIdType>> _generator_ptr;
+    std::unique_ptr<storm::generator::NextStateGenerator<ValueType, StateType>> _generator_ptr;
     // Current state.
     StateType _loaded_state;
-    std::unique_ptr<state_properties::StateDescription<StateType, ValueType>> _state_description_ptr;
+    std::optional<std::reference_wrapper<const StateDescription>> _loaded_state_description;
     // Vector of initial states (normally only one).
     std::vector<StateType> _initial_states;
+    AvailableActions<ValueType> _available_actions;
 
     state_generation::StateExpansionHandler<StateType, ValueType> _state_expansion_handler;
 
-    state_properties::PropertyDescription _property_description;
+    std::function<StateType(const storm::generator::CompressedState&)> _state_to_id_callback;
+
     size_t _reward_model_index = std::numeric_limits<size_t>::max();
-
-    const bool _store_compressed_states;
-
-    std::function<StateIdType(const storm::generator::CompressedState&)> _state_to_id_callback;
 };
 
 }  // namespace state_generation

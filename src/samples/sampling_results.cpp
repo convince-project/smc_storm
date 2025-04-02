@@ -22,7 +22,6 @@
 #include <storm/exceptions/OutOfRangeException.h>
 #include <storm/exceptions/UnexpectedException.h>
 
-#include <storm/utility/constants.h>
 #include <storm/utility/macros.h>
 
 #include "samples/sampling_results.hpp"
@@ -142,9 +141,9 @@ bool SamplingResults::evaluateClopperPearsonBound() {
     double lower_bound = 0.0;
     double upper_bound = 1.0;
     if (_n_verified == 0) {
-        upper_bound = 1.0 - pow(alpha_half, 1.0 / iterations);
+        upper_bound = 1.0 - std::pow(alpha_half, 1.0 / iterations);
     } else if (_n_not_verified == 0) {
-        lower_bound = pow(alpha_half, 1.0 / iterations);
+        lower_bound = std::pow(alpha_half, 1.0 / iterations);
     } else {
         boost::math::beta_distribution lower_dist(successes, failures + 1.0);
         boost::math::beta_distribution upper_dist(successes + 1.0, failures);
@@ -314,9 +313,8 @@ void SamplingResults::updateChernoffBound() {
     if (_property_type == state_properties::PropertyType::R && !(std::isinf(_min_reward) && std::isinf(_max_reward))) {
         result_interval_width = std::max(1.0, _max_reward - _min_reward);
     }
-    _required_samples = storm::utility::ceil(
-        storm::utility::log(2.0 / (1.0 - _settings.confidence)) * storm::utility::pow(result_interval_width, 2) /
-        (2.0 * storm::utility::pow(_settings.epsilon, 2)));
+    _required_samples = std::ceil(
+        std::log(2.0 / (1.0 - _settings.confidence)) * std::pow(result_interval_width, 2) / (2.0 * std::pow(_settings.epsilon, 2)));
 }
 
 void SamplingResults::printResults() const {

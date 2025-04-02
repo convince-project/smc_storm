@@ -1,0 +1,124 @@
+{
+	"jani-version": 1,
+	"name": "dice.jani",
+	"type": "dtmc",
+	"comment": "smc-plugins should be added among the features, but this requires changes in storm core, so we skip for now.",
+	"features": [ "derived-operators" ],
+	"variables": [
+		{
+			"name": "d",
+			"type": "int",
+			"initial-value": -1
+		}
+	],
+	"actions": [
+        {
+            "name": "update_state"
+        }
+    ],
+	"automata": [
+		{
+			"name": "dice",
+			"locations": [{ "name": "l" }],
+			"initial-locations": ["l"],
+			"edges": [
+				{
+					"action": "update_state",
+					"location": "l",
+					"destinations": [
+						{
+							"location": "l"
+						}
+					]
+				}
+			]
+		}
+	],
+	"system": {
+		"elements": [ { "automaton": "dice" } ],
+		"syncs": [
+			{
+				"result": "update_state",
+				"synchronise": [
+					"update_state"
+				]
+			}
+		]
+	},
+	"properties": [
+		{
+			"name": "throw-six",
+			"expression": {
+				"op": "filter",
+				"fun": "max",
+				"states": { "op": "initial" },
+				"values": {
+					"op": "Pmin",
+					"exp": {
+						"op": "U",
+						"left": {
+							"op": "<",
+							"left": "d",
+							"right": 0
+						},
+						"right": {
+							"op": "=",
+							"left": "d",
+							"right": 6
+						}
+					}
+				}
+			}
+		},
+		{
+			"name": "throw-above-three",
+			"expression": {
+				"op": "filter",
+				"fun": "max",
+				"states": { "op": "initial" },
+				"values": {
+					"op": "Pmin",
+					"exp": {
+						"op": "U",
+						"left": {
+							"op": "<",
+							"left": "d",
+							"right": 0
+						},
+						"right": {
+							"op": "≤",
+							"left": "d",
+							"right": 3
+						}
+					}
+				}
+			}
+		}
+	],
+	"plugins": [
+		{
+			"plugin_id": "uniform_random_smc_plugin",
+			"automaton_id": "dice",
+			"action_name": "update_state",
+			"init": [
+				{
+					"name": "verbose",
+					"type": "bool",
+					"value": false,
+					"comment": "Whether to printout all steps in the plugin or not"
+				},
+				{
+					"name": "faces",
+					"type": "int",
+					"value": 20
+				}
+			],
+			"output": [
+				{
+					"ref": "d",
+					"value": "result"
+				}
+			]
+		}
+	]
+}

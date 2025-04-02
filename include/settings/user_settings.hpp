@@ -31,6 +31,7 @@ struct UserSettings {
     std::string constants{""};
     std::string stat_method{""};
     std::string traces_file{""};
+    std::string plugin_paths{""};
     double confidence{0.95};
     double epsilon{0.01};
     int max_trace_length{1000000};

@@ -23,12 +23,15 @@
 #include <storm/exceptions/InvalidPropertyException.h>
 #include <storm/exceptions/NotSupportedException.h>
 #include <storm/storage/expressions/ExpressionManager.h>
+#include <storm/utility/cli.h>
 #include <storm/utility/macros.h>
+
+#include <sstream>
 
 #include "parser/parsers.hpp"
 
 namespace smc_storm::parser {
-SymbolicModelAndProperty parseModelAndProperties(const smc_storm::settings::UserSettings& settings) {
+model_checker::ModelAndProperties parseModelAndProperties(const smc_storm::settings::UserSettings& settings) {
     // Ensure settings validity
     STORM_LOG_THROW(settings.validModel(), storm::exceptions::InvalidModelException, "Invalid model file provided.");
     STORM_LOG_THROW(settings.validProperties(), storm::exceptions::InvalidPropertyException, "Invalid properties provided.");
@@ -43,29 +46,34 @@ SymbolicModelAndProperty parseModelAndProperties(const smc_storm::settings::User
         "Unrecognised file extension " << path_to_model.extension() << ": Only .jani and .prism are supported.");
 }
 
-SymbolicModelAndProperty parseJaniModelAndProperties(const smc_storm::settings::UserSettings& settings) {
-    // Load the required model and property
-    storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
-    // Removing the array feature ensures the array entries are substituted with the expanded name.
-    // e.g. array[0] -> array_at_0
-    supported_features.remove(storm::jani::ModelFeature::Arrays);
-    auto model_and_formulae = storm::api::parseJaniModel(settings.model_file, supported_features);
-    model_and_formulae.first.checkValid();
-    const auto model_constants_map = model_and_formulae.first.getConstantsSubstitution();
+model_checker::ModelAndProperties parseJaniModelAndProperties(const smc_storm::settings::UserSettings& settings) {
+    std::vector<std::filesystem::path> plugin_paths;
+    {
+        std::stringstream str_stream(settings.plugin_paths);
+        std::string path;
+        while (std::getline(str_stream, path, ',')) {
+            plugin_paths.emplace_back(path);
+        }
+    }
+    auto model_properties_plugins = loadJaniModel(settings.model_file, plugin_paths);
+    auto& jani_model = std::get<0>(model_properties_plugins);
+    auto& jani_properties = std::get<1>(model_properties_plugins);
+    auto& jani_plugins = std::get<2>(model_properties_plugins);
+    const auto model_constants_map = jani_model.getConstantsSubstitution();
     std::vector<storm::jani::Property> loaded_properties;
     if (!settings.custom_property.empty()) {
-        const storm::parser::FormulaParser formula_parser(model_and_formulae.first.getManager().getSharedPointer());
+        const storm::parser::FormulaParser formula_parser(jani_model.getManager().getSharedPointer());
         loaded_properties = formula_parser.parseFromString(settings.custom_property);
     } else {
         // Get the list of properties from a comma separated list
         const auto properties_ids = getRequestedProperties(settings.properties_names);
-        loaded_properties = filterProperties(model_and_formulae.second, properties_ids, model_constants_map);
+        loaded_properties = filterProperties(jani_properties, properties_ids, model_constants_map);
     }
     // Add the user-defined constants
-    return substituteConstants({model_and_formulae.first, loaded_properties}, settings.constants);
+    return substituteConstants({jani_model, loaded_properties, jani_plugins}, settings.constants);
 }
 
-SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings) {
+model_checker::ModelAndProperties parsePrismModelAndProperties(const smc_storm::settings::UserSettings& settings) {
     const auto prism_model = storm::api::parseProgram(settings.model_file);
     prism_model.checkValidity();
     const auto model_constants_map = prism_model.getConstantsSubstitution();
@@ -79,8 +87,22 @@ SymbolicModelAndProperty parsePrismModelAndProperties(const smc_storm::settings:
         loaded_properties = filterProperties(loaded_properties, properties_ids, model_constants_map);
     }
     // Substitute constants in the model and properties
-    const auto model_and_property = substituteConstants({prism_model, loaded_properties}, settings.constants);
-    return model_and_property;
+    return substituteConstants({prism_model, loaded_properties, {}}, settings.constants);
+}
+
+JaniModelPropertiesPlugins loadJaniModel(const std::filesystem::path& jani_file, const std::vector<std::filesystem::path>& plugin_paths) {
+    // Load the required model and property
+    storm::jani::ModelFeatures supported_features = storm::api::getSupportedJaniFeatures(storm::builder::BuilderType::Explicit);
+    // Removing the array feature ensures the array entries are substituted with the expanded name.
+    // e.g. array[0] -> array_at_0
+    supported_features.remove(storm::jani::ModelFeature::Arrays);
+    auto model_and_properties = JaniParserExtended::parseModelPropertiesAndPlugins(jani_file, plugin_paths);
+    auto& jani_model = std::get<0>(model_and_properties);
+    auto& jani_properties = std::get<1>(model_and_properties);
+    jani_properties = storm::api::substituteConstantsInProperties(jani_properties, jani_model.getConstantsSubstitution());
+    storm::api::simplifyJaniModel(jani_model, jani_properties, supported_features);
+    jani_model.checkValid();
+    return model_and_properties;
 }
 
 std::vector<std::string> getRequestedProperties(const std::string& properties_string) {
@@ -129,18 +151,39 @@ std::vector<storm::jani::Property> filterProperties(
     return filtered_properties;
 }
 
-SymbolicModelAndProperty substituteConstants(const SymbolicModelAndProperty& model_and_properties, const std::string constants) {
-    SymbolicModelAndProperty ret_model_and_properties;
+model_checker::ModelAndProperties substituteConstants(
+    const model_checker::ModelAndProperties& model_and_properties, const std::string constants) {
+    model_checker::ModelAndProperties ret_model_and_properties;
     // Add the user-defined constants
     const auto user_constants_map = model_and_properties.model.parseConstantDefinitions(constants);
-    ret_model_and_properties.model = model_and_properties.model.preprocess(user_constants_map);
-    ret_model_and_properties.property = storm::api::substituteConstantsInProperties(model_and_properties.property, user_constants_map);
-    ret_model_and_properties.property = storm::api::substituteTranscendentalNumbersInProperties(ret_model_and_properties.property);
+    // Do not use the preprocess function, since it also eliminates unused variables (required for plugins)
+    if (model_and_properties.model.isJaniModel()) {
+        const auto& jani_model = model_and_properties.model.asJaniModel();
+        if (model_and_properties.plugins.empty()) {
+            // This substitutes the non-changing variables with constants
+            ret_model_and_properties.model =
+                jani_model.defineUndefinedConstants(user_constants_map).substituteConstantsFunctionsTranscendentals();
+        } else {
+            // This makes sure that non-changing variables are preserved
+            ret_model_and_properties.model = jani_model.defineUndefinedConstants(user_constants_map).substituteConstantsInPlace(true);
+        }
+    } else {
+        ret_model_and_properties.model = model_and_properties.model.asPrismProgram()
+                                             .defineUndefinedConstants(user_constants_map)
+                                             .substituteConstantsFormulas()
+                                             .substituteNonStandardPredicates();
+    }
+    ret_model_and_properties.properties = storm::api::substituteConstantsInProperties(model_and_properties.properties, user_constants_map);
+    ret_model_and_properties.properties = storm::api::substituteTranscendentalNumbersInProperties(ret_model_and_properties.properties);
     // Make sure that all properties have no undefined constant
-    for (const auto& property : ret_model_and_properties.property) {
+    for (const auto& property : ret_model_and_properties.properties) {
         STORM_LOG_THROW(
             property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException,
             "The property uses undefined constants!!!");
+    }
+    for (const auto& plugin : model_and_properties.plugins) {
+        // TODO: Substitute constants in plugins, too
+        ret_model_and_properties.plugins.emplace_back(plugin);
     }
     return ret_model_and_properties;
 }

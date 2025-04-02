@@ -1,0 +1,98 @@
+{
+    "jani-version": 1,
+    "name": "",
+    "type": "mdp",
+    "metadata": {
+        "description": "Testing non-transient real values in Storm SMC tool."
+    },
+    "variables": [
+        {
+            "name": "orientation_rad",
+            "type": "real",
+            "initial-value": 0,
+            "comment": "Orientation in radians"
+        }
+    ],
+    "actions": [
+        {
+            "name": "move"
+        }
+    ],
+    "automata": [
+        {
+            "name": "test_automaton",
+            "locations": [
+                {
+                    "name": "loc"
+                }
+            ],
+            "initial-locations": [
+                "loc"
+            ],
+            "edges": [
+                {
+                    "location": "loc",
+                    "destinations": [
+                        {
+                            "location": "loc",
+                            "assignments": [
+                                {
+                                    "ref": "orientation_rad",
+                                    "value": {
+                                        "op": "+",
+                                        "left": "orientation_rad",
+                                        "right": {
+                                            "op": "/",
+                                            "left": {"constant": "π"},
+                                            "right": 4
+                                        }
+                                    },
+                                    "index": 0
+                                }
+                            ]
+                        }
+                    ],
+                    "action": "move"
+                }
+            ]
+        }
+    ],
+    "system": {
+        "elements": [
+            {
+                "automaton": "test_automaton"
+            }
+        ],
+        "syncs": [
+            {
+                "result": "move",
+                "synchronise": [
+                    "move"
+                ]
+            }
+        ]
+    },
+    "properties": [
+        {
+            "name": "destination_reached",
+            "expression": {
+                "op": "filter",
+                "fun": "values",
+                "values": {
+                    "op": "Pmin",
+                    "exp": {
+                        "op": "F",
+                        "exp": {
+                            "op": ">",
+                            "left": "orientation_rad",
+                            "right": 3.2
+                        }
+                    }
+                },
+                "states": {
+                    "op": "initial"
+                }
+            }
+        }
+    ]
+}
