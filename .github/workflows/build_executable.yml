@@ -44,7 +44,8 @@ jobs:
               uses: actions/checkout@v4
               with:
                 repository: moves-rwth/storm
-                ref: master
+                # Master is too active to keep up, stable is too old...
+                ref: 366471b5262045689fd45008bcdf95e71b3e0819
                 path: external_dependencies/storm
             # Checkout dependency on smc_verifiable_plugins
             - name: Checkout smc_verifiable_plugins
