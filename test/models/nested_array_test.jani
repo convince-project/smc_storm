@@ -29,6 +29,30 @@
       }
     },
     {
+      "name": "normal_array_v2",
+      "type": {
+        "kind": "array",
+        "base": {
+          "kind": "array",
+          "base": "int"
+        }
+      },
+      "transient": false,
+      "initial-value": {
+        "op": "av",
+        "elements": [
+          {
+            "op": "av",
+            "elements": [1,2,3]
+          },
+          {
+            "op": "av",
+            "elements": [4,5,6,7]
+          }
+        ]
+      }
+    },
+    {
       "name": "next_id",
       "type": "int",
       "transient": false,
@@ -71,6 +95,23 @@
                   },
                   "value": "next_id",
                   "index": 0
+                },
+                {
+                  "ref": "normal_array_v2",
+                  "value": {
+                      "op": "av",
+                      "elements": [
+                        {
+                          "op": "av",
+                          "elements": [1,2,3]
+                        },
+                        {
+                          "op": "av",
+                          "elements": [4,5,6,7]
+                        }
+                      ]
+                    },
+                    "index": 1
                 },
                 {
                   "ref": "next_id",
@@ -129,7 +170,6 @@
     },
     {
       "name": "property_with_array_access",
-      "comment": "Not working due to array access not supported in properties",
       "expression": {
         "op": "filter",
         "fun": "values",
@@ -149,6 +189,36 @@
                 "index": 10
               },
               "right": 10
+            }
+          }
+        },
+        "states": {
+          "op": "initial"
+        }
+      }
+    },
+    {
+      "name": "property_with_array_v2_access",
+      "expression": {
+        "op": "filter",
+        "fun": "values",
+        "values": {
+          "op": "Pmin",
+          "exp": {
+            "op": "F",
+            "exp": {
+              "op": "=",
+              "left": {
+                "comment": "This maps to normal_array_v2[1][0]",
+                "op": "aa",
+                "exp": {
+                  "op": "aa",
+                  "exp": "normal_array_v2",
+                  "index": 1
+                },
+                "index": 0
+              },
+              "right": 4
             }
           }
         },
