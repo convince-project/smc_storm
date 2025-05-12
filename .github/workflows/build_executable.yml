@@ -45,7 +45,7 @@ jobs:
               with:
                 repository: moves-rwth/storm
                 # Master is too active to keep up, stable is too old...
-                ref: 366471b5262045689fd45008bcdf95e71b3e0819
+                ref: 534c45c6c83f0650e9d7d543cc491f8fdaeac881
                 path: external_dependencies/storm
             # Checkout dependency on smc_verifiable_plugins
             - name: Checkout smc_verifiable_plugins
