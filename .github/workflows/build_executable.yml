@@ -45,7 +45,7 @@ jobs:
               with:
                 repository: moves-rwth/storm
                 # Master is too active to keep up, stable is too old...
-                ref: 534c45c6c83f0650e9d7d543cc491f8fdaeac881
+                ref: 83b9191184e26df272bc698c18bfef3cbfc81874
                 path: external_dependencies/storm
             # Checkout dependency on smc_verifiable_plugins
             - name: Checkout smc_verifiable_plugins
@@ -107,9 +107,9 @@ jobs:
                     mkdir 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm.so 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm-parsers.so 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/carl/libcarl.so.14.28 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libspot.so.0 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libbddx.so.0 3rd_party
+                    cp $(realpath ../external_dependencies/storm/build/resources/3rdparty/carl/libcarl.so) 3rd_party
+                    cp $(realpath ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libspot.so) 3rd_party
+                    cp $(realpath ../external_dependencies/storm/build/resources/3rdparty/spot/lib/libbddx.so) 3rd_party
                     # Copy the smc_storm lib
                     mkdir lib
                     cp ../build/lib/libsmc_storm_lib.so lib
@@ -134,7 +134,7 @@ jobs:
                       \$SUDO apt install -y --no-install-recommends chrpath libboost-all-dev libcln-dev libgmp-dev libginac-dev libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
                     fi
                     SOURCE=\$( cd -- "\$( dirname -- "\${BASH_SOURCE[0]}" )" &> /dev/null && pwd )
-                    chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libspot.so.0
+                    chrpath -r \$SOURCE/3rd_party \$(realpath \$SOURCE/3rd_party/libspot.so*)
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libstorm.so
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/3rd_party/libstorm-parsers.so
                     chrpath -r \$SOURCE/3rd_party \$SOURCE/lib/libsmc_storm_lib.so
