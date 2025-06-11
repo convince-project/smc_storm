@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 
 # set the project name and version
-project(smc_storm VERSION 1.0)
+project(smc_storm VERSION 0.1.2)
 
 # Use RelWithDebInfo by default
 if(NOT CMAKE_BUILD_TYPE)
