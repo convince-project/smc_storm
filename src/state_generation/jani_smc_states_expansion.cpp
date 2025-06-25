@@ -135,17 +135,17 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
                 first_iteration, storm::exceptions::InvalidModelException,
                 "Currently only models with one initial state are supported by the exploration engine.");
             first_iteration = false;
+            size_t n_blocking_expressions = 0u;
             // Pointer to a possible solution evaluated by the solver
             auto solution_model_ptr = solver->getModel();
-            // Expression to prevent the solver from generating the same solution again
-            storm::expressions::Expression blocking_expression;
             // Evaluate booleans and update the blocking_expression
             for (size_t idx = 0U; idx < _variable_information.booleanVariables().size(); idx++) {
                 const auto& bool_var = _variable_information.booleanVariables().at(idx);
                 const bool variable_value = solution_model_ptr->getBooleanValue(bool_var.variable);
+                // Add the negation of the current state variable as an assertion, to prevent the same state from being generated
                 storm::expressions::Expression local_blocking_expression = variable_value ? !bool_var.variable : bool_var.variable;
-                blocking_expression =
-                    blocking_expression.isInitialized() ? blocking_expression || local_blocking_expression : local_blocking_expression;
+                solver->add(local_blocking_expression);
+                n_blocking_expressions++;
                 _initial_state.setBool(idx, variable_value);
             }
             // Evaluate integers and update the blocking_expression
@@ -162,8 +162,9 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
                 }
                 storm::expressions::Expression local_blocking_expression =
                     int_var.variable != solution_model_ptr->getManager().integer(variable_value);
-                blocking_expression =
-                    blocking_expression.isInitialized() ? blocking_expression || local_blocking_expression : local_blocking_expression;
+                // Add the negation of the current state variable as an assertion, to prevent the same state from being generated
+                solver->add(local_blocking_expression);
+                n_blocking_expressions++;
                 _initial_state.setInt(idx, variable_value);
             }
             // Evaluate real numbers and update the blocking_expression
@@ -180,8 +181,9 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
                 }
                 storm::expressions::Expression local_blocking_expression =
                     real_var.variable != solution_model_ptr->getManager().rational(variable_value);
-                blocking_expression =
-                    blocking_expression.isInitialized() ? blocking_expression || local_blocking_expression : local_blocking_expression;
+                // Add the negation of the current state variable as an assertion, to prevent the same state from being generated
+                solver->add(local_blocking_expression);
+                n_blocking_expressions++;
                 _initial_state.setReal(idx, variable_value);
             }
             // Generate the initial location of all the automata
@@ -194,11 +196,10 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
                 const uint64_t location_value = *init_locations.begin();  // Each automaton has only one initial state
                 _initial_state.setLocation(idx, location_value);
             }
-            if (!blocking_expression.isInitialized()) {
+            if (n_blocking_expressions == 0u) {
                 // Doing another loop would lead to the same solution
                 break;
             }
-            solver->add(blocking_expression);
         }
     }
     updateCurrentState(_initial_state);
