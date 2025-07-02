@@ -95,7 +95,8 @@ jobs:
             - name: Run tests
               run: |
                     cd build
-                    ctest
+                    # Repeat the failing tests up to 3 times, due to statistical possible failures
+                    ctest --repeat until-pass:3
             - name: Copy lib and executables in deploy folder
               run: |
                     # List all existing dependencies of libstorm

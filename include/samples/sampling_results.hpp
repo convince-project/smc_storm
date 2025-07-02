@@ -112,14 +112,6 @@ class SamplingResults {
     void updateSamplingStatus();
 
     /*!
-     * @brief Check if we have reached the minimum n. of iterations
-     * @return Whether we have reached the minimum n. of iterations
-     */
-    inline bool minIterationsReached() const {
-        return _n_verified + _n_not_verified >= _min_iterations;
-    }
-
-    /*!
      * @brief Calculate the variance of the collected samples, distinguishing between P and E properties
      * @return The compute variance
      */
@@ -157,7 +149,6 @@ class SamplingResults {
     // Collection of bound functions to use. Return value is whether more batches are needed.
     // The following iteration bounds work only on P properties
     bool evaluateWaldBound();
-    bool evaluateAgrestiBound();
     bool evaluateWilsonBound();
     bool evaluateWilsonCorrectedBound();
     bool evaluateClopperPearsonBound();
