@@ -251,14 +251,12 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     // As long as we didn't find a terminal (accepting or rejecting) state in the search, sample a new successor.
     samples::TraceResult path_result = samples::TraceResult::NO_INFO;
     state_generation.resetModel();
-    // STORM_PRINT("\n----- New trace ----\n");
     while (path_result == samples::TraceResult::NO_INFO) {
         const auto& state_info = state_generation.getStateInfo();
         if (_traces_exporter_ptr) {
             _traces_exporter_ptr->addNextState(state_generation.getCurrentState());
         }
         // Reward calculation pt. 1: Add the state reward
-        // STORM_PRINT("\t(" << state_generation.getStateReward() << ",");
         trace_information.reward += state_generation.getStateReward();
 
         // Do the check before emplacing back to get the correct n. of steps!
@@ -287,14 +285,9 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
                 const auto available_actions = state_generation.getAvailableActions();
                 const size_t chosen_idx = action_sampler.sampleAction(available_actions);
                 // Reward calculation pt. 2: Add the action reward
-                // STORM_PRINT("\t" << available_actions[chosen_idx].second << ",");
                 trace_information.reward += available_actions[chosen_idx].second;
                 // Reward calculation pt. 3: Add the destination reward
-                // const auto dest_rew = state_generation.runAction(available_actions[chosen_idx].first);
-                // trace_information.reward += dest_rew;
-                // STORM_PRINT("\t" << dest_rew << ")\n");
                 trace_information.reward += state_generation.runAction(available_actions[chosen_idx].first);
-                // STORM_PRINT("\t" << trace_information.reward << "\n");
                 ++trace_information.trace_length;
             }
         }

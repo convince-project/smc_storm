@@ -23,6 +23,8 @@
 #include <mutex>
 #include <string>
 
+#include <indicators/progress_bar.hpp>
+
 #include "samples/batch_buffer.hpp"
 #include "samples/batch_results.hpp"
 #include "samples/batch_statistics.hpp"
@@ -54,6 +56,8 @@ class SamplingResults {
         }
         return _settings.batch_size;
     }
+
+    void updateProgressBar() const;
 
     BatchResults getBatchResultInstance() const;
 
@@ -192,6 +196,9 @@ class SamplingResults {
     const size_t _min_iterations;
     // Evaluator of choice to define whether we need more samples or not
     std::function<bool()> _bound_function;
+
+    mutable indicators::ProgressBar _progress_bar;
+    size_t _progress;
 };
 
 }  // namespace smc_storm::samples

@@ -30,8 +30,13 @@ namespace smc_storm::samples {
 SamplingResults::SamplingResults(const settings::SmcSettings& settings, const state_properties::PropertyType& prop)
     // TODO: results_buffer has an hardcoded max. n. of buffered results per thread (6)
     : _settings{settings},
-      _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{
-                                                                                                                             50U} {
+      _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)},
+      _min_iterations{50U}, _progress_bar{
+                                indicators::option::BarWidth{50},    indicators::option::Start{"["},
+                                indicators::option::Fill{"■"},       indicators::option::Lead{"-"},
+                                indicators::option::Remainder{"-"},  indicators::option::End{"]"},
+                                indicators::option::PostfixText{""}, indicators::option::ShowPercentage{true},
+                            } {
     _keep_sampling = true;
     _n_verified = 0U;
     _n_not_verified = 0U;
@@ -40,7 +45,15 @@ SamplingResults::SamplingResults(const settings::SmcSettings& settings, const st
     _max_reward = -std::numeric_limits<double>::infinity();
     _min_trace_length = std::numeric_limits<size_t>::max();
     _max_trace_length = 0U;
+    _progress = 0u;
     initBoundFunction();
+    updateProgressBar();
+}
+
+void SamplingResults::updateProgressBar() const {
+    const size_t total_samples = _n_verified + _n_not_verified + _n_no_info;
+    _progress_bar.set_option(indicators::option::PostfixText(std::string("Computed samples: ") + std::to_string(total_samples)));
+    _progress_bar.set_progress(_progress);
 }
 
 BatchResults SamplingResults::getBatchResultInstance() const {
@@ -278,28 +291,24 @@ void SamplingResults::updateSamplingStatus() {
     // Reward properties require always reaching the target state
     if (_property_type == state_properties::PropertyType::R && (_n_no_info > 0U || _n_not_verified > 0U)) {
         _keep_sampling = false;
-        return;
+    } else {
+        const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
+        if (_settings.max_n_traces > 0U && n_samples >= _settings.max_n_traces) {
+            _keep_sampling = false;
+        } else if (_settings.stop_after_failure && _n_not_verified > 0U) {
+            _keep_sampling = false;
+        } else if (!minIterationsReached()) {
+            _keep_sampling = true;
+        } else if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
+            // Check if we never reached a terminal states
+            STORM_LOG_THROW(
+                false, storm::exceptions::UnexpectedException,
+                "More than half the generated traces do not reach the terminal state. Aborting.");
+        } else {
+            _keep_sampling = _bound_function();
+        }
     }
-    const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
-    if (_settings.max_n_traces > 0U && n_samples >= _settings.max_n_traces) {
-        _keep_sampling = false;
-        return;
-    }
-    if (_settings.stop_after_failure && _n_not_verified > 0U) {
-        _keep_sampling = false;
-        return;
-    }
-    if (!minIterationsReached()) {
-        _keep_sampling = true;
-        return;
-    }
-    // Check if we never reached a terminal states
-    if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
-        STORM_LOG_THROW(
-            false, storm::exceptions::UnexpectedException,
-            "More than half the generated traces do not reach the terminal state. Aborting.");
-    }
-    _keep_sampling = _bound_function();
+    updateProgressBar();
 }
 
 double SamplingResults::calculateQuantile(const double& confidence) {

@@ -35,6 +35,13 @@ FetchContent_Declare(
     GIT_TAG v3.0
 )
 FetchContent_MakeAvailable(argparse)
+# indicators
+FetchContent_Declare(
+    indicators
+    GIT_REPOSITORY https://github.com/p-ranav/indicators.git
+    GIT_TAG v2.3
+)
+FetchContent_MakeAvailable(indicators)
 
 include_directories(include)
 
@@ -43,7 +50,7 @@ file(GLOB_RECURSE LIB_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
 add_library(${PROJECT_NAME}_lib SHARED ${LIB_SRC_FILES})
 target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR} ${smc_verifiable_plugins_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME}_lib PUBLIC argparse storm storm-parsers)
+target_link_libraries(${PROJECT_NAME}_lib PUBLIC argparse indicators storm storm-parsers)
 
 add_executable(${PROJECT_NAME} src/cli.cpp)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
