@@ -83,6 +83,10 @@ if(BUILD_TESTING)
   target_link_libraries(test_states_generator ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
   gtest_add_tests(TARGET test_states_generator WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
+  add_executable(test_statistical_methods test/unit_tests/test_statistical_methods.cpp)
+  target_link_libraries(test_statistical_methods ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
+  gtest_add_tests(TARGET test_statistical_methods WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
   # System tests
   add_executable(test_jani_models test/system_tests/test_jani_models.cpp)
   target_link_libraries(test_jani_models ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
