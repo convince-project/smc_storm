@@ -130,8 +130,8 @@ bool SamplingResults::evaluateWilsonBound() {
     const double z = _quantile;
     const double z_sq = z * z;
     const double ci_half_width = (z / (iterations + z_sq)) * sqrt(successes * failures / iterations + z_sq / 4.0);
-    // TODO: Not really a formal progress bar, need to compute it more properly
-    _progress = static_cast<size_t>(200.0 * (ci_half_width - _settings.epsilon));
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
@@ -144,8 +144,8 @@ bool SamplingResults::evaluateWilsonCorrectedBound() {
     const double z_sq = z * z;
     const double ci_half_width =
         (z / (2.0 * (iterations + z_sq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + z_sq);
-    // TODO: Not really a formal progress bar, need to compute it more properly
-    _progress = static_cast<size_t>(200.0 * (ci_half_width - _settings.epsilon));
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
@@ -168,8 +168,8 @@ bool SamplingResults::evaluateClopperPearsonBound() {
         upper_bound = boost::math::quantile(upper_dist, 1.0 - alpha_half);
     }
     const double ci_half_width = std::abs(upper_bound - lower_bound) * 0.5;
-    // TODO: Not really a formal progress bar, need to compute it more properly
-    _progress = static_cast<size_t>(200.0 * (ci_half_width - _settings.epsilon));
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
     return ci_half_width > _settings.epsilon;
 }
 
@@ -195,8 +195,8 @@ bool SamplingResults::evaluateArcsineBound() {
     const double sqrt_upper_bound = sin(asin(sqrt(adjusted_success_proportion)) + interval_modifier);
     // Boolean to make sure the certainty bound computed with the Arcsine bound is inside the desired interval
     const double ci_half_width = std::abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) * 0.5;
-    // TODO: Not really a formal progress bar, need to compute it more properly
-    _progress = static_cast<size_t>(200.0 * (ci_half_width - _settings.epsilon));
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
     return ci_half_width > _settings.epsilon;
 }
 
