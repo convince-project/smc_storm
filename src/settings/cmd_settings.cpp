@@ -59,6 +59,7 @@ CmdSettings::CmdSettings() : _parser("smc_storm", VERSION) {
         .implicit_value(true)
         .help("Disable storage of the explored states.");
     _parser.add_argument("--show-statistics").default_value(false).implicit_value(true).help("Show statistics after checking.");
+    _parser.add_argument("--hide-progress-bar").default_value(false).implicit_value(true).help("Hide the verification progress bar.");
 }
 void CmdSettings::parse(int argc, char* argv[]) {
     try {
@@ -83,6 +84,7 @@ void CmdSettings::parse(int argc, char* argv[]) {
         _loaded_settings.batch_size = _parser.get<size_t>("--batch-size");
         _loaded_settings.cache_explored_states = !_parser.get<bool>("--disable-explored-states-caching");
         _loaded_settings.show_statistics = _parser.get<bool>("--show-statistics");
+        _loaded_settings.hide_prog_bar = _parser.get<bool>("--hide-progress-bar");
         _parsing_done = true;
     } catch (const std::exception& err) {
         std::cerr << err.what() << std::endl;

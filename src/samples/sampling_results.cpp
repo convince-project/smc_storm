@@ -48,13 +48,18 @@ SamplingResults::SamplingResults(const settings::SmcSettings& settings, const st
     _max_trace_length = 0U;
     _progress = 0u;
     initBoundFunction();
-    updateProgressBar();
+    if (!_settings.hide_prog_bar) {
+        std::cout << "Property evaluation in progress. S: Success, F: Failures, U: Unknown" << std::endl << std::flush;
+        updateProgressBar();
+    }
 }
 
 void SamplingResults::updateProgressBar() const {
-    _progress_bar.set_option(indicators::option::PostfixText(
-        (std::ostringstream() << " - S: " << _n_verified << " F: " << _n_not_verified << " U: " << _n_no_info).str()));
-    _progress_bar.set_progress(std::min(size_t(100U), _progress));
+    if (!_settings.hide_prog_bar) {
+        _progress_bar.set_option(indicators::option::PostfixText(
+            (std::ostringstream() << " (S: " << _n_verified << " F: " << _n_not_verified << " U: " << _n_no_info << ")").str()));
+        _progress_bar.set_progress(std::min(size_t(100U), _progress));
+    }
 }
 
 BatchResults SamplingResults::getBatchResultInstance() const {

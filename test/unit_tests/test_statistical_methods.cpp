@@ -24,12 +24,12 @@
 #include "settings/user_settings.hpp"
 #include "state_properties/property_type.hpp"
 
-smc_storm::samples::SamplingResults getSamplingResult(
-    const std::string& stat_method, const smc_storm::state_properties::PropertyType p_type) {
+smc_storm::settings::SmcSettings getRequiredSettings(const std::string& stat_method) {
     smc_storm::settings::UserSettings settings;
     settings.stat_method = stat_method;
     settings.n_threads = 1u;
-    return smc_storm::samples::SamplingResults(smc_storm::settings::SmcSettings(settings), p_type);
+    settings.hide_prog_bar = true;
+    return smc_storm::settings::SmcSettings(settings);
 }
 
 smc_storm::samples::BatchResults getSamplesBatch(
@@ -49,9 +49,10 @@ smc_storm::samples::BatchResults getSamplesBatch(
 
 TEST(SamplingResultsTest, ChernoffBoundProgress) {
     const auto p_type = smc_storm::state_properties::PropertyType::P;
-    auto samples_holder = getSamplingResult("chernoff", p_type);
+    auto settings = getRequiredSettings("chernoff");
+    smc_storm::samples::SamplingResults samples_holder(settings, p_type);
     // Simulate some verified and not verified samples
-    for (size_t i = 0u; i < 19; i++) {
+    for (size_t i = 0u; i < 20u; i++) {
         auto batch = getSamplesBatch(p_type, 500u, 500u, 10u);
         samples_holder.addBatchResults(batch, 0u);
         ASSERT_EQ(samples_holder.newBatchNeeded(0u), i < 18u);
