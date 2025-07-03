@@ -47,6 +47,33 @@ smc_storm::samples::BatchResults getSamplesBatch(
     return single_batch;
 }
 
+void runTest(const smc_storm::state_properties::PropertyType p_type, const std::string& stat_method, const double success_prob) {
+    auto settings = getRequiredSettings(stat_method);
+    smc_storm::samples::SamplingResults samples_holder(settings, p_type);
+    bool always_fail = success_prob < FLT_EPSILON;
+    size_t n_succ = 0u;
+    size_t n_fail = 0u;
+    size_t inverse_prob = always_fail ? std::numeric_limits<size_t>::max() : static_cast<size_t>(std::round(1.0 / success_prob));
+    size_t n_batches = 0;
+    while (samples_holder.newBatchNeeded(0u)) {
+        if (always_fail || n_batches % inverse_prob != 0u) {
+            n_succ = 0u;
+            n_fail = 1u;
+        } else {
+            n_succ = 1u;
+            n_fail = 0u;
+        }
+        samples_holder.addBatchResults(getSamplesBatch(p_type, n_succ, n_fail, 0u), 0u);
+        n_batches++;
+    }
+    EXPECT_GT(n_batches, 100u);
+    if (!(always_fail || inverse_prob == 1U)) {
+        // In this case, we expect more samples
+        EXPECT_GT(n_batches, 600u);
+    }
+    EXPECT_NEAR(samples_holder.getProbabilityVerifiedProperty(), success_prob, 0.001);
+}
+
 TEST(SamplingResultsTest, ChernoffBoundProgress) {
     const auto p_type = smc_storm::state_properties::PropertyType::P;
     auto settings = getRequiredSettings("chernoff");
@@ -57,18 +84,64 @@ TEST(SamplingResultsTest, ChernoffBoundProgress) {
         samples_holder.addBatchResults(batch, 0u);
         ASSERT_EQ(samples_holder.newBatchNeeded(0u), i < 18u);
     }
-    // (You may need to expose or mock internal state for more detailed tests)
     ASSERT_NEAR(samples_holder.getProbabilityVerifiedProperty(), 0.5, 0.001);
 }
 
-// TEST(SamplingResultsTest, WaldBoundProgress) {
-//     settings.stat_method = "wald";
-//     SamplingResults waldResults(settings, PropertyType::P);
-//     bool moreNeeded = waldResults.evaluateWaldBound();
-//     ASSERT_TRUE(moreNeeded);
-// }
+TEST(SamplingResultsTest, WaldBoundProgress) {
+    const auto p_type = smc_storm::state_properties::PropertyType::P;
+    const std::string stat_method = "wald";
+    runTest(p_type, stat_method, 1.0);
+    runTest(p_type, stat_method, 0.0);
+    runTest(p_type, stat_method, 0.25);
+}
 
-// Add similar tests for Wilson, WilsonCorrected, ClopperPearson, Adaptive, Arcsine, ChowRobbins
+TEST(SamplingResultsTest, WilsonBoundProgress) {
+    const auto p_type = smc_storm::state_properties::PropertyType::P;
+    const std::string stat_method = "wilson";
+    runTest(p_type, stat_method, 1.0);
+    runTest(p_type, stat_method, 0.0);
+    runTest(p_type, stat_method, 0.25);
+}
+
+TEST(SamplingResultsTest, WilsonCorrectedBoundProgress) {
+    const auto p_type = smc_storm::state_properties::PropertyType::P;
+    const std::string stat_method = "wilson_corrected";
+    runTest(p_type, stat_method, 1.0);
+    runTest(p_type, stat_method, 0.0);
+    runTest(p_type, stat_method, 0.25);
+}
+
+TEST(SamplingResultsTest, ClopperPearsonBoundProgress) {
+    const auto p_type = smc_storm::state_properties::PropertyType::P;
+    const std::string stat_method = "clopper_pearson";
+    runTest(p_type, stat_method, 1.0);
+    runTest(p_type, stat_method, 0.0);
+    runTest(p_type, stat_method, 0.25);
+}
+
+TEST(SamplingResultsTest, AdaptiveBoundProgress) {
+    const auto p_type = smc_storm::state_properties::PropertyType::P;
+    const std::string stat_method = "adaptive";
+    runTest(p_type, stat_method, 1.0);
+    runTest(p_type, stat_method, 0.0);
+    runTest(p_type, stat_method, 0.25);
+}
+
+TEST(SamplingResultsTest, ArcsineBoundProgress) {
+    const auto p_type = smc_storm::state_properties::PropertyType::P;
+    const std::string stat_method = "arcsine";
+    runTest(p_type, stat_method, 1.0);
+    runTest(p_type, stat_method, 0.0);
+    runTest(p_type, stat_method, 0.25);
+}
+
+TEST(SamplingResultsTest, ChowRobbinsBoundProgress) {
+    const auto p_type = smc_storm::state_properties::PropertyType::P;
+    const std::string stat_method = "chow_robbins";
+    runTest(p_type, stat_method, 1.0);
+    runTest(p_type, stat_method, 0.0);
+    runTest(p_type, stat_method, 0.25);
+}
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
