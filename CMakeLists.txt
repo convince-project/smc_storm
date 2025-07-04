@@ -44,8 +44,8 @@ FetchContent_MakeAvailable(indicators)
 # smc_verifiable_plugins
 FetchContent_Declare(
     smc_verifiable_plugins
-    GIT_REPOSITORY https://github.com/boschresearch/smc_verifiable_plugins.git
-    GIT_TAG improvement/fetch-content-compatible
+    GIT_REPOSITORY https://github.com/convince-project/smc_verifiable_plugins.git
+    GIT_TAG 0.0.1
 )
 FetchContent_MakeAvailable(smc_verifiable_plugins)
 
