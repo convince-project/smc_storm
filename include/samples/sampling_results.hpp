@@ -129,6 +129,15 @@ class SamplingResults {
     }
 
     /*!
+     * @brief A generic progress estimate. It is not supposed to be very accurate.
+     * @param ci_half_width The currently estimated confidence.
+     * @return The estimated progress (between 0 and 100)
+     */
+    inline size_t computeProgress(const double ci_half_width) const {
+        return static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
+    }
+
+    /*!
      * @brief Calculate the quantile associated to a specific confidence level (assuming normal distribution)
      * @param confidence The confidence value to use
      * @return The quantile value that will be used to evaluate sampling bounds

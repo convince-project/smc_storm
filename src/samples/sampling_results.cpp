@@ -136,45 +136,64 @@ bool SamplingResults::evaluateWilsonBound() {
     const double z_sq = z * z;
     const double ci_half_width = (z / (iterations + z_sq)) * sqrt(successes * failures / iterations + z_sq / 4.0);
     // TODO: Not really a proper progress bar formulation, need to compute it more properly
-    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
+    _progress = computeProgress(ci_half_width);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
 
 bool SamplingResults::evaluateWilsonCorrectedBound() {
-    const double successes = static_cast<double>(_n_verified);
-    const double failures = static_cast<double>(_n_not_verified);
-    const double iterations = successes + failures;
+    const double iterations = static_cast<double>(_n_verified + _n_not_verified);
+    const double p_success = static_cast<double>(_n_verified) / iterations;
+    const double p_failure = 1.0 - p_success;
     const double z = _quantile;
     const double z_sq = z * z;
-    const double ci_half_width =
-        (z / (2.0 * (iterations + z_sq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + z_sq);
+    double lower_bound = 0.0;
+    double upper_bound = 1.0;
+    if (_n_verified > 0u) {
+        lower_bound = (2.0 * iterations * p_success + z_sq -
+                       (z * sqrt(z_sq - (1 / iterations) + 4.0 * iterations * p_success * p_failure + (4.0 * p_success - 2.0)) + 1.0)) /
+                      (2.0 * (iterations + z_sq));
+    }
+    if (_n_not_verified > 0u) {
+        upper_bound = (2.0 * iterations * p_success + z_sq +
+                       (z * sqrt(z_sq - (1 / iterations) + 4.0 * iterations * p_success * p_failure - (4.0 * p_success - 2.0)) + 1.0)) /
+                      (2.0 * (iterations + z_sq));
+    }
+    //  NOTE: We do not clamp lower and upper bound on purpose, to keep the CI interval larger.
+    const double ci_width = (upper_bound - lower_bound);
+    const double ci_half_width = ((_n_verified * _n_not_verified) > 0u) ? (ci_width * 0.5) : ci_width;
+    STORM_LOG_THROW(ci_half_width >= 0.0, storm::exceptions::OutOfRangeException, "Expected CI to be a positive number.");
     // TODO: Not really a proper progress bar formulation, need to compute it more properly
-    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
+    _progress = computeProgress(ci_half_width);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
 
 bool SamplingResults::evaluateClopperPearsonBound() {
+    // Source: https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Clopper%E2%80%93Pearson_interval
     const double alpha_half = (1 - _settings.confidence) * 0.5;
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     double lower_bound = 0.0;
     double upper_bound = 1.0;
+    double ci_half_width = 1.0;
     if (_n_verified == 0) {
         upper_bound = 1.0 - std::pow(alpha_half, 1.0 / iterations);
+        ci_half_width = upper_bound - lower_bound;
     } else if (_n_not_verified == 0) {
         lower_bound = std::pow(alpha_half, 1.0 / iterations);
+        ci_half_width = upper_bound - lower_bound;
     } else {
         boost::math::beta_distribution lower_dist(successes, failures + 1.0);
         boost::math::beta_distribution upper_dist(successes + 1.0, failures);
         lower_bound = boost::math::quantile(lower_dist, alpha_half);
         upper_bound = boost::math::quantile(upper_dist, 1.0 - alpha_half);
+        ci_half_width = (upper_bound - lower_bound) * 0.5;
     }
-    const double ci_half_width = std::abs(upper_bound - lower_bound) * 0.5;
+    STORM_LOG_THROW(ci_half_width >= 0.0, storm::exceptions::OutOfRangeException, "Expected CI to be a positive number.");
     // TODO: Not really a proper progress bar formulation, need to compute it more properly
-    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
+    _progress = computeProgress(ci_half_width);
     return ci_half_width > _settings.epsilon;
 }
 
@@ -201,7 +220,7 @@ bool SamplingResults::evaluateArcsineBound() {
     // Boolean to make sure the certainty bound computed with the Arcsine bound is inside the desired interval
     const double ci_half_width = std::abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) * 0.5;
     // TODO: Not really a proper progress bar formulation, need to compute it more properly
-    _progress = static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
+    _progress = computeProgress(ci_half_width);
     return ci_half_width > _settings.epsilon;
 }
 
