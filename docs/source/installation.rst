@@ -37,22 +37,6 @@ We used the following command to build STORM:
     export STORM_DIR=<path-to-storm-repo>
     cmake -DSTORM_USE_SPOT_SHIPPED=ON $STORM_DIR && make -j10
 
-Install smc_verifiable_plugins
-______________________________
-
-This is another dependency, providing support for external plugins that can be executed by smc_storm when simulating the model.
-
-The package can be found at `this link <https://github.com/convince-project/smc_verifiable_plugins>_`.
-
-Once cloned, you can use the following:
-
-.. code-block:: bash
-
-    cd <path-to-smc-storm-repo>
-    mkdir build
-    cd build
-    cmake .. -DCMAKE_BUILD_TYPE=Release && make
-
 Install smc_storm
 _________________
 
