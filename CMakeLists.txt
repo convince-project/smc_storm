@@ -25,7 +25,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(storm REQUIRED)  # search for Storm library
-find_package(smc_verifiable_plugins REQUIRED)  # TODO: Once released, this can be made optional and use FetchContent
+find_package(smc_verifiable_plugins REQUIRED)  # TODO: Check if this can be removed, and we can rely on FetchContent
 
 include(FetchContent)
 # Argparse
