@@ -25,10 +25,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(storm REQUIRED)  # search for Storm library
-find_package(smc_verifiable_plugins REQUIRED)  # TODO: Check if this can be removed, and we can rely on FetchContent
 
 include(FetchContent)
-# Argparse
+# argparse
 FetchContent_Declare(
     argparse
     GIT_REPOSITORY https://github.com/p-ranav/argparse.git
@@ -42,6 +41,13 @@ FetchContent_Declare(
     GIT_TAG v2.3
 )
 FetchContent_MakeAvailable(indicators)
+# smc_verifiable_plugins
+FetchContent_Declare(
+    smc_verifiable_plugins
+    GIT_REPOSITORY https://github.com/boschresearch/smc_verifiable_plugins.git
+    GIT_TAG improvement/fetch-content-compatible
+)
+FetchContent_MakeAvailable(smc_verifiable_plugins)
 
 include_directories(include)
 
@@ -49,15 +55,15 @@ include_directories(include)
 file(GLOB_RECURSE LIB_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
 add_library(${PROJECT_NAME}_lib SHARED ${LIB_SRC_FILES})
-target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR} ${smc_verifiable_plugins_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME}_lib PUBLIC argparse indicators storm storm-parsers)
+target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME}_lib PUBLIC argparse indicators smc_verifiable_plugins storm storm-parsers)
 
 add_executable(${PROJECT_NAME} src/cli.cpp)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 
 # Provide some smc_verifiable_plugins implementations
 add_library(uniform_random_smc_plugin SHARED ${PROJECT_SOURCE_DIR}/plugins/src/uniform_random_smc_plugin.cpp)
-target_include_directories(uniform_random_smc_plugin PUBLIC ${smc_verifiable_plugins_INCLUDE_DIR})
+target_link_libraries(uniform_random_smc_plugin PUBLIC smc_verifiable_plugins)
 
 include(CTest)
 
