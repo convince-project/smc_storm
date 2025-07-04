@@ -129,6 +129,7 @@ bool SamplingResults::evaluateWaldBound() {
 }
 
 bool SamplingResults::evaluateWilsonBound() {
+    // Source: https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Wilson_score_interval
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;

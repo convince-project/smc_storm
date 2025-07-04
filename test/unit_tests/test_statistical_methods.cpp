@@ -107,11 +107,11 @@ TEST(SamplingResultsTest, WilsonCorrectedBoundProgress) {
     const auto p_type = smc_storm::state_properties::PropertyType::P;
     const std::string stat_method = "wilson_corrected";
     const size_t gen_batches_1 = runTest(p_type, stat_method, 1.0);
-    ASSERT_GT(gen_batches_1, 100u);
+    ASSERT_GT(gen_batches_1, 400u);
     const size_t gen_batches_2 = runTest(p_type, stat_method, 0.0);
-    ASSERT_GT(gen_batches_2, 100u);
+    ASSERT_GT(gen_batches_2, 400u);
     const size_t gen_batches_3 = runTest(p_type, stat_method, 0.25);
-    ASSERT_GT(gen_batches_3, 600u);
+    ASSERT_GT(gen_batches_3, 5000u);
 }
 
 TEST(SamplingResultsTest, ClopperPearsonBoundProgress) {
@@ -133,7 +133,7 @@ TEST(SamplingResultsTest, AdaptiveBoundProgress) {
     const size_t gen_batches_2 = runTest(p_type, stat_method, 0.0);
     ASSERT_GT(gen_batches_2, 400u);
     const size_t gen_batches_3 = runTest(p_type, stat_method, 0.25);
-    ASSERT_GT(gen_batches_3, 600u);
+    ASSERT_GT(gen_batches_3, 5000u);
 }
 
 TEST(SamplingResultsTest, ArcsineBoundProgress) {
