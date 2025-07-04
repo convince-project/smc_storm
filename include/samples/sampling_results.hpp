@@ -23,6 +23,8 @@
 #include <mutex>
 #include <string>
 
+#include <indicators/progress_bar.hpp>
+
 #include "samples/batch_buffer.hpp"
 #include "samples/batch_results.hpp"
 #include "samples/batch_statistics.hpp"
@@ -54,6 +56,8 @@ class SamplingResults {
         }
         return _settings.batch_size;
     }
+
+    void updateProgressBar() const;
 
     BatchResults getBatchResultInstance() const;
 
@@ -108,14 +112,6 @@ class SamplingResults {
     void updateSamplingStatus();
 
     /*!
-     * @brief Check if we have reached the minimum n. of iterations
-     * @return Whether we have reached the minimum n. of iterations
-     */
-    inline bool minIterationsReached() const {
-        return _n_verified + _n_not_verified >= _min_iterations;
-    }
-
-    /*!
      * @brief Calculate the variance of the collected samples, distinguishing between P and E properties
      * @return The compute variance
      */
@@ -130,6 +126,15 @@ class SamplingResults {
         }
         // Reward properties
         return _reward_stats.variance;
+    }
+
+    /*!
+     * @brief A generic progress estimate. It is not supposed to be very accurate.
+     * @param ci_half_width The currently estimated confidence.
+     * @return The estimated progress (between 0 and 100)
+     */
+    inline size_t computeProgress(const double ci_half_width) const {
+        return static_cast<size_t>(std::max(0.0, 400.0 * (0.25 - (ci_half_width - _settings.epsilon))));
     }
 
     /*!
@@ -153,7 +158,6 @@ class SamplingResults {
     // Collection of bound functions to use. Return value is whether more batches are needed.
     // The following iteration bounds work only on P properties
     bool evaluateWaldBound();
-    bool evaluateAgrestiBound();
     bool evaluateWilsonBound();
     bool evaluateWilsonCorrectedBound();
     bool evaluateClopperPearsonBound();
@@ -192,6 +196,9 @@ class SamplingResults {
     const size_t _min_iterations;
     // Evaluator of choice to define whether we need more samples or not
     std::function<bool()> _bound_function;
+
+    mutable indicators::ProgressBar _progress_bar;
+    size_t _progress;
 };
 
 }  // namespace smc_storm::samples

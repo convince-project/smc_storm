@@ -39,12 +39,14 @@ struct SmcSettings {
     const bool store_only_not_verified;
     const bool cache_explored_states;
     const bool show_statistics;
+    const bool hide_prog_bar;
 
     SmcSettings(const UserSettings& user_settings)
         : stat_method{user_settings.stat_method}, traces_file{user_settings.traces_file}, confidence{user_settings.confidence},
           epsilon{user_settings.epsilon}, max_trace_length{user_settings.max_trace_length}, max_n_traces{user_settings.max_n_traces},
           n_threads{user_settings.n_threads}, batch_size{user_settings.batch_size}, plugins_loaded{!user_settings.plugin_paths.empty()},
           stop_after_failure{user_settings.stop_after_failure}, store_only_not_verified{user_settings.store_only_not_verified},
-          cache_explored_states{user_settings.cache_explored_states}, show_statistics{user_settings.show_statistics} {}
+          cache_explored_states{user_settings.cache_explored_states}, show_statistics{user_settings.show_statistics},
+          hide_prog_bar(user_settings.hide_prog_bar) {}
 };
 }  // namespace smc_storm::settings

@@ -31,8 +31,8 @@ int main(int argc, char* argv[]) {
     const auto model_and_properties = smc_storm::parser::parseModelAndProperties(user_settings);
     const auto mc_settings = smc_storm::settings::SmcSettings(user_settings);
     // Perform model checking
-    STORM_PRINT("Welcome to SMC Storm\n");
-    STORM_PRINT("Checking model: " << user_settings.model_file << std::endl);
+    std::cout << "Welcome to SMC Storm\n";
+    std::cout << "Checking model: " << user_settings.model_file << std::endl << std::flush;
     // Validate user inputs
     STORM_LOG_THROW(
         smc_storm::model_checker::areModelAndSettingsValid(model_and_properties, mc_settings), storm::exceptions::InvalidSettingsException,

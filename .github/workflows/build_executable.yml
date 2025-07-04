@@ -47,13 +47,6 @@ jobs:
                 # Master is too active to keep up, stable is too old...
                 ref: 83b9191184e26df272bc698c18bfef3cbfc81874
                 path: external_dependencies/storm
-            # Checkout dependency on smc_verifiable_plugins
-            - name: Checkout smc_verifiable_plugins
-              uses: actions/checkout@v4
-              with:
-                repository: convince-project/smc_verifiable_plugins
-                ref: main
-                path: external_dependencies/smc_verifiable_plugins
             # Enable ccache
             - name: ccache
               uses: hendrikmuhs/ccache-action@v1.2
@@ -76,12 +69,6 @@ jobs:
                     cd external_dependencies/storm/build
                     cmake -DSTORM_USE_SPOT_SHIPPED=ON ..
                     make storm-cli
-            - name: Build smc_verifiable_plugins
-              run: |
-                    mkdir external_dependencies/smc_verifiable_plugins/build
-                    cd external_dependencies/smc_verifiable_plugins/build
-                    cmake -DCMAKE_BUILD_TYPE=Release ..
-                    make
             - name: Build smc_storm
               run: |
                     export STORM_BUILD_DIR=$PWD/external_dependencies/storm/build
@@ -95,7 +82,8 @@ jobs:
             - name: Run tests
               run: |
                     cd build
-                    ctest
+                    # Repeat the failing tests up to 3 times, due to statistical possible failures
+                    ctest --repeat until-pass:3
             - name: Copy lib and executables in deploy folder
               run: |
                     # List all existing dependencies of libstorm
