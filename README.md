@@ -9,7 +9,7 @@ Please refer to the [online documentation](https://convince-project.github.io/sm
 
 ### List all available parameters
 
-The list of available parameters with its related description can be obtained using following command:
+The list of available parameters with its related description can be obtained using the following command:
 ```bash
 smc_storm --help
 ```
