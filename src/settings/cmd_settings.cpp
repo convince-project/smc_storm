@@ -15,7 +15,10 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#ifdef SMC_STORM_VERSION
 #include "settings/cmd_settings.hpp"
+
+constexpr const char* const VERSION = SMC_STORM_VERSION;
 
 namespace smc_storm::settings {
 CmdSettings::CmdSettings() : _parser("smc_storm", VERSION) {
@@ -100,3 +103,6 @@ UserSettings CmdSettings::getSettings() const {
     return _loaded_settings;
 }
 }  // namespace smc_storm::settings
+#else
+static_assert(false, "SMC_STORM_VERSION is not defined");
+#endif

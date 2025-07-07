@@ -20,7 +20,6 @@
 #include <argparse/argparse.hpp>
 
 namespace smc_storm::settings {
-constexpr const char* const VERSION = "0.1.2";
 
 /*!
  * @brief Class for generating the settings from the command line arguments

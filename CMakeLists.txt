@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 
 # set the project name and version
-project(smc_storm VERSION 0.1.2)
+project(smc_storm VERSION 0.1.3)
 
 # Use RelWithDebInfo by default
 if(NOT CMAKE_BUILD_TYPE)
@@ -55,6 +55,7 @@ include_directories(include)
 file(GLOB_RECURSE LIB_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
 add_library(${PROJECT_NAME}_lib SHARED ${LIB_SRC_FILES})
+add_definitions(-DSMC_STORM_VERSION="${CMAKE_PROJECT_VERSION}")
 target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR})
 target_link_libraries(${PROJECT_NAME}_lib PUBLIC argparse indicators smc_verifiable_plugins storm storm-parsers)
 
