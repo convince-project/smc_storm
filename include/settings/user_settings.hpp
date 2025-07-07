@@ -42,6 +42,7 @@ struct UserSettings {
     bool store_only_not_verified{false};
     bool cache_explored_states{true};
     bool show_statistics{false};
+    bool hide_prog_bar{false};
 
     bool validModel() const {
         const bool valid_file = !model_file.empty() && std::filesystem::exists(model_file);

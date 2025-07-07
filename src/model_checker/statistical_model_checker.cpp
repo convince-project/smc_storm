@@ -46,7 +46,7 @@ StatisticalModelChecker::StatisticalModelChecker(
 StatisticalModelChecker::~StatisticalModelChecker() = default;
 
 void StatisticalModelChecker::printProperty() const {
-    STORM_PRINT("Property " << _property.get().asPrismSyntax() << "\n");
+    std::cout << "Property " << _property.get().asPrismSyntax() << std::endl << std::flush;
 }
 
 void StatisticalModelChecker::check() {
@@ -77,7 +77,7 @@ void StatisticalModelChecker::check() {
             STORM_LOG_THROW(false, storm::exceptions::NotSupportedException, "Only DTMC and MDP models are supported.");
         }
     }
-    STORM_PRINT("Result: " << *_result << std::endl);
+    std::cout << "Result: " << *_result << std::endl;
 }
 
 template <>

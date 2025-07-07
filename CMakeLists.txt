@@ -25,16 +25,29 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 find_package(storm REQUIRED)  # search for Storm library
-find_package(smc_verifiable_plugins REQUIRED)  # TODO: Once released, this can be made optional and use FetchContent
 
 include(FetchContent)
-# Argparse
+# argparse
 FetchContent_Declare(
     argparse
     GIT_REPOSITORY https://github.com/p-ranav/argparse.git
     GIT_TAG v3.0
 )
 FetchContent_MakeAvailable(argparse)
+# indicators
+FetchContent_Declare(
+    indicators
+    GIT_REPOSITORY https://github.com/p-ranav/indicators.git
+    GIT_TAG v2.3
+)
+FetchContent_MakeAvailable(indicators)
+# smc_verifiable_plugins
+FetchContent_Declare(
+    smc_verifiable_plugins
+    GIT_REPOSITORY https://github.com/convince-project/smc_verifiable_plugins.git
+    GIT_TAG 0.0.1
+)
+FetchContent_MakeAvailable(smc_verifiable_plugins)
 
 include_directories(include)
 
@@ -42,15 +55,15 @@ include_directories(include)
 file(GLOB_RECURSE LIB_SRC_FILES ${PROJECT_SOURCE_DIR}/src/*/*.cpp)
 
 add_library(${PROJECT_NAME}_lib SHARED ${LIB_SRC_FILES})
-target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR} ${smc_verifiable_plugins_INCLUDE_DIR})
-target_link_libraries(${PROJECT_NAME}_lib PUBLIC argparse storm storm-parsers)
+target_include_directories(${PROJECT_NAME}_lib PUBLIC ${storm_INCLUDE_DIR})
+target_link_libraries(${PROJECT_NAME}_lib PUBLIC argparse indicators smc_verifiable_plugins storm storm-parsers)
 
 add_executable(${PROJECT_NAME} src/cli.cpp)
 target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 
 # Provide some smc_verifiable_plugins implementations
 add_library(uniform_random_smc_plugin SHARED ${PROJECT_SOURCE_DIR}/plugins/src/uniform_random_smc_plugin.cpp)
-target_include_directories(uniform_random_smc_plugin PUBLIC ${smc_verifiable_plugins_INCLUDE_DIR})
+target_link_libraries(uniform_random_smc_plugin PUBLIC smc_verifiable_plugins)
 
 include(CTest)
 
@@ -75,6 +88,10 @@ if(BUILD_TESTING)
   add_executable(test_states_generator test/unit_tests/test_states_generator.cpp)
   target_link_libraries(test_states_generator ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
   gtest_add_tests(TARGET test_states_generator WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
+
+  add_executable(test_statistical_methods test/unit_tests/test_statistical_methods.cpp)
+  target_link_libraries(test_statistical_methods ${PROJECT_NAME}_lib GTest::gtest GTest::gtest_main)
+  gtest_add_tests(TARGET test_statistical_methods WORKING_DIRECTORY ${CMAKE_BINARY_DIR})
 
   # System tests
   add_executable(test_jani_models test/system_tests/test_jani_models.cpp)

@@ -17,6 +17,7 @@
 
 #include <boost/math/distributions/beta.hpp>
 #include <boost/math/distributions/normal.hpp>
+#include <sstream>
 
 #include <storm/exceptions/NotImplementedException.h>
 #include <storm/exceptions/OutOfRangeException.h>
@@ -30,8 +31,13 @@ namespace smc_storm::samples {
 SamplingResults::SamplingResults(const settings::SmcSettings& settings, const state_properties::PropertyType& prop)
     // TODO: results_buffer has an hardcoded max. n. of buffered results per thread (6)
     : _settings{settings},
-      _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{
-                                                                                                                             50U} {
+      _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)},
+      _min_iterations{200U}, _progress_bar{
+                                 indicators::option::BarWidth{50},    indicators::option::Start{"["},
+                                 indicators::option::Fill{"■"},       indicators::option::Lead{"-"},
+                                 indicators::option::Remainder{"-"},  indicators::option::End{"]"},
+                                 indicators::option::PostfixText{""}, indicators::option::ShowPercentage{true},
+                             } {
     _keep_sampling = true;
     _n_verified = 0U;
     _n_not_verified = 0U;
@@ -40,7 +46,20 @@ SamplingResults::SamplingResults(const settings::SmcSettings& settings, const st
     _max_reward = -std::numeric_limits<double>::infinity();
     _min_trace_length = std::numeric_limits<size_t>::max();
     _max_trace_length = 0U;
+    _progress = 0u;
     initBoundFunction();
+    if (!_settings.hide_prog_bar) {
+        std::cout << "Property evaluation in progress. S: Success, F: Failures, U: Unknown" << std::endl << std::flush;
+        updateProgressBar();
+    }
+}
+
+void SamplingResults::updateProgressBar() const {
+    if (!_settings.hide_prog_bar) {
+        _progress_bar.set_option(indicators::option::PostfixText(
+            (std::ostringstream() << " (S: " << _n_verified << " F: " << _n_not_verified << " U: " << _n_no_info << ")").str()));
+        _progress_bar.set_progress(std::min(size_t(100U), _progress));
+    }
 }
 
 BatchResults SamplingResults::getBatchResultInstance() const {
@@ -69,8 +88,6 @@ void SamplingResults::initBoundFunction() {
         _bound_function = std::bind(&SamplingResults::evaluateChowRobbinsBound, this);
     } else if ("wald" == stat_method) {
         _bound_function = std::bind(&SamplingResults::evaluateWaldBound, this);
-    } else if ("agresti" == stat_method) {
-        _bound_function = std::bind(&SamplingResults::evaluateAgrestiBound, this);
     } else if ("wilson" == stat_method) {
         _bound_function = std::bind(&SamplingResults::evaluateWilsonBound, this);
     } else if ("wilson_corrected" == stat_method) {
@@ -86,84 +103,111 @@ void SamplingResults::initBoundFunction() {
 }
 
 bool SamplingResults::evaluateChernoffBound() {
+    _progress = static_cast<size_t>(static_cast<double>(_n_verified + _n_not_verified) * 100.0 / _required_samples);
     return (_n_verified + _n_not_verified) < _required_samples;
 }
 
 bool SamplingResults::evaluateWaldBound() {
-    const double successes = static_cast<double>(_n_verified);
-    const double failures = static_cast<double>(_n_not_verified);
-    const double iterations = successes + failures;
-    const double success_proportion = successes / iterations;
-    double ci_half_width = _quantile * sqrt(success_proportion * (1 - success_proportion) / iterations);
-    // Boolean to make sure the certainty bound computed with the Wald bound is inside the desired interval
-    return ci_half_width > _settings.epsilon;
-}
-
-bool SamplingResults::evaluateAgrestiBound() {
-    const double successes = static_cast<double>(_n_verified);
-    const double failures = static_cast<double>(_n_not_verified);
-    const double iterations = successes + failures;
-    const double adjusted_success_proportion = (successes + 0.5 * _quantile) / (iterations + _quantile * _quantile);
-    // Boolean to make sure the certainty bound computed with the Agresti bound is inside the desired interval
-    return _quantile * sqrt(adjusted_success_proportion * (1.0 - adjusted_success_proportion) / (iterations + _quantile * _quantile)) >
-           _settings.epsilon;
+    // This method can be used only after a min. amount of samples has been extracted
+    const size_t n_iterations = _n_verified + _n_not_verified;
+    if (n_iterations < _min_iterations) {
+        _progress = (100u * n_iterations) / _min_iterations;
+        return true;
+    }
+    const double p_succ = static_cast<double>(_n_verified) / static_cast<double>(n_iterations);
+    // Original formulation:
+    // double ci_half_width = _quantile * sqrt(success_proportion * (1 - success_proportion) / iterations);
+    // Manipulate the formula to get the min amount of iterations (given the current successes/failures ratio)
+    const double eps_over_q = _settings.epsilon / _quantile;
+    const size_t req_iterations = static_cast<size_t>(p_succ * (1 - p_succ) / (eps_over_q * eps_over_q));
+    if (req_iterations <= 0u) {
+        _progress = 100u;
+    } else {
+        _progress = (100u * n_iterations) / req_iterations;
+    }
+    return n_iterations < req_iterations;
 }
 
 bool SamplingResults::evaluateWilsonBound() {
+    // Source: https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Wilson_score_interval
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     const double z = _quantile;
     const double z_sq = z * z;
     const double ci_half_width = (z / (iterations + z_sq)) * sqrt(successes * failures / iterations + z_sq / 4.0);
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = computeProgress(ci_half_width);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
 
 bool SamplingResults::evaluateWilsonCorrectedBound() {
-    const double successes = static_cast<double>(_n_verified);
-    const double failures = static_cast<double>(_n_not_verified);
-    const double iterations = successes + failures;
-    const double p = (successes / iterations) - (1.0 / (2.0 * iterations));
+    const double iterations = static_cast<double>(_n_verified + _n_not_verified);
+    const double p_success = static_cast<double>(_n_verified) / iterations;
+    const double p_failure = 1.0 - p_success;
     const double z = _quantile;
     const double z_sq = z * z;
-    const double ci_half_width =
-        (z / (2.0 * (iterations + z_sq))) * sqrt((2.0 * successes - 1.0) * (2.0 * failures + 1.0) * (1.0 / iterations) + z_sq);
+    double lower_bound = 0.0;
+    double upper_bound = 1.0;
+    if (_n_verified > 0u) {
+        lower_bound = (2.0 * iterations * p_success + z_sq -
+                       (z * sqrt(z_sq - (1 / iterations) + 4.0 * iterations * p_success * p_failure + (4.0 * p_success - 2.0)) + 1.0)) /
+                      (2.0 * (iterations + z_sq));
+    }
+    if (_n_not_verified > 0u) {
+        upper_bound = (2.0 * iterations * p_success + z_sq +
+                       (z * sqrt(z_sq - (1 / iterations) + 4.0 * iterations * p_success * p_failure - (4.0 * p_success - 2.0)) + 1.0)) /
+                      (2.0 * (iterations + z_sq));
+    }
+    //  NOTE: We do not clamp lower and upper bound on purpose, to keep the CI interval larger.
+    const double ci_width = (upper_bound - lower_bound);
+    const double ci_half_width = ((_n_verified * _n_not_verified) > 0u) ? (ci_width * 0.5) : ci_width;
+    STORM_LOG_THROW(ci_half_width >= 0.0, storm::exceptions::OutOfRangeException, "Expected CI to be a positive number.");
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = computeProgress(ci_half_width);
     // Boolean to make sure the certainty bound computed with the Wilson bound is inside the desired interval
     return ci_half_width > _settings.epsilon;
 }
 
 bool SamplingResults::evaluateClopperPearsonBound() {
+    // Source: https://en.wikipedia.org/wiki/Binomial_proportion_confidence_interval#Clopper%E2%80%93Pearson_interval
     const double alpha_half = (1 - _settings.confidence) * 0.5;
     const double successes = static_cast<double>(_n_verified);
     const double failures = static_cast<double>(_n_not_verified);
     const double iterations = successes + failures;
     double lower_bound = 0.0;
     double upper_bound = 1.0;
+    double ci_half_width = 1.0;
     if (_n_verified == 0) {
         upper_bound = 1.0 - std::pow(alpha_half, 1.0 / iterations);
+        ci_half_width = upper_bound - lower_bound;
     } else if (_n_not_verified == 0) {
         lower_bound = std::pow(alpha_half, 1.0 / iterations);
+        ci_half_width = upper_bound - lower_bound;
     } else {
         boost::math::beta_distribution lower_dist(successes, failures + 1.0);
         boost::math::beta_distribution upper_dist(successes + 1.0, failures);
         lower_bound = boost::math::quantile(lower_dist, alpha_half);
         upper_bound = boost::math::quantile(upper_dist, 1.0 - alpha_half);
+        ci_half_width = (upper_bound - lower_bound) * 0.5;
     }
-    const double ci_half_width = std::abs(upper_bound - lower_bound) * 0.5;
+    STORM_LOG_THROW(ci_half_width >= 0.0, storm::exceptions::OutOfRangeException, "Expected CI to be a positive number.");
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = computeProgress(ci_half_width);
     return ci_half_width > _settings.epsilon;
 }
 
 bool SamplingResults::evaluateAdaptiveBound() {
     // Based on "A New Adaptive Sampling Method for Scalable Learning" by Chen and Xu (2013)
     const double alpha = (1 - _settings.confidence);
-    const double successes = static_cast<double>(_n_verified);
-    const double iterations = static_cast<double>(_n_verified + _n_not_verified);
-    const double successes_proportion = successes / iterations;
+    const size_t n_iterations = _n_verified + _n_not_verified;
+    const double successes_proportion = static_cast<double>(_n_verified) / static_cast<double>(n_iterations);
     const double corrected_success_prob = abs(successes_proportion - 0.5) - (_settings.epsilon * 2.0 / 3.0);
-    const double min_expected_iterations =
-        (2.0 * log(2.0 / alpha) / (_settings.epsilon * _settings.epsilon)) * (0.25 - corrected_success_prob * corrected_success_prob);
-    return iterations < min_expected_iterations;
+    const size_t min_expected_iterations = static_cast<size_t>(
+        (2.0 * log(2.0 / alpha) / (_settings.epsilon * _settings.epsilon)) * (0.25 - corrected_success_prob * corrected_success_prob));
+    _progress = 100u * n_iterations / min_expected_iterations;
+    return n_iterations < min_expected_iterations;
 }
 
 bool SamplingResults::evaluateArcsineBound() {
@@ -175,22 +219,33 @@ bool SamplingResults::evaluateArcsineBound() {
     const double sqrt_lower_bound = sin(asin(sqrt(adjusted_success_proportion)) - interval_modifier);
     const double sqrt_upper_bound = sin(asin(sqrt(adjusted_success_proportion)) + interval_modifier);
     // Boolean to make sure the certainty bound computed with the Arcsine bound is inside the desired interval
-    return abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) > _settings.epsilon * 2.0;
+    const double ci_half_width = std::abs(sqrt_lower_bound * sqrt_lower_bound - sqrt_upper_bound * sqrt_upper_bound) * 0.5;
+    // TODO: Not really a proper progress bar formulation, need to compute it more properly
+    _progress = computeProgress(ci_half_width);
+    return ci_half_width > _settings.epsilon;
 }
 
 bool SamplingResults::evaluateChowRobbinsBound() {
-    const double variance = calculateVariance();
-    const size_t n_samples = _n_verified + _n_not_verified;
-    if (_property_type == state_properties::PropertyType::R) {
-        STORM_LOG_THROW(n_samples == _reward_stats.dim, storm::exceptions::UnexpectedException, "Mismatch in n. of samples.");
-    }
-    if (n_samples == 0U) {
-        // No sample yet! Keep getting samples!
+    // This method can be used only after a min. amount of samples has been extracted
+    const size_t n_iterations = _n_verified + _n_not_verified;
+    if (n_iterations < _min_iterations) {
+        _progress = (100u * n_iterations) / _min_iterations;
         return true;
     }
+    const double variance = calculateVariance();
+    if (_property_type == state_properties::PropertyType::R) {
+        STORM_LOG_THROW(n_iterations == _reward_stats.dim, storm::exceptions::UnexpectedException, "Mismatch in n. of samples.");
+    }
     // Based on "On the Asymptotic Theory of Fixed-Width Sequential Confidence Intervals for the Mean" paper (1965).
-    const double ci_half_width_squared = variance * _quantile * _quantile / static_cast<double>(n_samples);
-    return (_settings.epsilon * _settings.epsilon) < ci_half_width_squared;
+    // Original formula:
+    // const double ci_half_width_squared = variance * _quantile * _quantile / static_cast<double>(n_samples);
+    const double req_iterations = (variance * _quantile * _quantile) / (_settings.epsilon * _settings.epsilon);
+    if (req_iterations <= 0u) {
+        _progress = 100u;
+    } else {
+        _progress = (100u * n_iterations) / req_iterations;
+    }
+    return n_iterations < req_iterations;
 }
 
 void SamplingResults::addBatchResults(const BatchResults& res, const size_t thread_id) {
@@ -278,28 +333,26 @@ void SamplingResults::updateSamplingStatus() {
     // Reward properties require always reaching the target state
     if (_property_type == state_properties::PropertyType::R && (_n_no_info > 0U || _n_not_verified > 0U)) {
         _keep_sampling = false;
-        return;
+    } else {
+        const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
+        if (_settings.max_n_traces > 0U && n_samples >= _settings.max_n_traces) {
+            _keep_sampling = false;
+        } else if (_settings.stop_after_failure && _n_not_verified > 0U) {
+            _keep_sampling = false;
+            // } else if ((_n_verified + _n_not_verified) < _min_iterations) {
+            //     _keep_sampling = true;
+            //     _progress = static_cast<size_t>(100.0 * static_cast<double>(_n_verified + _n_not_verified) /
+            //     static_cast<double>(_min_iterations));
+        } else if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
+            // Check if we never reached a terminal states
+            STORM_LOG_THROW(
+                false, storm::exceptions::UnexpectedException,
+                "More than half the generated traces do not reach the terminal state. Aborting.");
+        } else {
+            _keep_sampling = _bound_function();
+        }
     }
-    const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
-    if (_settings.max_n_traces > 0U && n_samples >= _settings.max_n_traces) {
-        _keep_sampling = false;
-        return;
-    }
-    if (_settings.stop_after_failure && _n_not_verified > 0U) {
-        _keep_sampling = false;
-        return;
-    }
-    if (!minIterationsReached()) {
-        _keep_sampling = true;
-        return;
-    }
-    // Check if we never reached a terminal states
-    if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
-        STORM_LOG_THROW(
-            false, storm::exceptions::UnexpectedException,
-            "More than half the generated traces do not reach the terminal state. Aborting.");
-    }
-    _keep_sampling = _bound_function();
+    updateProgressBar();
 }
 
 double SamplingResults::calculateQuantile(const double& confidence) {
