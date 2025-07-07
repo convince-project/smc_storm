@@ -240,15 +240,14 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
     // Clear the computed actions
     _computed_actions.clear();
     _computed_destinations.clear();
-    // TODO: Set value for transient variables
-    for (const auto& composite_edge : _system_model.composite_edges) {
-        const auto& automata_and_edges = composite_edge.second;
+    for (const SyncIdxAndEdges& composite_edge : _system_model.composite_edges) {
+        const AutomataAndEdges& automata_and_edges = composite_edge.second;
         if (automata_and_edges.size() == 1U) {
-            // This is a non-syncing edge
-            const auto& automaton_and_edge = automata_and_edges.front();
-            const auto& automaton_id = automaton_and_edge.first;
-            const auto& location_id = _current_state.getLocationData().at(automaton_id);
-            const auto& location_to_edges = automaton_and_edge.second;
+            // Composite edge with 1 automaton -> This is a non-syncing edge
+            const AutomatonAndEdges& automaton_and_edges = automata_and_edges.front();
+            const uint64_t& automaton_id = automaton_and_edges.first;
+            const uint64_t& location_id = _current_state.getLocationData().at(automaton_id);
+            const LocationsAndEdges& location_to_edges = automaton_and_edges.second;
             const bool is_silent_action = !composite_edge.first;
             // Check if the current location matches the edge
             const auto& matching_edges_it = location_to_edges.find(location_id);
@@ -305,7 +304,7 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
             for (const auto& [automaton_id, location_to_edges] : composite_edge.second) {
                 // Prepare the entry in the action_edges vector
                 action_edges.emplace_back(automaton_id, LocationsAndEdges());
-                const auto& location_id = _current_state.getLocationData().at(automaton_id);
+                const uint64_t& location_id = _current_state.getLocationData().at(automaton_id);
                 const auto& matching_edges_it = location_to_edges.find(location_id);
                 if (location_to_edges.end() != matching_edges_it) {
                     for (const auto& edge_descr : matching_edges_it->second) {
@@ -345,7 +344,7 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
                     for (int64_t current_level = lowest_assignment_level; current_level <= highest_assignment_level; current_level++) {
                         transient_vars_values.clear();
                         for (const auto& [aut_id, loc_and_edges] : action_edges) {
-                            const auto& single_edge = loc_and_edges.begin()->second.front().second.get();
+                            const storm::jani::Edge& single_edge = loc_and_edges.begin()->second.front().second.get();
                             if (!single_edge.getAssignments().empty()) {
                                 executeTransientAssignments(
                                     transient_vars_values, single_edge.getAssignments().getTransientAssignments(current_level));
@@ -403,9 +402,10 @@ typename JaniSmcStatesExpansion<ValueType>::ActionDestinations JaniSmcStatesExpa
         std::vector<std::pair<uint64_t, std::vector<storm::jani::EdgeDestination>::const_iterator>> aut_dest_its(
             chosen_action.action_edges.size());
         std::transform(
-            chosen_action.action_edges.begin(), chosen_action.action_edges.end(), aut_dest_its.begin(), [](const auto& automaton_and_edge) {
-                const storm::jani::Edge& edge = automaton_and_edge.second.begin()->second.front().second.get();
-                return std::make_pair(automaton_and_edge.first, edge.getDestinations().begin());
+            chosen_action.action_edges.begin(), chosen_action.action_edges.end(), aut_dest_its.begin(),
+            [](const AutomatonAndEdges& automaton_and_edges) {
+                const storm::jani::Edge& edge = automaton_and_edges.second.begin()->second.front().second.get();
+                return std::make_pair(automaton_and_edges.first, edge.getDestinations().begin());
             });
         ValueType probability_sum = storm::utility::zero<ValueType>();
         // Generate the distribution of possible outcomes
