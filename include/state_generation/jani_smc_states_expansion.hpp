@@ -56,7 +56,7 @@ class JaniSmcStatesExpansion {
     // A vector of pairs relating an index to each edge. All edges are leaving from the same location
     using EdgeSetWithIndices = std::vector<std::pair<uint64_t, std::reference_wrapper<const storm::jani::Edge>>>;
     // A map relating each automaton's location to a vector of possible edges to execute
-    using LocationsAndEdges = std::unordered_map<uint64_t, EdgeSetWithIndices>;
+    using LocationsAndEdges = std::vector<std::pair<uint64_t, EdgeSetWithIndices>>;
     // A pair containing the automaton ID and the related location->edges transitions
     using AutomatonAndEdges = std::pair<uint64_t, LocationsAndEdges>;
     // Vector of automaton and edges, each entry relating to a different automaton

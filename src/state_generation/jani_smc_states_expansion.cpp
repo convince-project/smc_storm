@@ -247,14 +247,16 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
             const AutomatonAndEdges& automaton_and_edges = automata_and_edges.front();
             const uint64_t& automaton_id = automaton_and_edges.first;
             const uint64_t& location_id = _current_state.getLocationData().at(automaton_id);
-            const LocationsAndEdges& location_to_edges = automaton_and_edges.second;
+            const LocationsAndEdges& locations_to_edges = automaton_and_edges.second;
             const bool is_silent_action = !composite_edge.first;
             // Check if the current location matches the edge
-            const auto& matching_edges_it = location_to_edges.find(location_id);
-            if (location_to_edges.end() != matching_edges_it) {
+            const std::pair<uint64_t, EdgeSetWithIndices>& matching_edges = locations_to_edges.at(location_id);
+            STORM_LOG_THROW(
+                matching_edges.first == location_id, storm::exceptions::UnexpectedException, "Something is wrong with the code...");
+            if (!matching_edges.second.empty()) {
                 // The action might be valid: check the guards conditions
                 bool valid_action_found = false;
-                for (const auto& [aut_edge_idx, aut_edge_val] : matching_edges_it->second) {
+                for (const auto& [aut_edge_idx, aut_edge_val] : matching_edges.second) {
                     // TODO: Move this to the constructor operations
                     STORM_LOG_THROW(
                         !aut_edge_val.get().hasRate(), storm::exceptions::InvalidModelException, "Found edge with rate: this is invalid");
@@ -301,25 +303,27 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
             // Required for computing the transient variable information afterwards
             int64_t lowest_assignment_level = std::numeric_limits<int64_t>::max();
             int64_t highest_assignment_level = std::numeric_limits<int64_t>::min();
-            for (const auto& [automaton_id, location_to_edges] : composite_edge.second) {
+            for (const auto& [automaton_id, locations_to_edges] : composite_edge.second) {
                 // Prepare the entry in the action_edges vector
-                action_edges.emplace_back(automaton_id, LocationsAndEdges());
                 const uint64_t& location_id = _current_state.getLocationData().at(automaton_id);
-                const auto& matching_edges_it = location_to_edges.find(location_id);
-                if (location_to_edges.end() != matching_edges_it) {
-                    for (const auto& edge_descr : matching_edges_it->second) {
+                action_edges.emplace_back(automaton_id, LocationsAndEdges({{location_id, {}}}));
+                const std::pair<uint64_t, EdgeSetWithIndices>& matching_edges = locations_to_edges.at(location_id);
+                STORM_LOG_THROW(
+                    matching_edges.first == location_id, storm::exceptions::UnexpectedException, "Something is wrong with the code...");
+                if (!matching_edges.second.empty()) {
+                    for (const auto& edge_descr : matching_edges.second) {
                         const storm::jani::Edge& single_edge = edge_descr.second.get();
                         if (!_evaluator_ptr->asBool(single_edge.getGuard())) {
                             continue;
                         }
-                        if (action_edges.back().second.empty()) {
+                        if (action_edges.back().second.back().second.empty()) {
                             if (!single_edge.getAssignments().empty()) {
                                 lowest_assignment_level =
                                     std::min(single_edge.getAssignments().getLowestLevel(true), lowest_assignment_level);
                                 highest_assignment_level =
                                     std::max(single_edge.getAssignments().getHighestLevel(true), highest_assignment_level);
                             }
-                            action_edges.back().second.insert({location_id, {edge_descr}});
+                            action_edges.back().second.back().second.emplace_back(edge_descr);
                             // Do not break here, to print the warn once in case it is required
                         } else {
                             STORM_LOG_WARN("Multiple edges satisfying a condition were found: only the 1st one will be used.");
@@ -327,11 +331,11 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
                         }
                     }
                 }
-                if (action_edges.back().second.empty()) {
+                if (action_edges.back().second.back().second.empty()) {
                     break;
                 }
             }
-            if (!action_edges.back().second.empty()) {
+            if (!action_edges.back().second.back().second.empty()) {
                 // Generate the combination of edges to execute for this single action, and add to results
                 // Keep in mind that we are providing only one combination per action!
                 STORM_LOG_THROW(
@@ -530,9 +534,13 @@ void JaniSmcStatesExpansion<ValueType>::generateSynchInformation() {
         computeAutomatonPluginAssociation(automaton, automaton_index);
 
         LocationsAndEdges locations_and_edges;
+        locations_and_edges.reserve(automaton.getNumberOfLocations());
+        for (uint64_t location_id = 0u; location_id < automaton.getNumberOfLocations(); location_id++) {
+            locations_and_edges.emplace_back(location_id, EdgeSetWithIndices());
+        }
         uint64_t edge_index = 0U;
         for (const storm::jani::Edge& edge : automaton.getEdges()) {
-            locations_and_edges[edge.getSourceLocationIndex()].emplace_back(edge_index, edge);
+            locations_and_edges[edge.getSourceLocationIndex()].second.emplace_back(edge_index, edge);
             ++edge_index;
         }
         // Put the only automaton in the system model to the _system_model.edges vector
@@ -560,10 +568,14 @@ void JaniSmcStatesExpansion<ValueType>::generateSynchInformation() {
 
             // Add edges with silent action.
             LocationsAndEdges locations_and_edges;
+            locations_and_edges.reserve(automaton.getNumberOfLocations());
+            for (uint64_t location_id = 0u; location_id < automaton.getNumberOfLocations(); location_id++) {
+                locations_and_edges.emplace_back(location_id, EdgeSetWithIndices());
+            }
             uint64_t edge_index = 0;
             for (const storm::jani::Edge& edge : automaton.getEdges()) {
                 if (edge.hasSilentAction()) {
-                    locations_and_edges[edge.getSourceLocationIndex()].emplace_back(edge_index, edge);
+                    locations_and_edges[edge.getSourceLocationIndex()].second.emplace_back(edge_index, edge);
                 }
                 ++edge_index;
             }
@@ -584,12 +596,17 @@ void JaniSmcStatesExpansion<ValueType>::generateSynchInformation() {
             uint64_t automaton_index = 0;
             for (const std::string& action_name : synched_actions.getInput()) {
                 if (!storm::jani::SynchronizationVector::isNoActionInput(action_name)) {
+                    const storm::jani::Automaton& automaton = _system_model.parallel_automata[automaton_index].get();
                     LocationsAndEdges locations_and_edges;
+                    locations_and_edges.reserve(automaton.getNumberOfLocations());
+                    for (uint64_t location_id = 0u; location_id < automaton.getNumberOfLocations(); location_id++) {
+                        locations_and_edges.emplace_back(location_id, EdgeSetWithIndices());
+                    }
                     uint64_t action_index = _jani_model.getActionIndex(action_name);
                     uint64_t edge_index = 0;
-                    for (const storm::jani::Edge& edge : _system_model.parallel_automata[automaton_index].get().getEdges()) {
+                    for (const storm::jani::Edge& edge : automaton.getEdges()) {
                         if (edge.getActionIndex() == action_index) {
-                            locations_and_edges[edge.getSourceLocationIndex()].emplace_back(edge_index, edge);
+                            locations_and_edges[edge.getSourceLocationIndex()].second.emplace_back(edge_index, std::ref(edge));
                         }
                         ++edge_index;
                     }
