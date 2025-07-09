@@ -23,7 +23,8 @@
 
 namespace smc_storm::state_generation {
 template <typename ValueType>
-JaniSmcModelBuild<ValueType>::JaniSmcModelBuild(const storm::jani::Model& jani_model) {
+JaniSmcModelBuild<ValueType>::JaniSmcModelBuild(
+    const storm::jani::Model& jani_model, const std::vector<model_checker::SmcPluginInstance>& external_plugins) {
     const auto& jani_composition = jani_model.getSystemComposition();
     if (jani_composition.isAutomatonComposition()) {
         // We can treat it as a single automaton
@@ -35,8 +36,6 @@ JaniSmcModelBuild<ValueType>::JaniSmcModelBuild(const storm::jani::Model& jani_m
             jani_model.getAutomata().size() == 1u, storm::exceptions::InvalidModelException, "Only one automaton expected here.");
         const storm::jani::Automaton& single_automaton = jani_model.getAutomata().front();
         _jani_automata.emplace_back(std::ref(single_automaton));
-        // TODO: Plugins
-        // computeAutomatonPluginAssociation(automaton, automaton_index);
         _automata_actions.emplace_back(AutomatonActionsSet({AutomatonAction(single_automaton.getNumberOfLocations(), LocationEdges())}));
         for (const storm::jani::Edge& aut_edge : single_automaton.getEdges()) {
             // Access the 0th automaton and its 0th action and append the edge to the related location
@@ -59,8 +58,6 @@ JaniSmcModelBuild<ValueType>::JaniSmcModelBuild(const storm::jani::Model& jani_m
             // Add an entry for the current automaton
             _jani_automata.emplace_back(std::ref(sub_automaton));
             _automata_actions.emplace_back();
-            // TODO: Plugins
-            // computeAutomatonPluginAssociation(automaton, automaton_index);
             // Compute the silent actions first (only related to this automaton)
             AutomatonAction sub_aut_silent_action(sub_automaton.getNumberOfLocations(), LocationEdges());
             bool has_silent_edges = false;
@@ -104,6 +101,40 @@ JaniSmcModelBuild<ValueType>::JaniSmcModelBuild(const storm::jani::Model& jani_m
                 }
             }
             _composite_edges.emplace_back(std::move(composition_instance));
+        }
+    }
+    computePluginAssociations(external_plugins);
+}
+
+template <typename ValueType>
+void JaniSmcModelBuild<ValueType>::computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins) {
+    _automata_plugins = std::vector<AutomatonEdgesWithPlugin>(_jani_automata.size(), AutomatonEdgesWithPlugin());
+    for (uint64_t aut_idx = 0u; aut_idx < _jani_automata.size(); aut_idx++) {
+        const storm::jani::Automaton& automaton = _jani_automata.at(aut_idx).get();
+        const std::string& automaton_name = automaton.getName();
+        for (uint64_t plugin_idx = 0u; plugin_idx < external_plugins.size(); plugin_idx++) {
+            const model_checker::SmcPluginInstance& plugin_desc = external_plugins[plugin_idx];
+            if (plugin_desc.getAutomatonName() == automaton_name) {
+                const uint64_t action_id = plugin_desc.getActionId();
+                const std::string& action_name = plugin_desc.getActionName();
+                // Ensure the automaton has the required action ID
+                STORM_LOG_THROW(
+                    automaton.hasEdgeLabeledWithActionIndex(action_id), storm::exceptions::InvalidModelException,
+                    "Automaton " + automaton_name + " has no action named " + action_name + ".");
+                // Ensure all plugin-related edges have no assignments
+                for (const storm::jani::Edge& single_edge : automaton.getEdges()) {
+                    if (single_edge.getActionIndex() == action_id) {
+                        for (const storm::jani::EdgeDestination& single_dest : single_edge.getDestinations()) {
+                            STORM_LOG_THROW(
+                                single_dest.getOrderedAssignments().empty(), storm::exceptions::InvalidModelException,
+                                "The action from " + automaton_name + " called " + action_name +
+                                    " is associated to a plugin, and its edges shall not have assignments.");
+                        }
+                    }
+                }
+                _automata_plugins.at(aut_idx).emplace_back(action_id, plugin_idx);
+                // TODO: Ensure that each automaton action has only one plugin associated to it
+            }
         }
     }
 }

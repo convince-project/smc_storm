@@ -39,6 +39,7 @@ template <typename ValueType>
 class JaniSmcModelBuild {
   public:
     static constexpr uint64_t SILENT_ACTION_ID = std::numeric_limits<uint64_t>::max();
+    static constexpr uint64_t NO_PLUGIN_ID = std::numeric_limits<uint64_t>::max();
     // A location could have multiple possible edges
     using LocationEdges = std::vector<std::reference_wrapper<const storm::jani::Edge>>;
     // Each entry in the vector relates to a location (0 to n)
@@ -49,11 +50,18 @@ class JaniSmcModelBuild {
     using AutomatonToActionId = std::pair<uint64_t, uint64_t>;
     // A composite edge is a map from action_id to a set of automata with their related action ID
     using CompositeEdge = std::pair<uint64_t, std::vector<AutomatonToActionId>>;
+    // A map from the edge id to the plugin id
+    using EdgeToPluginId = std::pair<uint64_t, uint64_t>;
+    // All edges with plugins in an automaton
+    using AutomatonEdgesWithPlugin = std::vector<EdgeToPluginId>;
+
     /*!
      * @brief Build an internal model from the provided JANI object.
      * @param jani_model The model we are building from.
      */
-    JaniSmcModelBuild(const storm::jani::Model& jani_model);
+    JaniSmcModelBuild(const storm::jani::Model& jani_model, const std::vector<model_checker::SmcPluginInstance>& external_plugins);
+
+    void computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins);
 
     // Getters need to be done
   private:
@@ -63,5 +71,6 @@ class JaniSmcModelBuild {
     std::vector<CompositeEdge> _composite_edges;
     // Vector of automata, each one having an array of (automaton's) actions.
     std::vector<AutomatonActionsSet> _automata_actions;
+    std::vector<AutomatonEdgesWithPlugin> _automata_plugins;
 };
 }  // namespace smc_storm::state_generation
