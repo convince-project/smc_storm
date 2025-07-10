@@ -22,8 +22,7 @@
 #include "state_generation/jani_smc_model_build.hpp"
 
 namespace smc_storm::state_generation {
-template <typename ValueType>
-JaniSmcModelBuild<ValueType>::JaniSmcModelBuild(
+JaniSmcModelBuild::JaniSmcModelBuild(
     const storm::jani::Model& jani_model, const std::vector<model_checker::SmcPluginInstance>& external_plugins) {
     const auto& jani_composition = jani_model.getSystemComposition();
     if (jani_composition.isAutomatonComposition()) {
@@ -106,8 +105,7 @@ JaniSmcModelBuild<ValueType>::JaniSmcModelBuild(
     computePluginAssociations(external_plugins);
 }
 
-template <typename ValueType>
-void JaniSmcModelBuild<ValueType>::computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins) {
+void JaniSmcModelBuild::computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins) {
     _automata_plugins = std::vector<AutomatonEdgesWithPlugin>(_jani_automata.size(), AutomatonEdgesWithPlugin());
     for (uint64_t aut_idx = 0u; aut_idx < _jani_automata.size(); aut_idx++) {
         const storm::jani::Automaton& automaton = _jani_automata.at(aut_idx).get();
@@ -133,11 +131,21 @@ void JaniSmcModelBuild<ValueType>::computePluginAssociations(const std::vector<m
                     }
                 }
                 _automata_plugins.at(aut_idx).emplace_back(action_id, plugin_idx);
-                // TODO: Ensure that each automaton action has only one plugin associated to it
             }
         }
+        // TODO: Ensure that each automaton action has only one plugin associated to it
     }
 }
 
-template class JaniSmcModelBuild<double>;
+uint64_t JaniSmcModelBuild::getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id) {
+    uint64_t matching_plugin = NO_PLUGIN_ID;
+    for (const auto& [aut_action, plugin_id] : _automata_plugins.at(automaton_id)) {
+        if (aut_action == action_id) {
+            matching_plugin = plugin_id;
+            break;
+        }
+    }
+    return matching_plugin;
+}
+
 }  // namespace smc_storm::state_generation

@@ -35,7 +35,7 @@
 #include <unordered_map>
 
 namespace smc_storm::state_generation {
-template <typename ValueType>
+
 class JaniSmcModelBuild {
   public:
     static constexpr uint64_t SILENT_ACTION_ID = std::numeric_limits<uint64_t>::max();
@@ -63,14 +63,17 @@ class JaniSmcModelBuild {
 
     void computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins);
 
+    uint64_t getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id);
+
     // Getters need to be done
   private:
     // All automata in the system
     std::vector<std::reference_wrapper<const storm::jani::Automaton>> _jani_automata;
     // Vector of Composite Edges, each one with an ID and the related Automaton to ActionID map
     std::vector<CompositeEdge> _composite_edges;
-    // Vector of automata, each one having an array of (automaton's) actions.
+    // Vector of automata, each one having an array of (automaton's) actions
     std::vector<AutomatonActionsSet> _automata_actions;
+    // Vector of automata, each one having an array of pairs linking (automaton's) actions to plugin ids
     std::vector<AutomatonEdgesWithPlugin> _automata_plugins;
 };
 }  // namespace smc_storm::state_generation
