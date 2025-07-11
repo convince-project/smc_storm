@@ -19,6 +19,7 @@
 
 #include "model_checker/smc_plugin_instance.hpp"
 #include "state_generation/available_actions.hpp"
+#include "state_generation/jani_smc_model_build.hpp"
 #include "state_properties/state_variable_information.hpp"
 #include <optional>
 #include <random>
@@ -52,18 +53,7 @@ class JaniSmcStatesExpansion {
     using ActionDestinations = std::vector<DestinationWithProbability>;
     using StateAndReward = std::pair<state_properties::StateVariableData<ValueType>, ValueType>;
     using AutomatonAndDestination = std::pair<uint64_t, std::reference_wrapper<const storm::jani::EdgeDestination>>;
-    // ------ Additional types copied over from JaniNextStateGenerator ------
-    // A vector of pairs relating an index to each edge. All edges are leaving from the same location
-    using EdgeSetWithIndices = std::vector<std::pair<uint64_t, std::reference_wrapper<const storm::jani::Edge>>>;
-    // A map relating each automaton's location to a vector of possible edges to execute
-    using LocationsAndEdges = std::vector<std::pair<uint64_t, EdgeSetWithIndices>>;
-    // A pair containing the automaton ID and the related location->edges transitions
-    using AutomatonAndEdges = std::pair<uint64_t, LocationsAndEdges>;
-    // Vector of automaton and edges, each entry relating to a different automaton
-    using AutomataAndEdges = std::vector<AutomatonAndEdges>;
-    // Pair of a sync action index and the automata's edges to execute. No sync idx -> silent action
-    using SyncIdxAndEdges = std::pair<std::optional<uint64_t>, AutomataAndEdges>;
-    using AutomatonAndActionToPluginId = std::unordered_map<std::pair<uint64_t, uint64_t>, uint64_t, PairHash>;
+    using AutomatonAndEdge = std::pair<uint64_t, std::reference_wrapper<const storm::jani::Edge>>;
 
   public:
     /*!
@@ -172,11 +162,6 @@ class JaniSmcStatesExpansion {
     void loadReward(const std::optional<std::string>& reward_name);
 
     /*!
-     * @brief Generate an alternative representation of the model for the state expansion
-     */
-    void generateSynchInformation();
-
-    /*!
      * @brief Check if there are undefined constants. Raise an error in case
      */
     void checkUndefinedConstants() const;
@@ -187,18 +172,11 @@ class JaniSmcStatesExpansion {
     void loadPlugins();
 
     /*!
-     * @brief Check if an automaton has an associated plugin and, in case, assigns the plugin ID to the automaton->plugin mapping.
-     * @param automaton The automaton under evaluation.
-     * @param automaton_idx The ID associated to the automaton.
-     */
-    void computeAutomatonPluginAssociation(const storm::jani::Automaton& automaton, const uint64_t automaton_idx);
-
-    /*!
      * @brief Check that each automaton's edge writes to a different set of global variables
      * @param edge_set The edges to check
      * @return true if the edge set is valid, false otherwise
      */
-    bool checkGlobalVariableWrittenOnce(const AutomataAndEdges& edge_set) const;
+    bool checkGlobalVariableWrittenOnce(const std::vector<AutomatonAndEdge>& edge_set) const;
 
     /*!
      * @brief Evaluate the transient variables values at the current state's locations
@@ -211,7 +189,7 @@ class JaniSmcStatesExpansion {
      * @param selected_edge The edge and related automaton used for advancing the state
      * @param selected_destination The edge's destination and related automaton used for advancing the state
      */
-    void expandNonSynchronizingEdge(const AutomatonAndEdges& selected_edge, const AutomatonAndDestination& selected_destination);
+    void expandNonSynchronizingEdge(const AutomatonAndEdge& selected_edge, const AutomatonAndDestination& selected_destination);
 
     /*!
      * @brief Given a synchronizing edge, step forward from the current state and store the result in the _current_state variable
@@ -219,7 +197,7 @@ class JaniSmcStatesExpansion {
      * @param selected_destinations The set of edge-destinations and related automata used for advancing the state
      */
     void expandSynchronizingEdge(
-        const AutomataAndEdges& selected_action, const std::vector<AutomatonAndDestination>& selected_destinations);
+        const std::vector<AutomatonAndEdge>& selected_action, const std::vector<AutomatonAndDestination>& selected_destinations);
 
     /*!
      * @brief Performs all the requested assignments and stores the result in the provided data structure
@@ -258,15 +236,9 @@ class JaniSmcStatesExpansion {
     storm::jani::Model _jani_model;
     state_properties::StateVariableInformation<ValueType> _variable_information;
     storm::generator::TransientVariableInformation<ValueType> _transient_variable_information;
-    // The automata that are executed in parallel during states expansion.
-    struct {
-        // Map from the automata + action ID to the plugins ID.
-        AutomatonAndActionToPluginId automaton_and_action_to_plugin_ids;
-        // Vector containing a reference to each automaton in the model
-        std::vector<std::reference_wrapper<const storm::jani::Automaton>> parallel_automata;
-        // Vector of pairs of action_index (optional, if edge set in composition) and edges
-        std::vector<SyncIdxAndEdges> composite_edges;
-    } _system_model;
+
+    std::unique_ptr<const JaniSmcModelBuild> _model_build_ptr;
+
     // This bool is meant to enable additional checks on the model's expanded states. Disabled for now
     const bool _additional_checks = false;
 
@@ -277,9 +249,9 @@ class JaniSmcStatesExpansion {
 
     // Description of a single action
     struct ActionDescription {
-        ValueType action_reward;
-        AutomataAndEdges action_edges;
-        inline ActionDescription(const ValueType& reward, const AutomataAndEdges& automata_edges)
+        const ValueType action_reward;
+        const std::vector<AutomatonAndEdge> action_edges;
+        inline ActionDescription(const ValueType& reward, const std::vector<AutomatonAndEdge>& automata_edges)
             : action_reward{reward}, action_edges{automata_edges} {}
     };
     std::vector<ActionDescription> _computed_actions;

@@ -37,6 +37,7 @@ JaniSmcModelBuild::JaniSmcModelBuild(
         _jani_automata.emplace_back(std::ref(single_automaton));
         _automata_actions.emplace_back(AutomatonActionsSet({AutomatonAction(single_automaton.getNumberOfLocations(), LocationEdges())}));
         for (const storm::jani::Edge& aut_edge : single_automaton.getEdges()) {
+            STORM_LOG_THROW(!aut_edge.hasRate(), storm::exceptions::InvalidModelException, "Found edge with rate: this is invalid");
             // Access the 0th automaton and its 0th action and append the edge to the related location
             _automata_actions.at(0u).at(0u).at(aut_edge.getSourceLocationIndex()).emplace_back(std::ref(aut_edge));
         }
@@ -61,6 +62,7 @@ JaniSmcModelBuild::JaniSmcModelBuild(
             AutomatonAction sub_aut_silent_action(sub_automaton.getNumberOfLocations(), LocationEdges());
             bool has_silent_edges = false;
             for (const storm::jani::Edge& sub_aut_edge : sub_automaton.getEdges()) {
+                STORM_LOG_THROW(!sub_aut_edge.hasRate(), storm::exceptions::InvalidModelException, "Found edge with rate: this is invalid");
                 if (sub_aut_edge.hasSilentAction()) {
                     sub_aut_silent_action.at(sub_aut_edge.getSourceLocationIndex()).emplace_back(std::ref(sub_aut_edge));
                     has_silent_edges = true;
@@ -84,7 +86,7 @@ JaniSmcModelBuild::JaniSmcModelBuild(
                 const std::string& sub_action_name = synched_action.getInput(sub_aut_idx);
                 if (!storm::jani::SynchronizationVector::isNoActionInput(sub_action_name)) {
                     const uint64_t jani_action_id = jani_model.getActionIndex(sub_action_name);
-                    const storm::jani::Automaton sub_automaton = _jani_automata.at(sub_aut_idx).get();
+                    const storm::jani::Automaton& sub_automaton = _jani_automata.at(sub_aut_idx).get();
                     AutomatonAction sub_aut_action(sub_automaton.getNumberOfLocations(), LocationEdges());
                     const uint64_t sub_aut_action_id = _automata_actions.at(sub_aut_idx).size();
                     bool at_least_one_edge = false;
@@ -137,7 +139,7 @@ void JaniSmcModelBuild::computePluginAssociations(const std::vector<model_checke
     }
 }
 
-uint64_t JaniSmcModelBuild::getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id) {
+uint64_t JaniSmcModelBuild::getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id) const {
     uint64_t matching_plugin = NO_PLUGIN_ID;
     for (const auto& [aut_action, plugin_id] : _automata_plugins.at(automaton_id)) {
         if (aut_action == action_id) {

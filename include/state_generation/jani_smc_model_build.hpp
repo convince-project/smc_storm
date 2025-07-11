@@ -63,7 +63,28 @@ class JaniSmcModelBuild {
 
     void computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins);
 
-    uint64_t getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id);
+    uint64_t getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id) const;
+
+    inline const std::vector<std::reference_wrapper<const storm::jani::Automaton>>& getAutomata() const {
+        return _jani_automata;
+    }
+
+    inline uint64_t getAutomataCount() const {
+        return _jani_automata.size();
+    }
+
+    inline const storm::jani::Automaton& getAutomaton(const uint64_t automaton_id) const {
+        return _jani_automata.at(automaton_id).get();
+    }
+
+    inline const std::vector<CompositeEdge>& getCompositeEdges() const {
+        return _composite_edges;
+    }
+
+    inline const std::vector<std::reference_wrapper<const storm::jani::Edge>>& getAutomatonActionEdgesAtLocation(
+        const uint64_t automaton_id, const uint64_t action_id, const uint64_t location_id) const {
+        return _automata_actions.at(automaton_id).at(action_id).at(location_id);
+    }
 
     // Getters need to be done
   private:
