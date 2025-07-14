@@ -102,11 +102,12 @@ void JaniSmcStatesExpansion<ValueType>::loadPlugins() {
 
 template <typename ValueType>
 bool JaniSmcStatesExpansion<ValueType>::checkGlobalVariableWrittenOnce(const std::vector<AutomatonAndEdge>& edge_set) const {
-    std::unordered_map<storm::expressions::Variable, uint64_t> variable_to_automaton;
+    std::unordered_set<uint64_t> accessed_variable_ids;
     for (const auto& [automaton_id, automaton_edge_ref] : edge_set) {
         for (const auto& glob_var : automaton_edge_ref.get().getWrittenGlobalVariables()) {
-            const auto& [emplace_it, emplace_success] = variable_to_automaton.emplace(glob_var, automaton_id);
-            if (!emplace_success && emplace_it->second != automaton_id) {
+            const auto& [_, emplace_success] = accessed_variable_ids.emplace(glob_var.getIndex());
+            if (!emplace_success) {
+                STORM_LOG_ERROR("The global variable '" << glob_var.getName() << "' is accessed from multiple automata in one action.");
                 return false;
             }
         }
@@ -333,7 +334,7 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
             if (action_edges.size() == automata_with_actions.size()) {
                 // We found a valid action for each automaton
                 // Compute the reward and add the action to the list
-                // TODO: Move this check to build time
+                // This check must stay here, since we cannot compute all possible combinations at model build time
                 STORM_LOG_THROW(
                     checkGlobalVariableWrittenOnce(action_edges), storm::exceptions::InvalidModelException,
                     "Found multiple automata writing to the same global variable within single action.");

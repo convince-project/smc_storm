@@ -58,36 +58,70 @@ class JaniSmcModelBuild {
     /*!
      * @brief Build an internal model from the provided JANI object.
      * @param jani_model The model we are building from.
+     * @param external_plugins All plugin instances loaded in the model.
      */
     JaniSmcModelBuild(const storm::jani::Model& jani_model, const std::vector<model_checker::SmcPluginInstance>& external_plugins);
 
-    void computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins);
-
+    /*!
+     * @brief Get the plugin ID associated to a provided automaton and action ID pair.
+     * @param automaton_id The ID of the automaton associated to the plugin.
+     * @param action_id The action ID associated to the automaton, that might or not have an associated plugin ID.
+     * @return The ID of the plugin to execute. If non found, it returns the NO_PLUGIN_ID constant.
+     */
     uint64_t getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id) const;
 
+    /*!
+     * @brief Get all the automata instances loaded from the provided model.
+     * @return An array of references to Jani Automata.
+     */
     inline const std::vector<std::reference_wrapper<const storm::jani::Automaton>>& getAutomata() const {
         return _jani_automata;
     }
 
+    /*!
+     * @brief Get the amount of automata loaded from the model.
+     * @return A count of the loaded automata.
+     */
     inline uint64_t getAutomataCount() const {
         return _jani_automata.size();
     }
 
+    /*!
+     * @brief Get a specific automaton instance.
+     * @param automaton_id The ID of the automaton to retrieve.
+     * @return The retrieved automaton.
+     */
     inline const storm::jani::Automaton& getAutomaton(const uint64_t automaton_id) const {
         return _jani_automata.at(automaton_id).get();
     }
 
+    /*!
+     * @brief Retrieve all the composite edges (aka the actions defined in the system composition).
+     * @return An array of possible (composite) actions.
+     */
     inline const std::vector<CompositeEdge>& getCompositeEdges() const {
         return _composite_edges;
     }
 
+    /*!
+     * @brief Given an automaton, the selected action and its location, retrieve all edges associated to it.
+     * @param automaton_id The ID of the automaton we extract the edge from.
+     * @param action_id The action ID associated to the edge.
+     * @param location_id The location the edge leaves from.
+     * @return An array of edges matching with the provided arguments (could be empty).
+     */
     inline const std::vector<std::reference_wrapper<const storm::jani::Edge>>& getAutomatonActionEdgesAtLocation(
         const uint64_t automaton_id, const uint64_t action_id, const uint64_t location_id) const {
         return _automata_actions.at(automaton_id).at(action_id).at(location_id);
     }
 
-    // Getters need to be done
   private:
+    /*!
+     * @brief Generate the association between a single plugin and the related automaton-action pair.
+     * @param external_plugins The plugins loaded in the model.
+     */
+    void computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins);
+
     // All automata in the system
     std::vector<std::reference_wrapper<const storm::jani::Automaton>> _jani_automata;
     // Vector of Composite Edges, each one with an ID and the related Automaton to ActionID map
