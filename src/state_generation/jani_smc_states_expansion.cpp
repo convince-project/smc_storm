@@ -48,12 +48,12 @@ JaniSmcStatesExpansion<ValueType>::JaniSmcStatesExpansion(
     // For now, always execute edge assignments at destination.
     // Keep optimization from NextStateGenerator for later (the one for trivial reward expressions)
     // _jani_model.pushEdgeAssignmentsToDestinations();
-    generateSynchInformation();
+    _model_build_ptr = std::make_unique<const JaniSmcModelBuild>(_jani_model, _external_plugins_desc);
     checkUndefinedConstants();
+    const auto& expanded_automata = _model_build_ptr->getAutomata();
     // For now the out of bounds config is set to the default value (32 bits + false out of bounds state)
-    _variable_information = state_properties::StateVariableInformation<ValueType>(_jani_model, _system_model.parallel_automata, false);
-    _transient_variable_information =
-        storm::generator::TransientVariableInformation<ValueType>(_jani_model, _system_model.parallel_automata);
+    _variable_information = state_properties::StateVariableInformation<ValueType>(_jani_model, expanded_automata, false);
+    _transient_variable_information = storm::generator::TransientVariableInformation<ValueType>(_jani_model, expanded_automata);
     // No special states to initialize for now
     _evaluator_ptr = std::make_unique<storm::expressions::ExpressionEvaluator<ValueType>>(_jani_model.getManager());
     _transient_variable_information.setDefaultValuesInEvaluator(*_evaluator_ptr);
@@ -101,16 +101,14 @@ void JaniSmcStatesExpansion<ValueType>::loadPlugins() {
 }
 
 template <typename ValueType>
-bool JaniSmcStatesExpansion<ValueType>::checkGlobalVariableWrittenOnce(const AutomataAndEdges& edge_set) const {
-    std::unordered_map<storm::expressions::Variable, uint64_t> variable_to_automaton;
-    for (const auto& [automaton_id, automaton_loc_to_edges] : edge_set) {
-        STORM_LOG_THROW(automaton_loc_to_edges.size() == 1U, storm::exceptions::UnexpectedException, "Expected one location per automaton");
-        for (const auto& [edge_idx, edge_ref] : automaton_loc_to_edges.begin()->second) {
-            for (const auto& glob_var : edge_ref.get().getWrittenGlobalVariables()) {
-                const auto& [emplace_it, emplace_success] = variable_to_automaton.emplace(glob_var, automaton_id);
-                if (!emplace_success && emplace_it->second != automaton_id) {
-                    return false;
-                }
+bool JaniSmcStatesExpansion<ValueType>::checkGlobalVariableWrittenOnce(const std::vector<AutomatonAndEdge>& edge_set) const {
+    std::unordered_set<uint64_t> accessed_variable_ids;
+    for (const auto& [automaton_id, automaton_edge_ref] : edge_set) {
+        for (const auto& glob_var : automaton_edge_ref.get().getWrittenGlobalVariables()) {
+            const auto& [_, emplace_success] = accessed_variable_ids.emplace(glob_var.getIndex());
+            if (!emplace_success) {
+                STORM_LOG_ERROR("The global variable '" << glob_var.getName() << "' is accessed from multiple automata in one action.");
+                return false;
             }
         }
     }
@@ -120,14 +118,15 @@ bool JaniSmcStatesExpansion<ValueType>::checkGlobalVariableWrittenOnce(const Aut
 template <typename ValueType>
 const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<ValueType>::setInitialState() {
     if (_initial_state.empty()) {
+        const auto& expanded_automata = _model_build_ptr->getAutomata();
         // This is the first time we are initializing the model: compute the initial state
         _initial_state = _variable_information.generateVariableData();
         storm::utility::solver::SmtSolverFactory factory;
         std::unique_ptr<storm::solver::SmtSolver> solver = factory.create(_jani_model.getExpressionManager());
-        for (const auto& range_expression : _jani_model.getAllRangeExpressions(_system_model.parallel_automata)) {
+        for (const auto& range_expression : _jani_model.getAllRangeExpressions(expanded_automata)) {
             solver->add(range_expression);
         }
-        solver->add(_jani_model.getInitialStatesExpression(_system_model.parallel_automata));
+        solver->add(_jani_model.getInitialStatesExpression(expanded_automata));
         bool first_iteration{true};
         // Iterate as long as the CheckResult is Satisfied
         while (solver->check() == storm::solver::SmtSolver::CheckResult::Sat) {
@@ -187,8 +186,8 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
                 _initial_state.setReal(idx, variable_value);
             }
             // Generate the initial location of all the automata
-            for (size_t idx = 0U; idx < _system_model.parallel_automata.size(); idx++) {
-                const auto& automaton = _system_model.parallel_automata.at(idx).get();
+            for (size_t idx = 0U; idx < expanded_automata.size(); idx++) {
+                const storm::jani::Automaton& automaton = expanded_automata.at(idx).get();
                 const std::set<uint64_t>& init_locations = automaton.getInitialLocationIndices();
                 STORM_LOG_THROW(
                     init_locations.size() == 1, storm::exceptions::InvalidModelException,
@@ -240,47 +239,46 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
     // Clear the computed actions
     _computed_actions.clear();
     _computed_destinations.clear();
-    // TODO: Set value for transient variables
-    for (const auto& composite_edge : _system_model.composite_edges) {
-        const auto& automata_and_edges = composite_edge.second;
-        if (automata_and_edges.size() == 1U) {
-            // This is a non-syncing edge
-            const auto& automaton_and_edge = automata_and_edges.front();
-            const auto& automaton_id = automaton_and_edge.first;
-            const auto& location_id = _current_state.getLocationData().at(automaton_id);
-            const auto& location_to_edges = automaton_and_edge.second;
-            const bool is_silent_action = !composite_edge.first;
-            // Check if the current location matches the edge
-            const auto& matching_edges_it = location_to_edges.find(location_id);
-            if (location_to_edges.end() != matching_edges_it) {
-                // The action might be valid: check the guards conditions
+    const auto& composite_edges = _model_build_ptr->getCompositeEdges();
+    for (const auto& composite_edge : composite_edges) {
+        // For a composite_edge, there is one or more automata with an action-ID related to it
+        const auto& automata_with_actions = composite_edge.second;
+        if (automata_with_actions.size() == 1U) {
+            // Composite edge with 1 automaton -> This is a non-syncing edge
+            const uint64_t automaton_id = automata_with_actions.front().first;
+            const uint64_t automaton_edge_id = automata_with_actions.front().second;
+            const uint64_t location_id = _current_state.getLocationData().at(automaton_id);
+            const JaniSmcModelBuild::LocationEdges& automaton_location_edges =
+                _model_build_ptr->getAutomatonActionEdgesAtLocation(automaton_id, automaton_edge_id, location_id);
+            if (!automaton_location_edges.empty()) {
+                const bool is_silent_action = (composite_edge.first == JaniSmcModelBuild::SILENT_ACTION_ID);
+                // The action might be invalid: check the guards conditions
                 bool valid_action_found = false;
-                for (const auto& [aut_edge_idx, aut_edge_val] : matching_edges_it->second) {
-                    // TODO: Move this to the constructor operations
-                    STORM_LOG_THROW(
-                        !aut_edge_val.get().hasRate(), storm::exceptions::InvalidModelException, "Found edge with rate: this is invalid");
-                    if (!_evaluator_ptr->asBool(aut_edge_val.get().getGuard())) {
+                for (const auto& jani_edge_ref : automaton_location_edges) {
+                    const storm::jani::Edge& aut_jani_edge = jani_edge_ref.get();
+                    if (!_evaluator_ptr->asBool(aut_jani_edge.getGuard())) {
                         continue;
                     }
                     // Jani allows multiple viable edges with the same name (internal nondeterminism) -> we only pick the 1st viable one!
                     // The only exception is silent_actions: in this case, all options must be provided as own actions
                     if (!valid_action_found || is_silent_action) {
-                        AutomataAndEdges action_edges = {{automaton_id, {{location_id, {{aut_edge_idx, aut_edge_val}}}}}};
+                        // If here, we found a new valid edge to provide
+                        AutomatonAndEdge valid_automaton_edge(automaton_id, jani_edge_ref);
                         if (_reward.information.hasStateActionRewards()) {
                             _transient_variable_information.setDefaultValuesInEvaluator(*_evaluator_ptr);
-                            const auto& edge_assignments = aut_edge_val.get().getAssignments();
+                            const auto& edge_assignments = aut_jani_edge.getAssignments();
                             if (!edge_assignments.empty()) {
                                 storm::generator::TransientVariableValuation<ValueType> transient_vars_values;
-                                for (int64_t current_level = aut_edge_val.get().getAssignments().getLowestLevel(true);
-                                     current_level <= aut_edge_val.get().getAssignments().getHighestLevel(true); current_level++) {
+                                for (int64_t current_level = aut_jani_edge.getAssignments().getLowestLevel(true);
+                                     current_level <= aut_jani_edge.getAssignments().getHighestLevel(true); current_level++) {
                                     transient_vars_values.clear();
                                     executeTransientAssignments(
-                                        transient_vars_values, aut_edge_val.get().getAssignments().getTransientAssignments(current_level));
+                                        transient_vars_values, aut_jani_edge.getAssignments().getTransientAssignments(current_level));
                                     transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
                                 }
                             }
                         }
-                        _computed_actions.emplace_back(getActionReward(), std::move(action_edges));
+                        _computed_actions.emplace_back(getActionReward(), std::vector<AutomatonAndEdge>({valid_automaton_edge}));
                         _transient_variable_information.setDefaultValuesInEvaluator(*_evaluator_ptr);
                         valid_action_found = true;
                     } else {
@@ -292,60 +290,61 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
         } else {
             // If the element has more than one set of edges, we need to perform a synchronization.
             STORM_LOG_THROW(
-                composite_edge.first, storm::exceptions::InvalidModelException, "Silent action for synchronized edges not allowed.");
+                composite_edge.first != JaniSmcModelBuild::SILENT_ACTION_ID, storm::exceptions::InvalidModelException,
+                "Silent action for synchronized edges not allowed.");
             // If the element has more than one set of edges, we need to perform a synchronization.
             STORM_LOG_THROW(
-                automata_and_edges.size() > 1U, storm::exceptions::InvalidModelException, "At least one automaton must execute an edge.");
+                automata_with_actions.size() > 1U, storm::exceptions::InvalidModelException,
+                "At least one automaton must execute an edge.");
             // Prepare a data-structure for the extracted actions
-            AutomataAndEdges action_edges;
-            action_edges.reserve(automata_and_edges.size());
+            std::vector<AutomatonAndEdge> action_edges;
+            action_edges.reserve(automata_with_actions.size());
             // Required for computing the transient variable information afterwards
             int64_t lowest_assignment_level = std::numeric_limits<int64_t>::max();
             int64_t highest_assignment_level = std::numeric_limits<int64_t>::min();
-            for (const auto& [automaton_id, location_to_edges] : composite_edge.second) {
+            for (const auto& [automaton_id, automaton_action_id] : automata_with_actions) {
                 // Prepare the entry in the action_edges vector
-                action_edges.emplace_back(automaton_id, LocationsAndEdges());
-                const auto& location_id = _current_state.getLocationData().at(automaton_id);
-                const auto& matching_edges_it = location_to_edges.find(location_id);
-                if (location_to_edges.end() != matching_edges_it) {
-                    for (const auto& edge_descr : matching_edges_it->second) {
-                        const storm::jani::Edge& single_edge = edge_descr.second.get();
-                        if (!_evaluator_ptr->asBool(single_edge.getGuard())) {
-                            continue;
+                const uint64_t& location_id = _current_state.getLocationData().at(automaton_id);
+                const JaniSmcModelBuild::LocationEdges& automaton_location_edges =
+                    _model_build_ptr->getAutomatonActionEdgesAtLocation(automaton_id, automaton_action_id, location_id);
+                bool valid_action_found = false;
+                for (const auto& jani_edge_ref : automaton_location_edges) {
+                    const storm::jani::Edge& single_edge = jani_edge_ref.get();
+                    if (!_evaluator_ptr->asBool(single_edge.getGuard())) {
+                        continue;
+                    }
+                    if (!valid_action_found) {
+                        valid_action_found = true;
+                        action_edges.emplace_back(automaton_id, jani_edge_ref);
+                        // Update the assignment levels for computing the rewards
+                        if (!single_edge.getAssignments().empty()) {
+                            lowest_assignment_level = std::min(single_edge.getAssignments().getLowestLevel(true), lowest_assignment_level);
+                            highest_assignment_level =
+                                std::max(single_edge.getAssignments().getHighestLevel(true), highest_assignment_level);
                         }
-                        if (action_edges.back().second.empty()) {
-                            if (!single_edge.getAssignments().empty()) {
-                                lowest_assignment_level =
-                                    std::min(single_edge.getAssignments().getLowestLevel(true), lowest_assignment_level);
-                                highest_assignment_level =
-                                    std::max(single_edge.getAssignments().getHighestLevel(true), highest_assignment_level);
-                            }
-                            action_edges.back().second.insert({location_id, {edge_descr}});
-                            // Do not break here, to print the warn once in case it is required
-                        } else {
-                            STORM_LOG_WARN("Multiple edges satisfying a condition were found: only the 1st one will be used.");
-                            break;
-                        }
+                    } else {
+                        STORM_LOG_WARN("Multiple edges satisfying a condition were found: only the 1st one will be used.");
+                        break;
                     }
                 }
-                if (action_edges.back().second.empty()) {
+                if (!valid_action_found) {
                     break;
                 }
             }
-            if (!action_edges.back().second.empty()) {
-                // Generate the combination of edges to execute for this single action, and add to results
-                // Keep in mind that we are providing only one combination per action!
+            if (action_edges.size() == automata_with_actions.size()) {
+                // We found a valid action for each automaton
+                // Compute the reward and add the action to the list
+                // This check must stay here, since we cannot compute all possible combinations at model build time
                 STORM_LOG_THROW(
                     checkGlobalVariableWrittenOnce(action_edges), storm::exceptions::InvalidModelException,
                     "Found multiple automata writing to the same global variable within single action.");
-                // Evaluate transient assignments for the edge (required for reward eval)
                 if (_reward.information.hasStateActionRewards()) {
                     _transient_variable_information.setDefaultValuesInEvaluator(*_evaluator_ptr);
                     storm::generator::TransientVariableValuation<ValueType> transient_vars_values;
                     for (int64_t current_level = lowest_assignment_level; current_level <= highest_assignment_level; current_level++) {
                         transient_vars_values.clear();
-                        for (const auto& [aut_id, loc_and_edges] : action_edges) {
-                            const auto& single_edge = loc_and_edges.begin()->second.front().second.get();
+                        for (const auto& [automaton_id, automaton_edge] : action_edges) {
+                            const storm::jani::Edge& single_edge = automaton_edge.get();
                             if (!single_edge.getAssignments().empty()) {
                                 executeTransientAssignments(
                                     transient_vars_values, single_edge.getAssignments().getTransientAssignments(current_level));
@@ -383,7 +382,7 @@ typename JaniSmcStatesExpansion<ValueType>::ActionDestinations JaniSmcStatesExpa
         // We have to expand a non-synchronizing edge
         ValueType probability_sum = storm::utility::zero<ValueType>();
         const uint64_t automaton_id = chosen_action.action_edges.front().first;
-        const storm::jani::Edge& automaton_edge = chosen_action.action_edges.front().second.begin()->second.front().second.get();
+        const storm::jani::Edge& automaton_edge = chosen_action.action_edges.front().second.get();
         for (const storm::jani::EdgeDestination& dest : automaton_edge.getDestinations()) {
             const ValueType dest_prob = _evaluator_ptr->asRational(dest.getProbability());
             if (dest_prob == storm::utility::zero<ValueType>()) {
@@ -403,8 +402,9 @@ typename JaniSmcStatesExpansion<ValueType>::ActionDestinations JaniSmcStatesExpa
         std::vector<std::pair<uint64_t, std::vector<storm::jani::EdgeDestination>::const_iterator>> aut_dest_its(
             chosen_action.action_edges.size());
         std::transform(
-            chosen_action.action_edges.begin(), chosen_action.action_edges.end(), aut_dest_its.begin(), [](const auto& automaton_and_edge) {
-                const storm::jani::Edge& edge = automaton_and_edge.second.begin()->second.front().second.get();
+            chosen_action.action_edges.begin(), chosen_action.action_edges.end(), aut_dest_its.begin(),
+            [](const AutomatonAndEdge& automaton_and_edge) {
+                const storm::jani::Edge& edge = automaton_and_edge.second.get();
                 return std::make_pair(automaton_and_edge.first, edge.getDestinations().begin());
             });
         ValueType probability_sum = storm::utility::zero<ValueType>();
@@ -428,9 +428,8 @@ typename JaniSmcStatesExpansion<ValueType>::ActionDestinations JaniSmcStatesExpa
             // Advance to the next combination (if any)
             size_t aut_it_to_advance = 0U;
             while (aut_it_to_advance < aut_dest_its.size()) {
-                auto& destination_it = aut_dest_its[aut_it_to_advance].second;
-                const auto& destinations =
-                    chosen_action.action_edges[aut_it_to_advance].second.begin()->second.front().second.get().getDestinations();
+                auto& destination_it = aut_dest_its.at(aut_it_to_advance).second;
+                const auto& destinations = chosen_action.action_edges.at(aut_it_to_advance).second.get().getDestinations();
                 destination_it++;
                 if (destinations.end() != destination_it) {
                     break;
@@ -460,8 +459,8 @@ JaniSmcStatesExpansion<ValueType>::setNextState(
     STORM_LOG_THROW(
         action_id == _computed_destinations.related_action, storm::exceptions::IllegalFunctionCallException,
         "The requested action and the one related to the computed destinations are not matching.");
-    const auto& selected_destination = _computed_destinations.destinations.at(destination_id);
-    const auto& selected_edge = _computed_actions.at(action_id).action_edges;
+    const std::vector<AutomatonAndDestination>& selected_destination = _computed_destinations.destinations.at(destination_id);
+    const std::vector<AutomatonAndEdge>& selected_edge = _computed_actions.at(action_id).action_edges;
     STORM_LOG_THROW(!selected_destination.empty(), storm::exceptions::UnexpectedException, "Vector of automata to step must be non-empty.");
     if (selected_destination.size() == 1U) {
         expandNonSynchronizingEdge(selected_edge.front(), selected_destination.front());
@@ -477,7 +476,7 @@ JaniSmcStatesExpansion<ValueType>::setNextState(
 template <typename ValueType>
 void JaniSmcStatesExpansion<ValueType>::loadReward(const std::optional<std::string>& reward_name) {
     if (reward_name) {
-        const auto& reward_str = *reward_name;
+        const std::string& reward_str = *reward_name;
         _reward.expression = _jani_model.getRewardModelExpression(reward_str);
         storm::jani::RewardModelInformation info(_jani_model, _reward.expression);
         _reward.information = storm::builder::RewardModelInformation(
@@ -486,138 +485,12 @@ void JaniSmcStatesExpansion<ValueType>::loadReward(const std::optional<std::stri
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::computeAutomatonPluginAssociation(
-    const storm::jani::Automaton& automaton, const uint64_t automaton_idx) {
-    const auto& automaton_name = automaton.getName();
-    for (uint64_t plugin_idx = 0U; plugin_idx < _external_plugins_desc.get().size(); plugin_idx++) {
-        const auto& plugin_desc = _external_plugins_desc.get()[plugin_idx];
-        if (plugin_desc.getAutomatonName() == automaton_name) {
-            const uint64_t action_id = plugin_desc.getActionId();
-            const std::string& action_name = plugin_desc.getActionName();
-            // Ensure the automaton is plugin-ready: only one edge and one location, with no assignments
-            STORM_LOG_THROW(
-                automaton.hasEdgeLabeledWithActionIndex(action_id), storm::exceptions::InvalidModelException,
-                "Automaton " + automaton_name + " has no action named " + action_name + ".");
-            for (const auto& single_edge : automaton.getEdges()) {
-                if (single_edge.getActionIndex() == action_id) {
-                    for (const auto& single_dest : single_edge.getDestinations()) {
-                        STORM_LOG_THROW(
-                            single_dest.getOrderedAssignments().empty(), storm::exceptions::InvalidModelException,
-                            "The action from " + automaton_name + " called " + action_name +
-                                " is associated to a plugin, and its edges shall not have assignments.");
-                    }
-                }
-            }
-            const bool new_insertion =
-                _system_model.automaton_and_action_to_plugin_ids.emplace(std::make_pair(automaton_idx, action_id), plugin_idx).second;
-            STORM_LOG_THROW(
-                new_insertion, storm::exceptions::InvalidModelException,
-                "The action from " + automaton_name + " called " + action_name + " is associated to multiple plugins.");
-        }
-    }
-}
-
-template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::generateSynchInformation() {
-    // Make sure the automata to plugin map is empty
-    _system_model.automaton_and_action_to_plugin_ids.clear();
-    // In case there is only one automaton in the model
-    if (_jani_model.getSystemComposition().isAutomatonComposition()) {
-        const uint64_t automaton_index = 0U;
-        const auto& automaton = _jani_model.getAutomaton(_jani_model.getSystemComposition().asAutomatonComposition().getAutomatonName());
-        _system_model.parallel_automata.push_back(automaton);
-        computeAutomatonPluginAssociation(automaton, automaton_index);
-
-        LocationsAndEdges locations_and_edges;
-        uint64_t edge_index = 0U;
-        for (const auto& edge : automaton.getEdges()) {
-            locations_and_edges[edge.getSourceLocationIndex()].emplace_back(edge_index, edge);
-            ++edge_index;
-        }
-        // Put the only automaton in the system model to the _system_model.edges vector
-        AutomataAndEdges automata_and_edges = {{automaton_index, std::move(locations_and_edges)}};
-        _system_model.composite_edges.emplace_back(std::nullopt, std::move(automata_and_edges));
-    } else {
-        STORM_LOG_THROW(
-            _jani_model.getSystemComposition().isParallelComposition(), storm::exceptions::WrongFormatException,
-            "Expected parallel composition.");
-        const storm::jani::ParallelComposition& parallel_composition = _jani_model.getSystemComposition().asParallelComposition();
-
-        uint64_t automaton_index = 0U;
-        // Process the silent actions first
-        for (const auto& composition : parallel_composition.getSubcompositions()) {
-            STORM_LOG_THROW(
-                composition->isAutomatonComposition(), storm::exceptions::WrongFormatException, "Expected flat parallel composition.");
-            const auto& automaton_composition = composition->asAutomatonComposition();
-            STORM_LOG_THROW(
-                automaton_composition.getInputEnabledActions().empty(), storm::exceptions::NotSupportedException,
-                "Input-enabled actions are not supported right now.");
-
-            const auto& automaton = _jani_model.getAutomaton(automaton_composition.getAutomatonName());
-            _system_model.parallel_automata.push_back(automaton);
-            computeAutomatonPluginAssociation(automaton, automaton_index);
-
-            // Add edges with silent action.
-            LocationsAndEdges locations_and_edges;
-            uint64_t edge_index = 0;
-            for (const auto& edge : automaton.getEdges()) {
-                if (edge.hasSilentAction()) {
-                    locations_and_edges[edge.getSourceLocationIndex()].emplace_back(edge_index, edge);
-                }
-                ++edge_index;
-            }
-
-            if (!locations_and_edges.empty()) {
-                AutomataAndEdges automata_and_edges = {{automaton_index, std::move(locations_and_edges)}};
-                _system_model.composite_edges.emplace_back(std::nullopt, std::move(automata_and_edges));
-            }
-            ++automaton_index;
-        }
-
-        for (const auto& synched_actions : parallel_composition.getSynchronizationVectors()) {
-            const auto& composed_action_name = synched_actions.getOutput();
-            uint64_t composed_action_index = _jani_model.getActionIndex(composed_action_name);
-
-            AutomataAndEdges automata_and_edges;
-            bool at_least_one_edge = true;
-            uint64_t automaton_index = 0;
-            for (const auto& action_name : synched_actions.getInput()) {
-                if (!storm::jani::SynchronizationVector::isNoActionInput(action_name)) {
-                    LocationsAndEdges locations_and_edges;
-                    uint64_t action_index = _jani_model.getActionIndex(action_name);
-                    uint64_t edge_index = 0;
-                    for (const auto& edge : _system_model.parallel_automata[automaton_index].get().getEdges()) {
-                        if (edge.getActionIndex() == action_index) {
-                            locations_and_edges[edge.getSourceLocationIndex()].emplace_back(edge_index, edge);
-                        }
-                        ++edge_index;
-                    }
-                    if (locations_and_edges.empty()) {
-                        at_least_one_edge = false;
-                        break;
-                    }
-                    automata_and_edges.emplace_back(automaton_index, std::move(locations_and_edges));
-                }
-                ++automaton_index;
-            }
-
-            STORM_LOG_THROW(at_least_one_edge, storm::exceptions::InvalidModelException, "Found automaton with no location.");
-            if (at_least_one_edge) {
-                _system_model.composite_edges.emplace_back(composed_action_index, std::move(automata_and_edges));
-            }
-        }
-    }
-
-    STORM_LOG_TRACE("Number of synchronizations: " << _system_model.composite_edges.size() << ".");
-}
-
-template <typename ValueType>
 storm::generator::TransientVariableValuation<ValueType> JaniSmcStatesExpansion<ValueType>::evaluateTransientVariablesAtLocations() const {
     storm::generator::TransientVariableValuation<ValueType> transient_variables;
     _transient_variable_information.setDefaultValuesInEvaluator(*_evaluator_ptr);
-    for (uint64_t automaton_idx = 0U; automaton_idx < _system_model.parallel_automata.size(); automaton_idx++) {
-        const auto location_id = _current_state.getLocationData().at(automaton_idx);
-        const auto& jani_automaton = _system_model.parallel_automata[automaton_idx].get();
+    for (uint64_t automaton_idx = 0U; automaton_idx < _model_build_ptr->getAutomataCount(); automaton_idx++) {
+        const uint64_t location_id = _current_state.getLocationData().at(automaton_idx);
+        const storm::jani::Automaton& jani_automaton = _model_build_ptr->getAutomaton(automaton_idx);
         const storm::jani::Location& jani_location = jani_automaton.getLocation(location_id);
         STORM_LOG_THROW(
             !jani_location.getAssignments().hasMultipleLevels(true), storm::exceptions::InvalidModelException,
@@ -629,10 +502,10 @@ storm::generator::TransientVariableValuation<ValueType> JaniSmcStatesExpansion<V
 
 template <typename ValueType>
 void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
-    const AutomatonAndEdges& selected_edge, const AutomatonAndDestination& selected_destination) {
+    const AutomatonAndEdge& selected_edge, const AutomatonAndDestination& selected_destination) {
     state_properties::StateVariableData<ValueType> next_state(_current_state);
     const uint64_t automaton_id = selected_edge.first;
-    const storm::jani::Edge& edge = selected_edge.second.begin()->second.front().second.get();
+    const storm::jani::Edge& edge = selected_edge.second.get();
     const storm::jani::EdgeDestination& destination = selected_destination.second.get();
     const bool has_transient_assignments = destination.hasTransientAssignment();
     const int64_t lowest_assignment_level = edge.getLowestAssignmentLevel();
@@ -662,7 +535,7 @@ void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
 
 template <typename ValueType>
 void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
-    const AutomataAndEdges& selected_action, const std::vector<AutomatonAndDestination>& selected_destinations) {
+    const std::vector<AutomatonAndEdge>& selected_action, const std::vector<AutomatonAndDestination>& selected_destinations) {
     state_properties::StateVariableData<ValueType> next_state = _current_state;
     // Prepare required info
     int64_t lowest_assignment_level = std::numeric_limits<int64_t>::max();
@@ -672,7 +545,7 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
         STORM_LOG_THROW(
             selected_action[vect_idx].first == selected_destinations[vect_idx].first, storm::exceptions::UnexpectedException,
             "The automata idxs in the edges and destinations is not matching. This is a bug!");
-        const auto& automaton_edge = selected_action[vect_idx].second.begin()->second.front().second.get();
+        const storm::jani::Edge& automaton_edge = selected_action[vect_idx].second.get();
         const auto& [automaton_id, automaton_dest_ref] = selected_destinations[vect_idx];
         lowest_assignment_level = std::min(lowest_assignment_level, automaton_edge.getLowestAssignmentLevel());
         highest_assignment_level = std::max(highest_assignment_level, automaton_edge.getHighestAssignmentLevel());
@@ -686,7 +559,7 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
     for (size_t vect_idx = 0U; vect_idx < selected_action.size(); vect_idx++) {
         const uint64_t automaton_id = selected_destinations[vect_idx].first;
         const storm::jani::EdgeDestination& automaton_destination = selected_destinations[vect_idx].second.get();
-        const uint64_t action_id = selected_action[vect_idx].second.begin()->second.front().second.get().getActionIndex();
+        const uint64_t action_id = selected_action[vect_idx].second.get().getActionIndex();
         // Update the location of all automata
         next_state.setLocation(automaton_id, automaton_destination.getLocationIndex());
         // We have to make sure that all automata update the state at least once, even if no assignment indexes are found
@@ -702,7 +575,7 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
         ++current_level;
         for (size_t vect_idx = 0U; vect_idx < selected_action.size(); vect_idx++) {
             const auto& [automaton_id, automaton_dest_ref] = selected_destinations[vect_idx];
-            const auto& automaton_edge = selected_action[vect_idx].second.begin()->second.front().second.get();
+            const storm::jani::Edge& automaton_edge = selected_action[vect_idx].second.get();
             if (current_level >= automaton_edge.getLowestAssignmentLevel() && current_level <= automaton_edge.getHighestAssignmentLevel()) {
                 executeNonTransientDestinationAssignments(
                     next_state, automaton_id, automaton_edge.getActionIndex(), automaton_dest_ref.get(), current_level);
@@ -779,9 +652,8 @@ void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
     state_properties::StateVariableData<ValueType>& state, const uint64_t automaton_id, const uint64_t action_id,
     const storm::jani::EdgeDestination& destination, int64_t assignment_level) {
     // Check if this automaton relates to a plugin
-    const auto plugin_id_it = _system_model.automaton_and_action_to_plugin_ids.find({automaton_id, action_id});
-    if (plugin_id_it != _system_model.automaton_and_action_to_plugin_ids.end()) {
-        const uint64_t plugin_id = plugin_id_it->second;
+    const uint64_t plugin_id = _model_build_ptr->getPluginFromAutomatonAction(automaton_id, action_id);
+    if (plugin_id != JaniSmcModelBuild::NO_PLUGIN_ID) {
         smc_verifiable_plugins::SmcPluginBase& plugin_instance = *_loaded_plugin_ptrs.at(plugin_id);
         const auto& plugin_description = _external_plugins_desc.get().at(plugin_id);
         smc_verifiable_plugins::SmcPluginBase::DataExchange input_data = {};
