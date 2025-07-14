@@ -135,7 +135,19 @@ void JaniSmcModelBuild::computePluginAssociations(const std::vector<model_checke
                 _automata_plugins.at(aut_idx).emplace_back(action_id, plugin_idx);
             }
         }
-        // TODO: Ensure that each automaton action has only one plugin associated to it
+        // Ensure that each automaton action has only one plugin associated to it
+        // Sort it in order to have the action id in ascending order
+        std::sort(
+            _automata_plugins.at(aut_idx).begin(), _automata_plugins.at(aut_idx).end(),
+            [](const EdgeToPluginId& var_l, const EdgeToPluginId& var_r) { return var_l.first < var_l.second; });
+        // Make sure no action is repeated twice
+        if (_automata_plugins.at(aut_idx).size() >= 2u) {
+            for (uint64_t curr_idx = 1u; curr_idx < _automata_plugins.at(aut_idx).size(); curr_idx++) {
+                STORM_LOG_THROW(
+                    _automata_plugins.at(aut_idx).at(curr_idx - 1u).first != _automata_plugins.at(aut_idx).at(curr_idx).first,
+                    storm::exceptions::InvalidModelException, "Found an action referring to two plugins: this isn't allowed.");
+            }
+        }
     }
 }
 
