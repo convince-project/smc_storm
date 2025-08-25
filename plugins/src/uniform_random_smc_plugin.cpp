@@ -21,7 +21,7 @@
 #include <stdexcept>
 
 namespace smc_storm_plugins {
-
+using smc_verifiable_plugins::DataExchange;
 /*!
  * @brief Base class providing the minimum interface required by a plugin to work with SMC
  */
@@ -35,7 +35,7 @@ class DiceRollerSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
         }
     }
 
-    std::string getPluginName() override {
+    std::string getPluginName() const override {
         return "uniform_random_smc_plugin";
     }
 
@@ -72,7 +72,7 @@ class DiceRollerSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
      * @brief Reset the plugin to the initial state (nothing to do, this plugin is stateless)
      * @return The initial state of the output variables
      */
-    DataExchange processReset() override {
+    std::optional<DataExchange> processReset() override {
         if (_verbose) {
             std::cout << "Reset plugin " << getPluginName() << std::endl;
         }
@@ -84,12 +84,12 @@ class DiceRollerSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
      * @param input_data The data used to control the evolution of the plugin. Empty here.
      * @return The outcome of the step increase, to be assigned to the model's state (a dice value).
      */
-    DataExchange processInputParameters(const DataExchange& input_data) override {
+    std::optional<DataExchange> processInputParameters(const DataExchange& input_data) override {
         const int32_t extracted_val = _int_distribution(_rng);
         if (_verbose) {
             std::cout << "Extracted dice value is " << extracted_val << std::endl;
         }
-        return {{"result", extracted_val}};
+        return std::make_optional<DataExchange>({{"result", extracted_val}});
     }
 
     int64_t _dice_faces = -1;

@@ -45,7 +45,7 @@ FetchContent_MakeAvailable(indicators)
 FetchContent_Declare(
     smc_verifiable_plugins
     GIT_REPOSITORY https://github.com/convince-project/smc_verifiable_plugins.git
-    GIT_TAG 0.0.1
+    GIT_TAG main
 )
 FetchContent_MakeAvailable(smc_verifiable_plugins)
 

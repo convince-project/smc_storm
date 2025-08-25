@@ -462,10 +462,14 @@ JaniSmcStatesExpansion<ValueType>::setNextState(
     const std::vector<AutomatonAndDestination>& selected_destination = _computed_destinations.destinations.at(destination_id);
     const std::vector<AutomatonAndEdge>& selected_edge = _computed_actions.at(action_id).action_edges;
     STORM_LOG_THROW(!selected_destination.empty(), storm::exceptions::UnexpectedException, "Vector of automata to step must be non-empty.");
+    bool expansion_ok{false};
     if (selected_destination.size() == 1U) {
-        expandNonSynchronizingEdge(selected_edge.front(), selected_destination.front());
+        expansion_ok = expandNonSynchronizingEdge(selected_edge.front(), selected_destination.front());
     } else {
-        expandSynchronizingEdge(selected_edge, selected_destination);
+        expansion_ok = expandSynchronizingEdge(selected_edge, selected_destination);
+    }
+    if (!expansion_ok) {
+        return {_empty_state, 0.0};
     }
     const ValueType transition_reward = getTransitionReward();
     _computed_actions.clear();
@@ -501,7 +505,7 @@ storm::generator::TransientVariableValuation<ValueType> JaniSmcStatesExpansion<V
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
+bool JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
     const AutomatonAndEdge& selected_edge, const AutomatonAndDestination& selected_destination) {
     state_properties::StateVariableData<ValueType> next_state(_current_state);
     const uint64_t automaton_id = selected_edge.first;
@@ -514,7 +518,11 @@ void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
     storm::generator::TransientVariableValuation<ValueType> transient_vars_values;
     // Enforce the 1st assignment on being done, regardless of the lowest_assignment_level value
     next_state.setLocation(automaton_id, destination.getLocationIndex());
-    executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, lowest_assignment_level);
+    bool successful_assignments =
+        executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, lowest_assignment_level);
+    if (!successful_assignments) {
+        return false;
+    }
     if (has_transient_assignments) {
         executeTransientDestinationAssignments(transient_vars_values, automaton_id, destination, lowest_assignment_level);
         transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -523,7 +531,11 @@ void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
     // Increase current_level separately, to ensure it is below highest_assignment_level first
     for (int64_t current_level = lowest_assignment_level; current_level < highest_assignment_level;) {
         ++current_level;
-        executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, current_level);
+        successful_assignments =
+            executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, current_level);
+        if (!successful_assignments) {
+            return false;
+        }
         if (has_transient_assignments) {
             executeTransientDestinationAssignments(transient_vars_values, automaton_id, destination, current_level);
             transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -531,10 +543,11 @@ void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
         _variable_information.setInEvaluator(*_evaluator_ptr, next_state);
     }
     updateCurrentState(next_state);
+    return true;
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
+bool JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
     const std::vector<AutomatonAndEdge>& selected_action, const std::vector<AutomatonAndDestination>& selected_destinations) {
     state_properties::StateVariableData<ValueType> next_state = _current_state;
     // Prepare required info
@@ -563,7 +576,11 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
         // Update the location of all automata
         next_state.setLocation(automaton_id, automaton_destination.getLocationIndex());
         // We have to make sure that all automata update the state at least once, even if no assignment indexes are found
-        executeNonTransientDestinationAssignments(next_state, automaton_id, action_id, automaton_destination, lowest_assignment_level);
+        const bool successful_assignments =
+            executeNonTransientDestinationAssignments(next_state, automaton_id, action_id, automaton_destination, lowest_assignment_level);
+        if (!successful_assignments) {
+            return false;
+        }
         if (automaton_with_transient_assign.contains(automaton_id)) {
             executeTransientDestinationAssignments(transient_vars_values, automaton_id, automaton_destination, lowest_assignment_level);
             transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -577,8 +594,11 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
             const auto& [automaton_id, automaton_dest_ref] = selected_destinations[vect_idx];
             const storm::jani::Edge& automaton_edge = selected_action[vect_idx].second.get();
             if (current_level >= automaton_edge.getLowestAssignmentLevel() && current_level <= automaton_edge.getHighestAssignmentLevel()) {
-                executeNonTransientDestinationAssignments(
+                const bool successful_assignments = executeNonTransientDestinationAssignments(
                     next_state, automaton_id, automaton_edge.getActionIndex(), automaton_dest_ref.get(), current_level);
+                if (!successful_assignments) {
+                    return false;
+                }
                 if (automaton_with_transient_assign.contains(automaton_id)) {
                     executeTransientDestinationAssignments(transient_vars_values, automaton_id, automaton_dest_ref.get(), current_level);
                     transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -588,6 +608,7 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
         _variable_information.setInEvaluator(*_evaluator_ptr, next_state);
     }
     updateCurrentState(next_state);
+    return true;
 }
 
 template <typename ValueType>
@@ -648,7 +669,7 @@ void JaniSmcStatesExpansion<ValueType>::executeTransientDestinationAssignments(
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignments(
+bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignments(
     state_properties::StateVariableData<ValueType>& state, const uint64_t automaton_id, const uint64_t action_id,
     const storm::jani::EdgeDestination& destination, int64_t assignment_level) {
     // Check if this automaton relates to a plugin
@@ -656,7 +677,7 @@ void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
     if (plugin_id != JaniSmcModelBuild::NO_PLUGIN_ID) {
         smc_verifiable_plugins::SmcPluginBase& plugin_instance = *_loaded_plugin_ptrs.at(plugin_id);
         const auto& plugin_description = _external_plugins_desc.get().at(plugin_id);
-        smc_verifiable_plugins::SmcPluginBase::DataExchange input_data = {};
+        smc_verifiable_plugins::DataExchange input_data = {};
         for (const auto& input_argument : plugin_description.getInputVariablesMap()) {
             const auto& expression_type = input_argument.second.getType();
             if (expression_type.isBooleanType()) {
@@ -672,7 +693,11 @@ void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
                         plugin_description.getAutomatonName() + " plugin.");
             }
         }
-        const auto plugin_output_values = plugin_instance.nextStep(input_data);
+        const auto opt_plugin_result = plugin_instance.nextStep(input_data);
+        if (!opt_plugin_result.has_value()) {
+            return false;
+        }
+        const auto& plugin_output_values = *opt_plugin_result;
         auto plugin_output_desc_it = plugin_description.getOutputVariablesMap().begin();
         const auto plugin_output_desc_ite = plugin_description.getOutputVariablesMap().end();
         auto bool_vars_it = _variable_information.booleanVariables().begin();
@@ -757,6 +782,7 @@ void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
         // Make sure we carried out all assignments
         STORM_LOG_THROW(assignments_it == assignments_ite, storm::exceptions::UnexpectedException, "Not all assignments were executed.");
     }
+    return true;
 }
 
 template class JaniSmcStatesExpansion<double>;

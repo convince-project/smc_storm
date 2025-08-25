@@ -188,15 +188,17 @@ class JaniSmcStatesExpansion {
      * @brief Given a non-synchronizing edge, step forward from the current state and store the result in the _current_state variable
      * @param selected_edge The edge and related automaton used for advancing the state
      * @param selected_destination The edge's destination and related automaton used for advancing the state
+     * @return Whether the expansion worked as expected or there was an error
      */
-    void expandNonSynchronizingEdge(const AutomatonAndEdge& selected_edge, const AutomatonAndDestination& selected_destination);
+    bool expandNonSynchronizingEdge(const AutomatonAndEdge& selected_edge, const AutomatonAndDestination& selected_destination);
 
     /*!
      * @brief Given a synchronizing edge, step forward from the current state and store the result in the _current_state variable
      * @param selected_action The selected action, defined as a set of automata and related edges
      * @param selected_destinations The set of edge-destinations and related automata used for advancing the state
+     * @return Whether the expansion worked as expected or there was an error
      */
-    void expandSynchronizingEdge(
+    bool expandSynchronizingEdge(
         const std::vector<AutomatonAndEdge>& selected_action, const std::vector<AutomatonAndDestination>& selected_destinations);
 
     /*!
@@ -226,8 +228,9 @@ class JaniSmcStatesExpansion {
      * @param action_id The action_id associated to the edge being processed
      * @param destination The destination edge in the JANI model that specifies the target state and assignments
      * @param assignment_level The level of assignment to be performed
+     * @return whether the transition was performed successfully
      */
-    void executeNonTransientDestinationAssignments(
+    bool executeNonTransientDestinationAssignments(
         state_properties::StateVariableData<ValueType>& state, const uint64_t automaton_id, const uint64_t action_id,
         const storm::jani::EdgeDestination& destination, int64_t assignment_level);
 
@@ -244,6 +247,9 @@ class JaniSmcStatesExpansion {
 
     state_properties::StateVariableData<ValueType> _initial_state;
     state_properties::StateVariableData<ValueType> _current_state;
+    // Dummy state returned in case of errors.
+    const state_properties::StateVariableData<ValueType> _empty_state = state_properties::StateVariableData<ValueType>();
+
     std::reference_wrapper<const std::vector<model_checker::SmcPluginInstance>> _external_plugins_desc;
     std::vector<std::unique_ptr<smc_verifiable_plugins::SmcPluginBase>> _loaded_plugin_ptrs;
 
