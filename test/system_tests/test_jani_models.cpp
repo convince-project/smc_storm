@@ -184,7 +184,7 @@ TEST(StatisticalModelCheckerJaniPluginTest, TestPluginCompositionThrowAndSum) {
 
 TEST(StatisticalModelCheckerJaniPluginTest, TestPluginErrors) {
     const std::filesystem::path jani_file = TEST_PATH / "plugin_error_test.jani";
-    const auto user_settings = getSettings(jani_file, "working", "", false, 60UL);
+    const auto user_settings = getSettings(jani_file, "working", "", false, 70UL);
     STORM_PRINT("Plugins paths: '" + user_settings.plugin_paths + "'\n");
     const double result = getVerificationResult<double>(user_settings);
     // 3 Throws of a 3-faces dice -> the outcome must be always 3.

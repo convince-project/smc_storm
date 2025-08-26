@@ -202,10 +202,18 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
         }
     }
     updateCurrentState(_initial_state);
-    // Resetting all external plugins to the initial state.
-    for (const auto& plugin_ptr : _loaded_plugin_ptrs) {
-        // TODO: This returns data, that need to be assigned to the current state!
-        plugin_ptr->reset();
+    // Resetting all external plugins to the initial state
+    const auto& plugins_desc = _external_plugins_desc.get();
+    for (size_t plugin_id = 0u; plugin_id < plugins_desc.size(); plugin_id++) {
+        const auto& plugin_desc = plugins_desc[plugin_id];
+        const auto& plugin_ptr = _loaded_plugin_ptrs[plugin_id];
+        const auto reset_result = plugin_ptr->reset();
+        if (reset_result.has_value()) {
+            assignPluginResultToState(_current_state, *reset_result, plugin_desc);
+        } else {
+            // If the reset of plugin fails, then return the empty state.
+            return _empty_state;
+        }
     }
     return _current_state;
 }
@@ -697,42 +705,7 @@ bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
         if (!opt_plugin_result.has_value()) {
             return false;
         }
-        const auto& plugin_output_values = *opt_plugin_result;
-        auto plugin_output_desc_it = plugin_description.getOutputVariablesMap().begin();
-        const auto plugin_output_desc_ite = plugin_description.getOutputVariablesMap().end();
-        auto bool_vars_it = _variable_information.booleanVariables().begin();
-        auto int_vars_it = _variable_information.integerVariables().begin();
-        auto real_vars_it = _variable_information.realVariables().begin();
-        while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasBooleanType()) {
-            while (plugin_output_desc_it->second != bool_vars_it->variable) {
-                bool_vars_it++;
-            }
-            size_t bool_idx = std::distance(_variable_information.booleanVariables().begin(), bool_vars_it);
-            state.setBool(bool_idx, std::get<bool>(plugin_output_values.at(plugin_output_desc_it->first)));
-            plugin_output_desc_it++;
-            bool_vars_it++;
-        }
-        while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasIntegerType()) {
-            while (plugin_output_desc_it->second != int_vars_it->variable) {
-                int_vars_it++;
-            }
-            size_t int_idx = std::distance(_variable_information.integerVariables().begin(), int_vars_it);
-            state.setInt(int_idx, std::get<int64_t>(plugin_output_values.at(plugin_output_desc_it->first)));
-            plugin_output_desc_it++;
-            int_vars_it++;
-        }
-        while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasRationalType()) {
-            while (plugin_output_desc_it->second != real_vars_it->variable) {
-                real_vars_it++;
-            }
-            size_t real_idx = std::distance(_variable_information.realVariables().begin(), real_vars_it);
-            state.setReal(real_idx, std::get<ValueType>(plugin_output_values.at(plugin_output_desc_it->first)));
-            plugin_output_desc_it++;
-            real_vars_it++;
-        }
-        STORM_LOG_THROW(
-            plugin_output_desc_it == plugin_output_desc_ite, storm::exceptions::OutOfRangeException,
-            "Cannot find plugin output target variable " + plugin_output_desc_it->second.getName() + " in the model.");
+        assignPluginResultToState(state, *opt_plugin_result, plugin_description);
     } else {
         // This orders the assignments to be booleans first, then integers and then arrays. Variables are ordered as in the var_info
         const auto& all_assignments = destination.getOrderedAssignments().getNonTransientAssignments(assignment_level);
@@ -783,6 +756,47 @@ bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
         STORM_LOG_THROW(assignments_it == assignments_ite, storm::exceptions::UnexpectedException, "Not all assignments were executed.");
     }
     return true;
+}
+
+template <typename ValueType>
+void JaniSmcStatesExpansion<ValueType>::assignPluginResultToState(
+    state_properties::StateVariableData<ValueType>& state, const smc_verifiable_plugins::DataExchange& plugin_out_data,
+    const model_checker::SmcPluginInstance& plugin_description) {
+    auto plugin_output_desc_it = plugin_description.getOutputVariablesMap().begin();
+    const auto plugin_output_desc_ite = plugin_description.getOutputVariablesMap().end();
+    auto bool_vars_it = _variable_information.booleanVariables().begin();
+    auto int_vars_it = _variable_information.integerVariables().begin();
+    auto real_vars_it = _variable_information.realVariables().begin();
+    while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasBooleanType()) {
+        while (plugin_output_desc_it->second != bool_vars_it->variable) {
+            bool_vars_it++;
+        }
+        size_t bool_idx = std::distance(_variable_information.booleanVariables().begin(), bool_vars_it);
+        state.setBool(bool_idx, std::get<bool>(plugin_out_data.at(plugin_output_desc_it->first)));
+        plugin_output_desc_it++;
+        bool_vars_it++;
+    }
+    while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasIntegerType()) {
+        while (plugin_output_desc_it->second != int_vars_it->variable) {
+            int_vars_it++;
+        }
+        size_t int_idx = std::distance(_variable_information.integerVariables().begin(), int_vars_it);
+        state.setInt(int_idx, std::get<int64_t>(plugin_out_data.at(plugin_output_desc_it->first)));
+        plugin_output_desc_it++;
+        int_vars_it++;
+    }
+    while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasRationalType()) {
+        while (plugin_output_desc_it->second != real_vars_it->variable) {
+            real_vars_it++;
+        }
+        size_t real_idx = std::distance(_variable_information.realVariables().begin(), real_vars_it);
+        state.setReal(real_idx, std::get<ValueType>(plugin_out_data.at(plugin_output_desc_it->first)));
+        plugin_output_desc_it++;
+        real_vars_it++;
+    }
+    STORM_LOG_THROW(
+        plugin_output_desc_it == plugin_output_desc_ite, storm::exceptions::OutOfRangeException,
+        "Cannot find plugin output target variable " + plugin_output_desc_it->second.getName() + " in the model.");
 }
 
 template class JaniSmcStatesExpansion<double>;

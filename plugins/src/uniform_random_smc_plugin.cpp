@@ -76,7 +76,7 @@ class DiceRollerSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
         if (_verbose) {
             std::cout << "Reset plugin " << getPluginName() << std::endl;
         }
-        return DataExchange();
+        return std::make_optional<DataExchange>({{"result", 0}});
     }
 
     /*!
