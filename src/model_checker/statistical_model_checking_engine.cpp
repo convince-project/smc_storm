@@ -252,9 +252,16 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     samples::TraceResult path_result = samples::TraceResult::NO_INFO;
     state_generation.resetModel();
     while (path_result == samples::TraceResult::NO_INFO) {
+        const auto& current_state = state_generation.getCurrentState();
         const auto& state_info = state_generation.getStateInfo();
+        if constexpr (!CacheData) {
+            if (current_state.empty()) {
+                // Invalid state: a plugin reported an error during states expansion, hence we treat the trace as "NO_INFO"
+                break;
+            }
+        }
         if (_traces_exporter_ptr) {
-            _traces_exporter_ptr->addNextState(state_generation.getCurrentState());
+            _traces_exporter_ptr->addNextState(current_state);
         }
         // Reward calculation pt. 1: Add the state reward
         trace_information.reward += state_generation.getStateReward();
