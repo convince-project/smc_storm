@@ -52,7 +52,7 @@ class ControlledErrorSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
         if (_n_resets <= 10u) {
             return std::nullopt;
         }
-        return DataExchange();
+        return DataExchange({{"result", true}});
     }
 
     /*!

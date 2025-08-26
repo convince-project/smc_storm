@@ -182,6 +182,16 @@ TEST(StatisticalModelCheckerJaniPluginTest, TestPluginCompositionThrowAndSum) {
     EXPECT_NEAR(result, expected_res, user_settings.epsilon);
 }
 
+TEST(StatisticalModelCheckerJaniPluginTest, TestPluginErrors) {
+    const std::filesystem::path jani_file = TEST_PATH / "plugin_error_test.jani";
+    const auto user_settings = getSettings(jani_file, "working", "", false, 60UL);
+    STORM_PRINT("Plugins paths: '" + user_settings.plugin_paths + "'\n");
+    const double result = getVerificationResult<double>(user_settings);
+    // 3 Throws of a 3-faces dice -> the outcome must be always 3.
+    constexpr double expected_res = 0.5;
+    EXPECT_NEAR(result, expected_res, user_settings.epsilon);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();
