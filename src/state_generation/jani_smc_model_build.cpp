@@ -39,7 +39,7 @@ JaniSmcModelBuild::JaniSmcModelBuild(
         for (const storm::jani::Edge& aut_edge : single_automaton.getEdges()) {
             STORM_LOG_THROW(!aut_edge.hasRate(), storm::exceptions::InvalidModelException, "Found edge with rate: this is invalid");
             // Access the 0th automaton and its 0th action and append the edge to the related location
-            _automata_actions.at(0u).at(0u).at(aut_edge.getSourceLocationIndex()).emplace_back(std::ref(aut_edge));
+            _automata_actions[0u][0u][aut_edge.getSourceLocationIndex()].emplace_back(std::ref(aut_edge));
         }
         _composite_edges.emplace_back(SILENT_ACTION_ID, std::vector<AutomatonToActionId>({AutomatonToActionId(automaton_idx, 0U)}));
     } else {
@@ -64,14 +64,14 @@ JaniSmcModelBuild::JaniSmcModelBuild(
             for (const storm::jani::Edge& sub_aut_edge : sub_automaton.getEdges()) {
                 STORM_LOG_THROW(!sub_aut_edge.hasRate(), storm::exceptions::InvalidModelException, "Found edge with rate: this is invalid");
                 if (sub_aut_edge.hasSilentAction()) {
-                    sub_aut_silent_action.at(sub_aut_edge.getSourceLocationIndex()).emplace_back(std::ref(sub_aut_edge));
+                    sub_aut_silent_action[sub_aut_edge.getSourceLocationIndex()].emplace_back(std::ref(sub_aut_edge));
                     has_silent_edges = true;
                 }
             }
             if (has_silent_edges) {
-                _automata_actions.at(sub_automaton_idx).emplace_back(std::move(sub_aut_silent_action));
+                _automata_actions[sub_automaton_idx].emplace_back(std::move(sub_aut_silent_action));
                 STORM_LOG_THROW(
-                    _automata_actions.at(sub_automaton_idx).size() == 1u, storm::exceptions::UnexpectedException,
+                    _automata_actions[sub_automaton_idx].size() == 1u, storm::exceptions::UnexpectedException,
                     "Unexpected size of automaton actions.");
                 _composite_edges.emplace_back(
                     SILENT_ACTION_ID, std::vector<AutomatonToActionId>({AutomatonToActionId(sub_automaton_idx, 0U)}));
@@ -86,18 +86,18 @@ JaniSmcModelBuild::JaniSmcModelBuild(
                 const std::string& sub_action_name = synched_action.getInput(sub_aut_idx);
                 if (!storm::jani::SynchronizationVector::isNoActionInput(sub_action_name)) {
                     const uint64_t jani_action_id = jani_model.getActionIndex(sub_action_name);
-                    const storm::jani::Automaton& sub_automaton = _jani_automata.at(sub_aut_idx).get();
+                    const storm::jani::Automaton& sub_automaton = _jani_automata[sub_aut_idx].get();
                     AutomatonAction sub_aut_action(sub_automaton.getNumberOfLocations(), LocationEdges());
-                    const uint64_t sub_aut_action_id = _automata_actions.at(sub_aut_idx).size();
+                    const uint64_t sub_aut_action_id = _automata_actions[sub_aut_idx].size();
                     bool at_least_one_edge = false;
                     for (const storm::jani::Edge& edge : sub_automaton.getEdges()) {
                         if (edge.getActionIndex() == jani_action_id) {
                             at_least_one_edge = true;
-                            sub_aut_action.at(edge.getSourceLocationIndex()).emplace_back(std::ref(edge));
+                            sub_aut_action[edge.getSourceLocationIndex()].emplace_back(std::ref(edge));
                         }
                     }
                     STORM_LOG_THROW(at_least_one_edge, storm::exceptions::InvalidModelException, "Found always invalid edge.");
-                    _automata_actions.at(sub_aut_idx).emplace_back(std::move(sub_aut_action));
+                    _automata_actions[sub_aut_idx].emplace_back(std::move(sub_aut_action));
                     composition_instance.second.emplace_back(sub_aut_idx, sub_aut_action_id);
                 }
             }
@@ -110,7 +110,7 @@ JaniSmcModelBuild::JaniSmcModelBuild(
 void JaniSmcModelBuild::computePluginAssociations(const std::vector<model_checker::SmcPluginInstance>& external_plugins) {
     _automata_plugins = std::vector<AutomatonEdgesWithPlugin>(_jani_automata.size(), AutomatonEdgesWithPlugin());
     for (uint64_t aut_idx = 0u; aut_idx < _jani_automata.size(); aut_idx++) {
-        const storm::jani::Automaton& automaton = _jani_automata.at(aut_idx).get();
+        const storm::jani::Automaton& automaton = _jani_automata[aut_idx].get();
         const std::string& automaton_name = automaton.getName();
         for (uint64_t plugin_idx = 0u; plugin_idx < external_plugins.size(); plugin_idx++) {
             const model_checker::SmcPluginInstance& plugin_desc = external_plugins[plugin_idx];
@@ -132,19 +132,19 @@ void JaniSmcModelBuild::computePluginAssociations(const std::vector<model_checke
                         }
                     }
                 }
-                _automata_plugins.at(aut_idx).emplace_back(action_id, plugin_idx);
+                _automata_plugins[aut_idx].emplace_back(action_id, plugin_idx);
             }
         }
         // Ensure that each automaton action has only one plugin associated to it
         // Sort it in order to have the action id in ascending order
         std::sort(
-            _automata_plugins.at(aut_idx).begin(), _automata_plugins.at(aut_idx).end(),
+            _automata_plugins[aut_idx].begin(), _automata_plugins[aut_idx].end(),
             [](const EdgeToPluginId& var_l, const EdgeToPluginId& var_r) { return var_l.first < var_l.second; });
         // Make sure no action is repeated twice
-        if (_automata_plugins.at(aut_idx).size() >= 2u) {
-            for (uint64_t curr_idx = 1u; curr_idx < _automata_plugins.at(aut_idx).size(); curr_idx++) {
+        if (_automata_plugins[aut_idx].size() >= 2u) {
+            for (uint64_t curr_idx = 1u; curr_idx < _automata_plugins[aut_idx].size(); curr_idx++) {
                 STORM_LOG_THROW(
-                    _automata_plugins.at(aut_idx).at(curr_idx - 1u).first != _automata_plugins.at(aut_idx).at(curr_idx).first,
+                    _automata_plugins[aut_idx][curr_idx - 1u].first != _automata_plugins[aut_idx][curr_idx].first,
                     storm::exceptions::InvalidModelException, "Found an action referring to two plugins: this isn't allowed.");
             }
         }
@@ -153,7 +153,7 @@ void JaniSmcModelBuild::computePluginAssociations(const std::vector<model_checke
 
 uint64_t JaniSmcModelBuild::getPluginFromAutomatonAction(const uint64_t automaton_id, const uint64_t action_id) const {
     uint64_t matching_plugin = NO_PLUGIN_ID;
-    for (const auto& [aut_action, plugin_id] : _automata_plugins.at(automaton_id)) {
+    for (const auto& [aut_action, plugin_id] : _automata_plugins[automaton_id]) {
         if (aut_action == action_id) {
             matching_plugin = plugin_id;
             break;
