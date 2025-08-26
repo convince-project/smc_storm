@@ -23,7 +23,7 @@
 namespace smc_storm_plugins {
 using smc_verifiable_plugins::DataExchange;
 /*!
- * @brief Base class providing the minimum interface required by a plugin to work with SMC
+ * @brief A plugin simulating an N-faced dice (a random number generator with values between 1 and N).
  */
 class DiceRollerSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
   public:
