@@ -92,7 +92,7 @@ class JaniSmcModelBuild {
      * @return The retrieved automaton.
      */
     inline const storm::jani::Automaton& getAutomaton(const uint64_t automaton_id) const {
-        return _jani_automata.at(automaton_id).get();
+        return _jani_automata[automaton_id].get();
     }
 
     /*!
@@ -112,7 +112,7 @@ class JaniSmcModelBuild {
      */
     inline const std::vector<std::reference_wrapper<const storm::jani::Edge>>& getAutomatonActionEdgesAtLocation(
         const uint64_t automaton_id, const uint64_t action_id, const uint64_t location_id) const {
-        return _automata_actions.at(automaton_id).at(action_id).at(location_id);
+        return _automata_actions[automaton_id][action_id][location_id];
     }
 
   private:

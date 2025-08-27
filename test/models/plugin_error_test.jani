@@ -1,0 +1,111 @@
+{
+	"jani-version": 1,
+	"name": "plugin-errors-test.jani",
+	"type": "dtmc",
+	"comment": "smc-plugins should be added among the features, but this requires changes in storm core, so we skip for now.",
+	"features": [ "derived-operators" ],
+	"variables": [
+		{
+			"name": "steps_count",
+			"type": "int",
+			"initial-value": 0
+		},
+		{
+			"name": "call_res",
+			"type": "bool",
+			"initial-value": true
+		}
+	],
+	"actions": [
+        {"name": "call"},
+        {"name": "count"}
+    ],
+	"automata": [
+		{
+			"name": "test_automaton",
+			"locations": [
+				{ "name": "call_plugin" },
+				{ "name": "increase_count" }
+			],
+			"initial-locations": ["call_plugin"],
+			"edges": [
+				{
+					"action": "call",
+					"location": "call_plugin",
+					"destinations": [
+						{
+							"location": "increase_count"
+						}
+					]
+				},
+				{
+					"action": "count",
+					"location": "increase_count",
+					"destinations": [
+						{
+							"location": "call_plugin",
+							"assignments": [
+								{
+									"ref": "steps_count",
+									"value": {
+										"op": "+",
+										"left": "steps_count",
+										"right": 1
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"system": {
+		"elements": [ { "automaton": "test_automaton" } ],
+		"syncs": [
+			{
+				"result": "call",
+				"synchronise": ["call"]
+			},
+			{
+				"result": "count",
+				"synchronise": ["count"]
+			}
+		]
+	},
+	"properties": [
+		{
+			"name": "working",
+			"expression": {
+				"op": "filter",
+				"fun": "max",
+				"states": { "op": "initial" },
+				"values": {
+					"op": "Pmin",
+					"exp": {
+						"op": "U",
+						"left": "call_res",
+						"right": {
+							"op": ">",
+							"left": "steps_count",
+							"right": 3
+						}
+					}
+				}
+			}
+		}
+	],
+	"plugins": [
+		{
+			"plugin_id": "controlled_error_smc_plugin",
+			"automaton_id": "test_automaton",
+			"action_name": "call",
+			"output": [
+				{
+					"ref": "call_res",
+					"value": "result"
+				}
+			]
+		}
+	]
+}

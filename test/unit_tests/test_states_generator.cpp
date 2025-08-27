@@ -84,7 +84,8 @@ TEST(JaniModelStatesGeneratorTest, TestCustomGenerator) {
     const auto& property_handler = model_and_property.second;
     // Test it is handled correctly
     std::default_random_engine rnd(0U);
-    auto custom_generator = smc_storm::state_generation::JaniSmcStatesExpansion<double>(jani_model, std::nullopt, {}, rnd);
+    std::vector<smc_storm::model_checker::SmcPluginInstance> empty_plugins = {};
+    auto custom_generator = smc_storm::state_generation::JaniSmcStatesExpansion<double>(jani_model, std::nullopt, empty_plugins, rnd);
     const auto& var_info = custom_generator.getVariableInformation();
     {
         const auto& init_state = custom_generator.setInitialState();

@@ -139,7 +139,7 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
             auto solution_model_ptr = solver->getModel();
             // Evaluate booleans and update the blocking_expression
             for (size_t idx = 0U; idx < _variable_information.booleanVariables().size(); idx++) {
-                const auto& bool_var = _variable_information.booleanVariables().at(idx);
+                const auto& bool_var = _variable_information.booleanVariables()[idx];
                 const bool variable_value = solution_model_ptr->getBooleanValue(bool_var.variable);
                 // Add the negation of the current state variable as an assertion, to prevent the same state from being generated
                 storm::expressions::Expression local_blocking_expression = variable_value ? !bool_var.variable : bool_var.variable;
@@ -149,7 +149,7 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
             }
             // Evaluate integers and update the blocking_expression
             for (size_t idx = 0U; idx < _variable_information.integerVariables().size(); idx++) {
-                const auto& int_var = _variable_information.integerVariables().at(idx);
+                const auto& int_var = _variable_information.integerVariables()[idx];
                 const int_fast64_t variable_value = solution_model_ptr->getIntegerValue(int_var.variable);
                 if (_variable_information.checkVariableBounds()) {
                     STORM_LOG_THROW(
@@ -168,7 +168,7 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
             }
             // Evaluate real numbers and update the blocking_expression
             for (size_t idx = 0U; idx < _variable_information.realVariables().size(); idx++) {
-                const auto& real_var = _variable_information.realVariables().at(idx);
+                const auto& real_var = _variable_information.realVariables()[idx];
                 const ValueType variable_value = solution_model_ptr->getRationalValue(real_var.variable);
                 if (_variable_information.checkVariableBounds()) {
                     STORM_LOG_THROW(
@@ -187,7 +187,7 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
             }
             // Generate the initial location of all the automata
             for (size_t idx = 0U; idx < expanded_automata.size(); idx++) {
-                const storm::jani::Automaton& automaton = expanded_automata.at(idx).get();
+                const storm::jani::Automaton& automaton = expanded_automata[idx].get();
                 const std::set<uint64_t>& init_locations = automaton.getInitialLocationIndices();
                 STORM_LOG_THROW(
                     init_locations.size() == 1, storm::exceptions::InvalidModelException,
@@ -202,10 +202,18 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
         }
     }
     updateCurrentState(_initial_state);
-    // Resetting all external plugins to the initial state.
-    for (const auto& plugin_ptr : _loaded_plugin_ptrs) {
-        // TODO: This returns data, that need to be assigned to the current state!
-        plugin_ptr->reset();
+    // Resetting all external plugins to the initial state
+    const auto& plugins_desc = _external_plugins_desc.get();
+    for (size_t plugin_id = 0u; plugin_id < plugins_desc.size(); plugin_id++) {
+        const auto& plugin_desc = plugins_desc[plugin_id];
+        const auto& plugin_ptr = _loaded_plugin_ptrs[plugin_id];
+        const auto reset_result = plugin_ptr->reset();
+        if (reset_result.has_value()) {
+            assignPluginResultToState(_current_state, *reset_result, plugin_desc);
+        } else {
+            // If the reset of plugin fails, then return the empty state.
+            return _empty_state;
+        }
     }
     return _current_state;
 }
@@ -247,7 +255,7 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
             // Composite edge with 1 automaton -> This is a non-syncing edge
             const uint64_t automaton_id = automata_with_actions.front().first;
             const uint64_t automaton_edge_id = automata_with_actions.front().second;
-            const uint64_t location_id = _current_state.getLocationData().at(automaton_id);
+            const uint64_t location_id = _current_state.getLocationData()[automaton_id];
             const JaniSmcModelBuild::LocationEdges& automaton_location_edges =
                 _model_build_ptr->getAutomatonActionEdgesAtLocation(automaton_id, automaton_edge_id, location_id);
             if (!automaton_location_edges.empty()) {
@@ -304,7 +312,7 @@ AvailableActions<ValueType> JaniSmcStatesExpansion<ValueType>::getAvailableActio
             int64_t highest_assignment_level = std::numeric_limits<int64_t>::min();
             for (const auto& [automaton_id, automaton_action_id] : automata_with_actions) {
                 // Prepare the entry in the action_edges vector
-                const uint64_t& location_id = _current_state.getLocationData().at(automaton_id);
+                const uint64_t& location_id = _current_state.getLocationData()[automaton_id];
                 const JaniSmcModelBuild::LocationEdges& automaton_location_edges =
                     _model_build_ptr->getAutomatonActionEdgesAtLocation(automaton_id, automaton_action_id, location_id);
                 bool valid_action_found = false;
@@ -376,7 +384,7 @@ typename JaniSmcStatesExpansion<ValueType>::ActionDestinations JaniSmcStatesExpa
         "Trying to compute actions destinations before computing the available actions");
     _computed_destinations.clear();
     _computed_destinations.related_action = action_id;
-    const ActionDescription& chosen_action = _computed_actions.at(action_id);
+    const ActionDescription& chosen_action = _computed_actions[action_id];
     ActionDestinations possible_destinations = {};
     if (chosen_action.action_edges.size() == 1U) {
         // We have to expand a non-synchronizing edge
@@ -428,8 +436,8 @@ typename JaniSmcStatesExpansion<ValueType>::ActionDestinations JaniSmcStatesExpa
             // Advance to the next combination (if any)
             size_t aut_it_to_advance = 0U;
             while (aut_it_to_advance < aut_dest_its.size()) {
-                auto& destination_it = aut_dest_its.at(aut_it_to_advance).second;
-                const auto& destinations = chosen_action.action_edges.at(aut_it_to_advance).second.get().getDestinations();
+                auto& destination_it = aut_dest_its[aut_it_to_advance].second;
+                const auto& destinations = chosen_action.action_edges[aut_it_to_advance].second.get().getDestinations();
                 destination_it++;
                 if (destinations.end() != destination_it) {
                     break;
@@ -459,13 +467,17 @@ JaniSmcStatesExpansion<ValueType>::setNextState(
     STORM_LOG_THROW(
         action_id == _computed_destinations.related_action, storm::exceptions::IllegalFunctionCallException,
         "The requested action and the one related to the computed destinations are not matching.");
-    const std::vector<AutomatonAndDestination>& selected_destination = _computed_destinations.destinations.at(destination_id);
-    const std::vector<AutomatonAndEdge>& selected_edge = _computed_actions.at(action_id).action_edges;
+    const std::vector<AutomatonAndDestination>& selected_destination = _computed_destinations.destinations[destination_id];
+    const std::vector<AutomatonAndEdge>& selected_edge = _computed_actions[action_id].action_edges;
     STORM_LOG_THROW(!selected_destination.empty(), storm::exceptions::UnexpectedException, "Vector of automata to step must be non-empty.");
+    bool expansion_ok{false};
     if (selected_destination.size() == 1U) {
-        expandNonSynchronizingEdge(selected_edge.front(), selected_destination.front());
+        expansion_ok = expandNonSynchronizingEdge(selected_edge.front(), selected_destination.front());
     } else {
-        expandSynchronizingEdge(selected_edge, selected_destination);
+        expansion_ok = expandSynchronizingEdge(selected_edge, selected_destination);
+    }
+    if (!expansion_ok) {
+        return {_empty_state, 0.0};
     }
     const ValueType transition_reward = getTransitionReward();
     _computed_actions.clear();
@@ -489,7 +501,7 @@ storm::generator::TransientVariableValuation<ValueType> JaniSmcStatesExpansion<V
     storm::generator::TransientVariableValuation<ValueType> transient_variables;
     _transient_variable_information.setDefaultValuesInEvaluator(*_evaluator_ptr);
     for (uint64_t automaton_idx = 0U; automaton_idx < _model_build_ptr->getAutomataCount(); automaton_idx++) {
-        const uint64_t location_id = _current_state.getLocationData().at(automaton_idx);
+        const uint64_t location_id = _current_state.getLocationData()[automaton_idx];
         const storm::jani::Automaton& jani_automaton = _model_build_ptr->getAutomaton(automaton_idx);
         const storm::jani::Location& jani_location = jani_automaton.getLocation(location_id);
         STORM_LOG_THROW(
@@ -501,7 +513,7 @@ storm::generator::TransientVariableValuation<ValueType> JaniSmcStatesExpansion<V
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
+bool JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
     const AutomatonAndEdge& selected_edge, const AutomatonAndDestination& selected_destination) {
     state_properties::StateVariableData<ValueType> next_state(_current_state);
     const uint64_t automaton_id = selected_edge.first;
@@ -514,7 +526,11 @@ void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
     storm::generator::TransientVariableValuation<ValueType> transient_vars_values;
     // Enforce the 1st assignment on being done, regardless of the lowest_assignment_level value
     next_state.setLocation(automaton_id, destination.getLocationIndex());
-    executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, lowest_assignment_level);
+    bool successful_assignments =
+        executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, lowest_assignment_level);
+    if (!successful_assignments) {
+        return false;
+    }
     if (has_transient_assignments) {
         executeTransientDestinationAssignments(transient_vars_values, automaton_id, destination, lowest_assignment_level);
         transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -523,7 +539,11 @@ void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
     // Increase current_level separately, to ensure it is below highest_assignment_level first
     for (int64_t current_level = lowest_assignment_level; current_level < highest_assignment_level;) {
         ++current_level;
-        executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, current_level);
+        successful_assignments =
+            executeNonTransientDestinationAssignments(next_state, automaton_id, edge.getActionIndex(), destination, current_level);
+        if (!successful_assignments) {
+            return false;
+        }
         if (has_transient_assignments) {
             executeTransientDestinationAssignments(transient_vars_values, automaton_id, destination, current_level);
             transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -531,10 +551,11 @@ void JaniSmcStatesExpansion<ValueType>::expandNonSynchronizingEdge(
         _variable_information.setInEvaluator(*_evaluator_ptr, next_state);
     }
     updateCurrentState(next_state);
+    return true;
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
+bool JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
     const std::vector<AutomatonAndEdge>& selected_action, const std::vector<AutomatonAndDestination>& selected_destinations) {
     state_properties::StateVariableData<ValueType> next_state = _current_state;
     // Prepare required info
@@ -563,7 +584,11 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
         // Update the location of all automata
         next_state.setLocation(automaton_id, automaton_destination.getLocationIndex());
         // We have to make sure that all automata update the state at least once, even if no assignment indexes are found
-        executeNonTransientDestinationAssignments(next_state, automaton_id, action_id, automaton_destination, lowest_assignment_level);
+        const bool successful_assignments =
+            executeNonTransientDestinationAssignments(next_state, automaton_id, action_id, automaton_destination, lowest_assignment_level);
+        if (!successful_assignments) {
+            return false;
+        }
         if (automaton_with_transient_assign.contains(automaton_id)) {
             executeTransientDestinationAssignments(transient_vars_values, automaton_id, automaton_destination, lowest_assignment_level);
             transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -577,8 +602,11 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
             const auto& [automaton_id, automaton_dest_ref] = selected_destinations[vect_idx];
             const storm::jani::Edge& automaton_edge = selected_action[vect_idx].second.get();
             if (current_level >= automaton_edge.getLowestAssignmentLevel() && current_level <= automaton_edge.getHighestAssignmentLevel()) {
-                executeNonTransientDestinationAssignments(
+                const bool successful_assignments = executeNonTransientDestinationAssignments(
                     next_state, automaton_id, automaton_edge.getActionIndex(), automaton_dest_ref.get(), current_level);
+                if (!successful_assignments) {
+                    return false;
+                }
                 if (automaton_with_transient_assign.contains(automaton_id)) {
                     executeTransientDestinationAssignments(transient_vars_values, automaton_id, automaton_dest_ref.get(), current_level);
                     transient_vars_values.setInEvaluator(*_evaluator_ptr, _additional_checks);
@@ -588,6 +616,7 @@ void JaniSmcStatesExpansion<ValueType>::expandSynchronizingEdge(
         _variable_information.setInEvaluator(*_evaluator_ptr, next_state);
     }
     updateCurrentState(next_state);
+    return true;
 }
 
 template <typename ValueType>
@@ -648,15 +677,15 @@ void JaniSmcStatesExpansion<ValueType>::executeTransientDestinationAssignments(
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignments(
+bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignments(
     state_properties::StateVariableData<ValueType>& state, const uint64_t automaton_id, const uint64_t action_id,
     const storm::jani::EdgeDestination& destination, int64_t assignment_level) {
     // Check if this automaton relates to a plugin
     const uint64_t plugin_id = _model_build_ptr->getPluginFromAutomatonAction(automaton_id, action_id);
     if (plugin_id != JaniSmcModelBuild::NO_PLUGIN_ID) {
-        smc_verifiable_plugins::SmcPluginBase& plugin_instance = *_loaded_plugin_ptrs.at(plugin_id);
-        const auto& plugin_description = _external_plugins_desc.get().at(plugin_id);
-        smc_verifiable_plugins::SmcPluginBase::DataExchange input_data = {};
+        smc_verifiable_plugins::SmcPluginBase& plugin_instance = *_loaded_plugin_ptrs[plugin_id];
+        const auto& plugin_description = _external_plugins_desc.get()[plugin_id];
+        smc_verifiable_plugins::DataExchange input_data = {};
         for (const auto& input_argument : plugin_description.getInputVariablesMap()) {
             const auto& expression_type = input_argument.second.getType();
             if (expression_type.isBooleanType()) {
@@ -672,42 +701,11 @@ void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
                         plugin_description.getAutomatonName() + " plugin.");
             }
         }
-        const auto plugin_output_values = plugin_instance.nextStep(input_data);
-        auto plugin_output_desc_it = plugin_description.getOutputVariablesMap().begin();
-        const auto plugin_output_desc_ite = plugin_description.getOutputVariablesMap().end();
-        auto bool_vars_it = _variable_information.booleanVariables().begin();
-        auto int_vars_it = _variable_information.integerVariables().begin();
-        auto real_vars_it = _variable_information.realVariables().begin();
-        while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasBooleanType()) {
-            while (plugin_output_desc_it->second != bool_vars_it->variable) {
-                bool_vars_it++;
-            }
-            size_t bool_idx = std::distance(_variable_information.booleanVariables().begin(), bool_vars_it);
-            state.setBool(bool_idx, std::get<bool>(plugin_output_values.at(plugin_output_desc_it->first)));
-            plugin_output_desc_it++;
-            bool_vars_it++;
+        const auto opt_plugin_result = plugin_instance.nextStep(input_data);
+        if (!opt_plugin_result.has_value()) {
+            return false;
         }
-        while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasIntegerType()) {
-            while (plugin_output_desc_it->second != int_vars_it->variable) {
-                int_vars_it++;
-            }
-            size_t int_idx = std::distance(_variable_information.integerVariables().begin(), int_vars_it);
-            state.setInt(int_idx, std::get<int64_t>(plugin_output_values.at(plugin_output_desc_it->first)));
-            plugin_output_desc_it++;
-            int_vars_it++;
-        }
-        while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasRationalType()) {
-            while (plugin_output_desc_it->second != real_vars_it->variable) {
-                real_vars_it++;
-            }
-            size_t real_idx = std::distance(_variable_information.realVariables().begin(), real_vars_it);
-            state.setReal(real_idx, std::get<ValueType>(plugin_output_values.at(plugin_output_desc_it->first)));
-            plugin_output_desc_it++;
-            real_vars_it++;
-        }
-        STORM_LOG_THROW(
-            plugin_output_desc_it == plugin_output_desc_ite, storm::exceptions::OutOfRangeException,
-            "Cannot find plugin output target variable " + plugin_output_desc_it->second.getName() + " in the model.");
+        assignPluginResultToState(state, *opt_plugin_result, plugin_description);
     } else {
         // This orders the assignments to be booleans first, then integers and then arrays. Variables are ordered as in the var_info
         const auto& all_assignments = destination.getOrderedAssignments().getNonTransientAssignments(assignment_level);
@@ -757,6 +755,48 @@ void JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
         // Make sure we carried out all assignments
         STORM_LOG_THROW(assignments_it == assignments_ite, storm::exceptions::UnexpectedException, "Not all assignments were executed.");
     }
+    return true;
+}
+
+template <typename ValueType>
+void JaniSmcStatesExpansion<ValueType>::assignPluginResultToState(
+    state_properties::StateVariableData<ValueType>& state, const smc_verifiable_plugins::DataExchange& plugin_out_data,
+    const model_checker::SmcPluginInstance& plugin_description) {
+    auto plugin_output_desc_it = plugin_description.getOutputVariablesMap().begin();
+    const auto plugin_output_desc_ite = plugin_description.getOutputVariablesMap().end();
+    auto bool_vars_it = _variable_information.booleanVariables().begin();
+    auto int_vars_it = _variable_information.integerVariables().begin();
+    auto real_vars_it = _variable_information.realVariables().begin();
+    while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasBooleanType()) {
+        while (plugin_output_desc_it->second != bool_vars_it->variable) {
+            bool_vars_it++;
+        }
+        size_t bool_idx = std::distance(_variable_information.booleanVariables().begin(), bool_vars_it);
+        state.setBool(bool_idx, std::get<bool>(plugin_out_data.at(plugin_output_desc_it->first)));
+        plugin_output_desc_it++;
+        bool_vars_it++;
+    }
+    while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasIntegerType()) {
+        while (plugin_output_desc_it->second != int_vars_it->variable) {
+            int_vars_it++;
+        }
+        size_t int_idx = std::distance(_variable_information.integerVariables().begin(), int_vars_it);
+        state.setInt(int_idx, std::get<int64_t>(plugin_out_data.at(plugin_output_desc_it->first)));
+        plugin_output_desc_it++;
+        int_vars_it++;
+    }
+    while (plugin_output_desc_it != plugin_output_desc_ite && plugin_output_desc_it->second.hasRationalType()) {
+        while (plugin_output_desc_it->second != real_vars_it->variable) {
+            real_vars_it++;
+        }
+        size_t real_idx = std::distance(_variable_information.realVariables().begin(), real_vars_it);
+        state.setReal(real_idx, std::get<ValueType>(plugin_out_data.at(plugin_output_desc_it->first)));
+        plugin_output_desc_it++;
+        real_vars_it++;
+    }
+    STORM_LOG_THROW(
+        plugin_output_desc_it == plugin_output_desc_ite, storm::exceptions::OutOfRangeException,
+        "Cannot find plugin output target variable " + plugin_output_desc_it->second.getName() + " in the model.");
 }
 
 template class JaniSmcStatesExpansion<double>;

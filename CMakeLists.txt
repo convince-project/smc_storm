@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.7)
 
 # set the project name and version
-project(smc_storm VERSION 0.1.4)
+project(smc_storm VERSION 0.1.5)
 
 # Use RelWithDebInfo by default
 if(NOT CMAKE_BUILD_TYPE)
@@ -45,7 +45,7 @@ FetchContent_MakeAvailable(indicators)
 FetchContent_Declare(
     smc_verifiable_plugins
     GIT_REPOSITORY https://github.com/convince-project/smc_verifiable_plugins.git
-    GIT_TAG 0.0.1
+    GIT_TAG 0.0.2
 )
 FetchContent_MakeAvailable(smc_verifiable_plugins)
 
@@ -69,6 +69,11 @@ target_link_libraries(uniform_random_smc_plugin PUBLIC smc_verifiable_plugins)
 include(CTest)
 
 if(BUILD_TESTING)
+  # One more plugin to build
+  add_library(controlled_error_smc_plugin SHARED ${CMAKE_CURRENT_SOURCE_DIR}/test/plugins/controlled_error_smc_plugin.cpp)
+  target_link_libraries(controlled_error_smc_plugin PUBLIC smc_verifiable_plugins)
+
+  # Build tests
   find_package(GTest REQUIRED)
   # Copy the test files in the build folder
   set(TEST_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/test)

@@ -89,7 +89,7 @@ class SmcPluginInstance {
      * @brief Get the initialization data for the plugin.
      * @return The DataExchange object containing all initialization data for the plugin.
      */
-    inline const smc_verifiable_plugins::SmcPluginBase::DataExchange& getInitData() const {
+    inline const smc_verifiable_plugins::DataExchange& getInitData() const {
         return _init_data;
     }
 
@@ -142,7 +142,7 @@ class SmcPluginInstance {
     const std::string _automaton_id;
     const std::string _action_name;
     const uint64_t _action_id;
-    smc_verifiable_plugins::SmcPluginBase::DataExchange _init_data = {};
+    smc_verifiable_plugins::DataExchange _init_data = {};
 
     // Map between the input data of the plugin and the JANI expression
     PluginToModelExpressionMap _input_data_to_expression = {};
