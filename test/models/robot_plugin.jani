@@ -1,0 +1,244 @@
+{
+	"jani-version": 1,
+	"name": "dice.jani",
+	"type": "dtmc",
+	"comment": "smc-plugins should be added among the features, but this requires changes in storm core, so we skip for now.",
+	"features": [ "derived-operators" ],
+	"variables": [
+		{
+			"name": "r_x",
+			"type": "real",
+			"initial-value": 0.0
+		},
+		{
+			"name": "r_y",
+			"type": "real",
+			"initial-value": 0.0
+		},
+		{
+			"name": "r_t",
+			"type": "real",
+			"initial-value": 0.0
+		},
+		{
+			"name": "steps",
+			"type": "int",
+			"initial-value": 0
+		}
+	],
+	"constants": [
+		{
+			"name": "start_x",
+			"type": "real"
+		},
+		{
+			"name": "start_y",
+			"type": "real"
+		},
+		{
+			"name": "start_t",
+			"type": "real"
+		},
+		{
+			"name": "t_step",
+			"type": "real",
+			"value": 1.0
+		},
+		{
+			"name": "goal_x",
+			"type": "real",
+			"value": 0.0
+		},
+		{
+			"name": "goal_y",
+			"type": "real",
+			"value": 0.0
+		},
+		{
+			"name": "vel_v",
+			"type": "real",
+			"value": 1.0
+		},
+		{
+			"name": "vel_w",
+			"type": "real",
+			"value": 1.57
+		}
+	],
+	"actions": [
+        {
+            "name": "drive"
+        },
+		{
+            "name": "count"
+        }
+    ],
+	"automata": [
+		{
+			"name": "robot",
+			"locations": [
+				{"name": "ready"},
+				{"name": "count"}
+			],
+			"initial-locations": ["ready"],
+			"edges": [
+				{
+					"action": "drive",
+					"location": "ready",
+					"destinations": [
+						{
+							"location": "count"
+						}
+					]
+				},
+				{
+					"action": "count",
+					"location": "count",
+					"destinations": [
+						{
+							"location": "ready",
+							"assignments": [
+								{
+									"ref": "steps",
+									"value": {
+										"op": "+",
+										"left": "steps",
+										"right": 1
+									}
+								}
+							]
+						}
+					]
+				}
+			]
+		}
+	],
+	"system": {
+		"elements": [ { "automaton": "robot" } ],
+		"syncs": [
+			{
+				"result": "drive",
+				"synchronise": [
+					"drive"
+				]
+			},
+			{
+				"result": "count",
+				"synchronise": [
+					"count"
+				]
+			}
+		]
+	},
+	"properties": [
+		{
+			"name": "goal_reached",
+			"expression": {
+				"op": "filter",
+				"fun": "max",
+				"states": { "op": "initial" },
+				"values": {
+					"op": "Pmin",
+					"exp": {
+						"op": "U",
+						"left": {
+							"op": "<",
+							"left": "steps",
+							"right": 10
+						},
+						"right": {
+							"op": "∧",
+							"left": {
+								"op": "<",
+								"left": {
+									"op": "abs",
+									"exp": {
+										"op": "-",
+										"left": "r_x",
+										"right": "goal_x"
+
+									}
+								},
+								"right": 0.01
+							},
+							"right": {
+								"op": "<",
+								"left": {
+									"op": "abs",
+									"exp": {
+										"op": "-",
+										"left": "r_y",
+										"right": "goal_y"
+
+									}
+								},
+								"right": 0.01
+							}
+						}
+					}
+				}
+			}
+		}
+	],
+	"plugins": [
+		{
+			"plugin_id": "unicycle_robot_smc_plugin",
+			"automaton_id": "robot",
+			"action_name": "drive",
+			"init": [
+				{
+					"name": "verbose",
+					"type": "bool",
+					"value": false,
+					"comment": "Whether to printout all steps in the plugin or not"
+				},
+				{
+					"name": "time_step",
+					"type": "real",
+					"value": "t_step"
+				},
+				{
+					"name": "start_x",
+					"type": "real",
+					"value": "start_x"
+				},
+				{
+					"name": "start_y",
+					"type": "real",
+					"value": "start_y"
+				},
+				{
+					"name": "start_theta",
+					"type": "real",
+					"value": "start_t"
+				}
+			],
+			"input": [
+				{
+					"name": "lin_vel",
+					"type": "real",
+					"value": "vel_v"
+				},
+				{
+					"name": "ang_vel",
+					"type": "real",
+					"value": "vel_w"
+				}
+			],
+			"output": [
+				{
+					"ref": "r_x",
+					"value": "x"
+				},
+				{
+					"ref": "r_y",
+					"value": "y"
+				},
+				{
+					"ref": "r_t",
+					"value": "theta"
+				}
+			]
+		}
+	]
+}
