@@ -100,6 +100,7 @@ class UnicycleRobotSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
         _current_pose.x += c * lin_dist;
         _current_pose.y += s * lin_dist;
         _current_pose.theta += ang_dist;
+        _current_pose.theta = fmod(_current_pose.theta, 2.0 * M_PI);
         if (_verbose) {
             std::cout << "[" << getPluginName() << "]: drive with v, w (" << lin_vel << ", " << ang_vel << ")\n";
             std::cout << "[" << getPluginName() << "]: stepped to new pose " << printRobotPose(_current_pose) << std::endl;
