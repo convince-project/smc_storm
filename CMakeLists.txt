@@ -66,6 +66,9 @@ target_link_libraries(${PROJECT_NAME} ${PROJECT_NAME}_lib)
 add_library(uniform_random_smc_plugin SHARED ${PROJECT_SOURCE_DIR}/plugins/src/uniform_random_smc_plugin.cpp)
 target_link_libraries(uniform_random_smc_plugin PUBLIC smc_verifiable_plugins)
 
+add_library(unicycle_robot_smc_plugin SHARED ${PROJECT_SOURCE_DIR}/plugins/src/unicycle_robot_smc_plugin.cpp)
+target_link_libraries(unicycle_robot_smc_plugin PUBLIC smc_verifiable_plugins)
+
 include(CTest)
 
 if(BUILD_TESTING)
