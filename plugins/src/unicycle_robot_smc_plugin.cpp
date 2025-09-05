@@ -63,9 +63,9 @@ class UnicycleRobotSmcPlugin : public smc_verifiable_plugins::SmcPluginBase {
             _verbose = std::get<bool>(config.at("verbose"));
         }
         _time_step = std::get<double>(config.at("time_step"));
-        _start_pose.x = std::get<bool>(config.at("start_x"));
-        _start_pose.y = std::get<bool>(config.at("start_y"));
-        _start_pose.theta = std::get<bool>(config.at("start_theta"));
+        _start_pose.x = std::get<double>(config.at("start_x"));
+        _start_pose.y = std::get<double>(config.at("start_y"));
+        _start_pose.theta = std::get<double>(config.at("start_theta"));
         _start_pose.theta = fmod(_start_pose.theta, 2.0 * M_PI);
         if (_verbose) {
             std::cout << "[" << getPluginName() << "]: Init pose " << printRobotPose(_start_pose) << ".\n";

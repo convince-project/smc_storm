@@ -81,8 +81,8 @@ std::vector<model_checker::SmcPluginInstance> JaniParserExtended::loadPlugins(co
                     const std::string data_type_str = init_conf.at("type").get<std::string>();
                     // For the plugin init, we care only about constants
                     Scope current_scope = Scope(automaton_id, &_constants_map);
-                    const auto& data_expr = parseExpression(init_conf.at("value"), current_scope);
-                    const auto& data_type = model_checker::SmcPluginInstance::getExprType(data_type_str);
+                    const auto data_expr = parseExpression(init_conf.at("value"), current_scope);
+                    const auto data_type = model_checker::SmcPluginInstance::getExprType(data_type_str);
                     plugin_instance.appendInitData(data_name, data_expr, data_type);
                 }
             }
