@@ -56,7 +56,7 @@ void TracesExporter::addCurrentTraceResult(const TraceInformation& result) {
         }
         _trace_counter++;
         storm::io::closeFile(_current_file);
-        std::rename(_tmp_filename_path.c_str(), generateNewFilename(result.outcome).c_str());
+        std::rename(_tmp_filename_path.c_str(), (_traces_folder / generateNewFilename(result.outcome)).c_str());
     } else {
         // Discard the trace
         storm::io::closeFile(_current_file);
@@ -80,8 +80,8 @@ const std::string TracesExporter::generateNewFilename(const smc_storm::samples::
 
 // CompressedStateTraceExporter methods
 CompressedStateTraceExporter::CompressedStateTraceExporter(
-    const std::filesystem::path& path_to_file, const storm::generator::VariableInformation& var_info, const int thread_id)
-    : TracesExporter(path_to_file, thread_id), _var_info{var_info} {
+    const std::filesystem::path& path_to_folder, const storm::generator::VariableInformation& var_info, const int thread_id)
+    : TracesExporter(path_to_folder, thread_id), _var_info{var_info} {
     _n_variables = var_info.locationVariables.size() + var_info.booleanVariables.size() + var_info.integerVariables.size();
     STORM_LOG_THROW(_n_variables > 0U, storm::exceptions::NotSupportedException, "The provided VariableInformation is empty!");
 }
@@ -131,8 +131,8 @@ void CompressedStateTraceExporter::addNextState(const storm::generator::Compress
 
 // UncompressedStateTraceExporter
 UncompressedStateTraceExporter::UncompressedStateTraceExporter(
-    const std::filesystem::path& path_to_file, const state_properties::StateVariableInformation<double>& var_info, const int thread_id)
-    : TracesExporter(path_to_file, thread_id), _var_info{var_info} {
+    const std::filesystem::path& path_to_folder, const state_properties::StateVariableInformation<double>& var_info, const int thread_id)
+    : TracesExporter(path_to_folder, thread_id), _var_info{var_info} {
     _n_variables = var_info.locationVariables().size() + var_info.booleanVariables().size() + var_info.integerVariables().size() +
                    var_info.realVariables().size();
     STORM_LOG_THROW(_n_variables > 0U, storm::exceptions::NotSupportedException, "The provided VariableInformation is empty!");

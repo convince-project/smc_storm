@@ -123,7 +123,13 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
         const storm::modelchecker::CheckTask<storm::logic::Formula, ValueType>& check_task,
         std::default_random_engine& random_generator) const;
 
-    void instantiateTraceGenerator(const StateGeneratorType& state_generator);
+    std::unique_ptr<TraceExportType> instantiateTraceGenerator(const StateGeneratorType& state_generator) {
+        if (traceStorageEnabled()) {
+            const int thread_id = gettid();
+            return std::make_unique<TraceExportType>(_traces_folder, state_generator.getVariableInformation(), thread_id);
+        }
+        return nullptr;
+    }
 
     bool verifyModelValid() const;
 
@@ -151,13 +157,13 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
      * @return A pair with the Information attached to the reached state and the accumulated reward
      */
     samples::TraceInformation samplePathFromInitialState(
-        StateGeneratorType& state_generation, const state_generation::ActionScheduler<ValueType>& action_sampler) const;
+        StateGeneratorType& state_generation, const state_generation::ActionScheduler<ValueType>& action_sampler,
+        const std::unique_ptr<TraceExportType>& trace_exporter_ptr) const;
 
     // The model to check.
     std::reference_wrapper<const storm::storage::SymbolicModelDescription> _model;
     std::reference_wrapper<const settings::SmcSettings> _settings;
     std::reference_wrapper<const std::vector<SmcPluginInstance>> _loaded_plugins;
-    std::unique_ptr<TraceExportType> _traces_exporter_ptr;
     std::string _traces_folder = "";
 };
 }  // namespace model_checker

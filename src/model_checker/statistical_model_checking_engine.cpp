@@ -212,14 +212,7 @@ void StatisticalModelCheckingEngine<ModelType, CacheData>::performSampling(
     samples::SamplingResults& sampling_results, const size_t thread_id) {
     auto generator_ptr = generateStateGenerator(check_task, rnd_gen);
     state_generation::ActionScheduler<ValueType> action_sampler(rnd_gen);
-
-    if (traceStorageEnabled()) {
-        // Prepare the traces export object
-        instantiateTraceGenerator(*generator_ptr);
-        if (_settings.get().store_only_not_verified) {
-            _traces_exporter_ptr->setExportOnlyFailures();
-        }
-    }
+    auto trace_generator_ptr = instantiateTraceGenerator(*generator_ptr);
     samples::BatchResults batch_results = sampling_results.getBatchResultInstance();
 
     // Now perform the actual sampling
@@ -227,17 +220,18 @@ void StatisticalModelCheckingEngine<ModelType, CacheData>::performSampling(
         batch_results.reset();
         while (batch_results.batchIncomplete()) {
             // Sample a new path
-            const auto result = samplePathFromInitialState(*generator_ptr, action_sampler);
+            const auto result = samplePathFromInitialState(*generator_ptr, action_sampler, trace_generator_ptr);
             batch_results.addResult(result);
         }
         sampling_results.addBatchResults(batch_results, thread_id);
     }
-    _traces_exporter_ptr.reset();
+    trace_generator_ptr.reset();
 }
 
 template <typename ModelType, bool CacheData>
 samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::samplePathFromInitialState(
-    StateGeneratorType& state_generation, const state_generation::ActionScheduler<ValueType>& action_sampler) const {
+    StateGeneratorType& state_generation, const state_generation::ActionScheduler<ValueType>& action_sampler,
+    const std::unique_ptr<TraceExportType>& trace_exporter_ptr) const {
     samples::TraceInformation trace_information;
     trace_information.trace_length = 0U;
     trace_information.outcome = samples::TraceResult::NO_INFO;
@@ -249,8 +243,8 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     // As long as we didn't find a terminal (accepting or rejecting) state in the search, sample a new successor.
     samples::TraceResult path_result = samples::TraceResult::NO_INFO;
     state_generation.resetModel();
-    if (_traces_exporter_ptr) {
-        _traces_exporter_ptr->startNewTrace();
+    if (trace_exporter_ptr) {
+        trace_exporter_ptr->startNewTrace();
     }
     while (path_result == samples::TraceResult::NO_INFO) {
         const auto& current_state = state_generation.getCurrentState();
@@ -261,8 +255,8 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
             }
         }
         const auto& state_info = state_generation.getStateInfo();
-        if (_traces_exporter_ptr) {
-            _traces_exporter_ptr->addNextState(current_state);
+        if (trace_exporter_ptr) {
+            trace_exporter_ptr->addNextState(current_state);
         }
         // Reward calculation pt. 1: Add the state reward
         trace_information.reward += state_generation.getStateReward();
@@ -302,8 +296,8 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     }
     trace_information.outcome = path_result;
     // Export the trace results and start a new one, if requested
-    if (_traces_exporter_ptr) {
-        _traces_exporter_ptr->addCurrentTraceResult(trace_information);
+    if (trace_exporter_ptr) {
+        trace_exporter_ptr->addCurrentTraceResult(trace_information);
     }
     return trace_information;
 }
@@ -325,14 +319,6 @@ StatisticalModelCheckingEngine<ModelType, CacheData>::generateStateGenerator(
     } else {
         return std::make_unique<StateGeneratorType>(_model.get(), formula, reward_model, random_generator, _loaded_plugins.get());
     }
-}
-
-template <typename ModelType, bool CacheData>
-void StatisticalModelCheckingEngine<ModelType, CacheData>::instantiateTraceGenerator(
-    const StatisticalModelCheckingEngine<ModelType, CacheData>::StateGeneratorType& state_generator) {
-    using GenericExporter = std::conditional_t<CacheData, samples::CompressedStateTraceExporter, samples::UncompressedStateTraceExporter>;
-    const int thread_id = gettid();
-    _traces_exporter_ptr = std::make_unique<GenericExporter>(_traces_folder, state_generator.getVariableInformation(), thread_id);
 }
 
 template class StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, false>;
