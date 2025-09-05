@@ -686,18 +686,19 @@ bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
         smc_verifiable_plugins::SmcPluginBase& plugin_instance = *_loaded_plugin_ptrs[plugin_id];
         const auto& plugin_description = _external_plugins_desc.get()[plugin_id];
         smc_verifiable_plugins::DataExchange input_data = {};
-        for (const auto& input_argument : plugin_description.getInputVariablesMap()) {
-            const auto& expression_type = input_argument.second.getType();
-            if (expression_type.isBooleanType()) {
-                input_data.emplace(input_argument.first, _evaluator_ptr->asBool(input_argument.second));
-            } else if (expression_type.isIntegerType()) {
-                input_data.emplace(input_argument.first, _evaluator_ptr->asInt(input_argument.second));
-            } else if (expression_type.isRationalType()) {
-                input_data.emplace(input_argument.first, _evaluator_ptr->asRational(input_argument.second));
+        for (const auto& [input_arg_name, input_arg_info] : plugin_description.getInputVariablesMap()) {
+            const auto& expression_type = input_arg_info.first;
+            const auto& expression_value = input_arg_info.second;
+            if (expression_type == model_checker::SmcPluginInstance::ExprType::BOOL) {
+                input_data.emplace(input_arg_name, _evaluator_ptr->asBool(expression_value));
+            } else if (expression_type == model_checker::SmcPluginInstance::ExprType::INT) {
+                input_data.emplace(input_arg_name, _evaluator_ptr->asInt(expression_value));
+            } else if (expression_type == model_checker::SmcPluginInstance::ExprType::REAL) {
+                input_data.emplace(input_arg_name, _evaluator_ptr->asRational(expression_value));
             } else {
                 STORM_LOG_THROW(
                     false, storm::exceptions::InvalidModelException,
-                    "Cannot determine what data type to use for the input " + input_argument.first + " of " +
+                    "Cannot determine what data type to use for the input " + input_arg_name + " of " +
                         plugin_description.getAutomatonName() + " plugin.");
             }
         }

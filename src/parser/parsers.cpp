@@ -181,9 +181,10 @@ model_checker::ModelAndProperties substituteConstants(
             property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException,
             "The property uses undefined constants!!!");
     }
-    for (const auto& plugin : model_and_properties.plugins) {
-        // TODO: Substitute constants in plugins, too
-        ret_model_and_properties.plugins.emplace_back(plugin);
+    for (const auto& loaded_plugin : model_and_properties.plugins) {
+        auto plugin = loaded_plugin;
+        plugin.assignConstantValues(user_constants_map);
+        ret_model_and_properties.plugins.emplace_back(std::move(plugin));
     }
     return ret_model_and_properties;
 }
