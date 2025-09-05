@@ -201,7 +201,6 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
             }
         }
     }
-    updateCurrentState(_initial_state);
     // Resetting all external plugins to the initial state
     const auto& plugins_desc = _external_plugins_desc.get();
     for (size_t plugin_id = 0u; plugin_id < plugins_desc.size(); plugin_id++) {
@@ -209,12 +208,13 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
         const auto& plugin_ptr = _loaded_plugin_ptrs[plugin_id];
         const auto reset_result = plugin_ptr->reset();
         if (reset_result.has_value()) {
-            assignPluginResultToState(_current_state, *reset_result, plugin_desc);
+            assignPluginResultToState(_initial_state, *reset_result, plugin_desc);
         } else {
             // If the reset of plugin fails, then return the empty state.
             return _empty_state;
         }
     }
+    updateCurrentState(_initial_state);
     return _current_state;
 }
 
