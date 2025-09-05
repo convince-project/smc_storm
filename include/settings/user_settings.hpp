@@ -30,7 +30,7 @@ struct UserSettings {
     std::string custom_property = "";
     std::string constants{""};
     std::string stat_method{""};
-    std::string traces_file{""};
+    std::string traces_folder{""};
     std::string plugin_paths{""};
     double confidence{0.95};
     double epsilon{0.01};

@@ -78,7 +78,7 @@ bool StatisticalModelCheckingEngine<ModelType, CacheData>::canHandleStatic(
 
 template <typename ModelType, bool CacheData>
 bool StatisticalModelCheckingEngine<ModelType, CacheData>::traceStorageEnabled() const {
-    return !_settings.get().traces_file.empty();
+    return !_settings.get().traces_folder.empty();
 }
 
 template <typename ModelType, bool CacheData>
@@ -101,6 +101,14 @@ StatisticalModelCheckingEngine<ModelType, CacheData>::StatisticalModelCheckingEn
     // Verify model validity
     STORM_LOG_THROW(verifyModelValid(), storm::exceptions::InvalidModelException, "Invalid model provided: cannot evaluate!");
     STORM_LOG_THROW(verifySettingsValid(), storm::exceptions::InvalidSettingsException, "Invalid settings provided: cannot evaluate!");
+    if (traceStorageEnabled()) {
+        std::stringstream folder_name_stream;
+        const std::time_t now = std::time(nullptr);
+        folder_name_stream << _settings.get().traces_folder << "_" << std::put_time(std::localtime(&now), "%Y-%m-%d-%H-%M-%S");
+        _traces_folder = folder_name_stream.str();
+        STORM_PRINT("Writing traces to folder " + _traces_folder);
+        std::filesystem::create_directory(_traces_folder);
+    }
 }
 
 template <typename ModelType, bool CacheData>
@@ -131,19 +139,9 @@ bool StatisticalModelCheckingEngine<ModelType, CacheData>::verifySettingsValid()
         STORM_LOG_ERROR("The number of threads must be greater than 0!");
         is_settings_valid = false;
     }
-    if (traceStorageEnabled()) {
-        if (_settings.get().n_threads > 1U) {
-            STORM_LOG_ERROR("Traces can only be stored when using a single thread!");
-            is_settings_valid = false;
-        }
-        STORM_LOG_WARN_COND(
-            _settings.get().max_n_traces > 0U || (_settings.get().stop_after_failure && _settings.get().store_only_not_verified),
-            "The amount of generated traces might be very large if left unbounded. Consider setting `--max-n-traces`.");
-    } else {
-        STORM_LOG_WARN_COND(
-            _settings.get().max_n_traces == 0U && !_settings.get().stop_after_failure,
-            "The amount of generated traces is limited. This might affect reliability of the results.");
-    }
+    STORM_LOG_WARN_COND(
+        _settings.get().max_n_traces == 0U && !_settings.get().stop_after_failure,
+        "The amount of generated traces is limited. This might affect reliability of the results.");
     return is_settings_valid;
 }
 
@@ -251,6 +249,9 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     // As long as we didn't find a terminal (accepting or rejecting) state in the search, sample a new successor.
     samples::TraceResult path_result = samples::TraceResult::NO_INFO;
     state_generation.resetModel();
+    if (_traces_exporter_ptr) {
+        _traces_exporter_ptr->startNewTrace();
+    }
     while (path_result == samples::TraceResult::NO_INFO) {
         const auto& current_state = state_generation.getCurrentState();
         if constexpr (!CacheData) {
@@ -329,13 +330,9 @@ StatisticalModelCheckingEngine<ModelType, CacheData>::generateStateGenerator(
 template <typename ModelType, bool CacheData>
 void StatisticalModelCheckingEngine<ModelType, CacheData>::instantiateTraceGenerator(
     const StatisticalModelCheckingEngine<ModelType, CacheData>::StateGeneratorType& state_generator) {
-    if constexpr (CacheData) {
-        _traces_exporter_ptr =
-            std::make_unique<samples::CompressedStateTraceExporter>(_settings.get().traces_file, state_generator.getVariableInformation());
-    } else {
-        _traces_exporter_ptr = std::make_unique<samples::UncompressedStateTraceExporter>(
-            _settings.get().traces_file, state_generator.getVariableInformation());
-    }
+    using GenericExporter = std::conditional_t<CacheData, samples::CompressedStateTraceExporter, samples::UncompressedStateTraceExporter>;
+    const int thread_id = gettid();
+    _traces_exporter_ptr = std::make_unique<GenericExporter>(_traces_folder, state_generator.getVariableInformation(), thread_id);
 }
 
 template class StatisticalModelCheckingEngine<storm::models::sparse::Dtmc<double>, false>;

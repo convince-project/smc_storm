@@ -158,6 +158,7 @@ class StatisticalModelCheckingEngine : public storm::modelchecker::AbstractModel
     std::reference_wrapper<const settings::SmcSettings> _settings;
     std::reference_wrapper<const std::vector<SmcPluginInstance>> _loaded_plugins;
     std::unique_ptr<TraceExportType> _traces_exporter_ptr;
+    std::string _traces_folder = "";
 };
 }  // namespace model_checker
 }  // namespace smc_storm
