@@ -91,10 +91,11 @@ void SmcPluginInstance::sortOutputData() {
         });
 }
 
-void SmcPluginInstance::assignConstantValues(const std::map<storm::expressions::Variable, storm::expressions::Expression>& user_constants) {
+void SmcPluginInstance::assignConstantValues(const std::map<storm::expressions::Variable, storm::expressions::Expression>& model_consts) {
     STORM_LOG_THROW(!_constants_substituted, storm::exceptions::InternalException, "Substituting constant variables twice...");
+    // Update init parameters
     for (const auto& [init_arg, init_type_val] : _init_data_expressions) {
-        const auto init_expr = init_type_val.second.substitute(user_constants);
+        const auto init_expr = init_type_val.second.substitute(model_consts);
         STORM_LOG_THROW(
             !init_expr.containsVariables(), storm::exceptions::InvalidModelException,
             "Init param " + init_arg + " for plugin " + _plugin_id + " contains variables: it should be constant!");
@@ -111,6 +112,11 @@ void SmcPluginInstance::assignConstantValues(const std::map<storm::expressions::
             insertion_success, storm::exceptions::InternalException,
             "Error processing init param " + init_arg + " for plugin " + _plugin_id);
     }
+    // Update input expressions
+    for (auto& [_, input_type_expr] : _input_data_to_expression) {
+        input_type_expr.second = input_type_expr.second.substitute(model_consts);
+    }
+    // Done!
     _constants_substituted = true;
 }
 }  // namespace smc_storm::model_checker
