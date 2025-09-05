@@ -192,6 +192,28 @@ TEST(StatisticalModelCheckerJaniPluginTest, TestPluginErrors) {
     EXPECT_NEAR(result, expected_res, user_settings.epsilon);
 }
 
+TEST(StatisticalModelCheckerJaniPluginTest, TestPluginRobotConstantsFailure) {
+    // Test that the state gets initialized correctly and the property is not falsely verified
+    const std::filesystem::path jani_file = TEST_PATH / "robot_plugin.jani";
+    const auto user_settings = getSettings(jani_file, "goal_reached", "start_x=10.0, start_y=10.0, start_t=1.57", false, 5UL);
+    STORM_PRINT("Plugins paths: '" + user_settings.plugin_paths + "'\n");
+    const double result = getVerificationResult<double>(user_settings);
+    // This test should always fail
+    constexpr double expected_res = 0.0;
+    EXPECT_NEAR(result, expected_res, user_settings.epsilon);
+}
+
+TEST(StatisticalModelCheckerJaniPluginTest, TestPluginRobotConstantsSuccess) {
+    // Test that the state gets initialized correctly and the property is not falsely verified
+    const std::filesystem::path jani_file = TEST_PATH / "robot_plugin.jani";
+    const auto user_settings = getSettings(jani_file, "goal_reached", "start_x=1.0, start_y=0.0, start_t=1.57", false, 5UL);
+    STORM_PRINT("Plugins paths: '" + user_settings.plugin_paths + "'\n");
+    const double result = getVerificationResult<double>(user_settings);
+    // This test should always succeed
+    constexpr double expected_res = 1.0;
+    EXPECT_NEAR(result, expected_res, user_settings.epsilon);
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

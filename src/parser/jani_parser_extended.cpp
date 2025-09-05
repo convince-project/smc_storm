@@ -78,41 +78,33 @@ std::vector<model_checker::SmcPluginInstance> JaniParserExtended::loadPlugins(co
             if (plugin_entry.contains("init")) {
                 for (const auto& init_conf : plugin_entry.at("init")) {
                     const std::string data_name = init_conf.at("name").get<std::string>();
-                    const std::string data_type = init_conf.at("type").get<std::string>();
-                    // TODO: Try to load them using the Expression loader from JaniParser, making sure they are constants...
-                    const auto& data_json_value = init_conf.at("value");
-                    STORM_LOG_THROW(
-                        data_json_value.is_boolean() || data_json_value.is_number(), storm::exceptions::InvalidModelException,
-                        "Invalid init params for plugin " + plugin_id + ": expected a constant value.");
-                    if (data_type == "int") {
-                        plugin_instance.appendInitData(data_name, data_json_value.get<int64_t>());
-                    } else if (data_type == "real") {
-                        plugin_instance.appendInitData(data_name, data_json_value.get<double>());
-                    } else if (data_type == "bool") {
-                        plugin_instance.appendInitData(data_name, data_json_value.get<bool>());
-                    } else {
-                        STORM_LOG_THROW(false, storm::exceptions::InvalidModelException, "Invalid init params for plugin " + plugin_id);
-                    }
+                    const std::string data_type_str = init_conf.at("type").get<std::string>();
+                    // For the plugin init, we care only about constants
+                    Scope current_scope = Scope(automaton_id, &_constants_map);
+                    const auto data_expr = parseExpression(init_conf.at("value"), current_scope);
+                    const auto data_type = model_checker::SmcPluginInstance::getExprType(data_type_str);
+                    plugin_instance.appendInitData(data_name, data_expr, data_type);
                 }
             }
             // Append input config
             if (plugin_entry.contains("input")) {
-                for (const auto& init_conf : plugin_entry.at("input")) {
-                    const std::string data_name = init_conf.at("name").get<std::string>();
-                    const std::string data_type = init_conf.at("type").get<std::string>();
+                for (const auto& input_conf : plugin_entry.at("input")) {
+                    const std::string data_name = input_conf.at("name").get<std::string>();
+                    const std::string data_type_str = input_conf.at("type").get<std::string>();
                     const VariablesMap automaton_vars_map = extractVariablesAutomatonScope(jani_model.getAutomaton(automaton_id));
                     Scope current_scope = Scope(automaton_id, &_constants_map, &_global_vars_map, nullptr, &automaton_vars_map);
-                    const auto& data_value = parseExpression(init_conf.at("value"), current_scope);
-                    // TODO: Use data_type to validate the retrieved expression
-                    plugin_instance.appendInputData(data_name, data_value);
+                    const auto& data_expr = parseExpression(input_conf.at("value"), current_scope);
+                    const auto& data_type = model_checker::SmcPluginInstance::getExprType(data_type_str);
+                    plugin_instance.appendInputData(data_name, data_expr, data_type);
                 }
             }
             // Append output config
             if (plugin_entry.contains("output")) {
                 for (const auto& output_conf : plugin_entry.at("output")) {
                     const std::string ref_name = output_conf.at("ref").get<std::string>();
+                    const std::string data_value = output_conf.at("value").get<std::string>();
                     const storm::expressions::Variable& ref_var = jani_manager.getVariable(ref_name);
-                    plugin_instance.appendOutputData(ref_var, output_conf.at("value").get<std::string>());
+                    plugin_instance.appendOutputData(ref_var, data_value);
                 }
             }
             plugin_instance.sortOutputData();

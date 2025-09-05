@@ -155,25 +155,27 @@ model_checker::ModelAndProperties substituteConstants(
     const model_checker::ModelAndProperties& model_and_properties, const std::string constants) {
     model_checker::ModelAndProperties ret_model_and_properties;
     // Add the user-defined constants
-    const auto user_constants_map = model_and_properties.model.parseConstantDefinitions(constants);
+    auto user_constants_map = model_and_properties.model.parseConstantDefinitions(constants);
+    std::map<storm::expressions::Variable, storm::expressions::Expression> all_defined_constants;
+
     // Do not use the preprocess function, since it also eliminates unused variables (required for plugins)
     if (model_and_properties.model.isJaniModel()) {
-        const auto& jani_model = model_and_properties.model.asJaniModel();
+        auto jani_model = model_and_properties.model.asJaniModel().defineUndefinedConstants(user_constants_map);
+        all_defined_constants = jani_model.getConstantsSubstitution();
         if (model_and_properties.plugins.empty()) {
             // This substitutes the non-changing variables with constants
-            ret_model_and_properties.model =
-                jani_model.defineUndefinedConstants(user_constants_map).substituteConstantsFunctionsTranscendentals();
+            ret_model_and_properties.model = jani_model.substituteConstantsFunctionsTranscendentals();
         } else {
             // This makes sure that non-changing variables are preserved
-            ret_model_and_properties.model = jani_model.defineUndefinedConstants(user_constants_map).substituteConstantsInPlace(true);
+            ret_model_and_properties.model = jani_model.substituteConstantsInPlace(true);
         }
     } else {
-        ret_model_and_properties.model = model_and_properties.model.asPrismProgram()
-                                             .defineUndefinedConstants(user_constants_map)
-                                             .substituteConstantsFormulas()
-                                             .substituteNonStandardPredicates();
+        const auto prism_model = model_and_properties.model.asPrismProgram().defineUndefinedConstants(user_constants_map);
+        all_defined_constants = prism_model.getConstantsSubstitution();
+        ret_model_and_properties.model = prism_model.substituteConstantsFormulas().substituteNonStandardPredicates();
     }
-    ret_model_and_properties.properties = storm::api::substituteConstantsInProperties(model_and_properties.properties, user_constants_map);
+    ret_model_and_properties.properties =
+        storm::api::substituteConstantsInProperties(model_and_properties.properties, all_defined_constants);
     ret_model_and_properties.properties = storm::api::substituteTranscendentalNumbersInProperties(ret_model_and_properties.properties);
     // Make sure that all properties have no undefined constant
     for (const auto& property : ret_model_and_properties.properties) {
@@ -181,9 +183,11 @@ model_checker::ModelAndProperties substituteConstants(
             property.getUndefinedConstants().empty(), storm::exceptions::InvalidPropertyException,
             "The property uses undefined constants!!!");
     }
-    for (const auto& plugin : model_and_properties.plugins) {
-        // TODO: Substitute constants in plugins, too
-        ret_model_and_properties.plugins.emplace_back(plugin);
+    // Update the info concerning constants in the various plugins amd save it in the output model
+    for (const auto& loaded_plugin : model_and_properties.plugins) {
+        auto plugin = loaded_plugin;
+        plugin.assignConstantValues(all_defined_constants);
+        ret_model_and_properties.plugins.emplace_back(std::move(plugin));
     }
     return ret_model_and_properties;
 }

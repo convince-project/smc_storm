@@ -59,7 +59,9 @@ template <typename ValueType>
 void StateGenerationCacheless<ValueType>::resetModel() {
     _deadlock_found = false;
     _current_state = _generator_ptr->setInitialState();
-    _available_actions = _generator_ptr->getAvailableActions();
+    if (!_current_state->get().empty()) {
+        _available_actions = _generator_ptr->getAvailableActions();
+    }
 }
 
 template <typename ValueType>

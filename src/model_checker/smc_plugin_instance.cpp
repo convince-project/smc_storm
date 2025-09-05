@@ -16,10 +16,24 @@
  */
 #include "model_checker/smc_plugin_instance.hpp"
 #include <smc_verifiable_plugins/utils.hpp>
+#include <storm/exceptions/InternalException.h>
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/utility/macros.h>
 
 namespace smc_storm::model_checker {
+SmcPluginInstance::ExprType SmcPluginInstance::getExprType(const std::string& type_str) {
+    if (type_str == "bool") {
+        return SmcPluginInstance::ExprType::BOOL;
+    }
+    if (type_str == "int") {
+        return SmcPluginInstance::ExprType::INT;
+    }
+    if (type_str == "real") {
+        return SmcPluginInstance::ExprType::REAL;
+    }
+    STORM_LOG_THROW(false, storm::exceptions::InvalidModelException, "Unknown data type " + type_str);
+}
+
 SmcPluginInstance::SmcPluginInstance(
     const std::vector<std::filesystem::path>& available_paths, const std::string& plugin_name, const std::string& automaton_id,
     const std::string& action_name, const uint64_t action_id)
@@ -38,19 +52,23 @@ std::unique_ptr<smc_verifiable_plugins::SmcPluginBase> SmcPluginInstance::genera
     return smc_verifiable_plugins::loadPlugin(_plugin_path, _plugin_id);
 }
 
-template <typename T>
-void SmcPluginInstance::appendInitData(const std::string& name, const T& value) {
-    const bool insertion_success = _init_data.emplace(name, value).second;
+void SmcPluginInstance::appendInitData(const std::string& ref, const storm::expressions::Expression& expr_v, const ExprType& expr_t) {
+    const bool insertion_success = _init_data_expressions.emplace(ref, std::make_pair(expr_t, expr_v)).second;
     STORM_LOG_THROW(
         insertion_success, storm::exceptions::InvalidModelException,
-        "Init param " + name + " for plugin " + _plugin_id + " of automaton " + _automaton_id + " provided twice.");
+        "Init param " + ref + " for plugin " + _plugin_id + " of automaton " + _automaton_id + " provided twice.");
 }
 
-void SmcPluginInstance::appendInputData(const std::string& name, const storm::expressions::Expression& value) {
-    const bool insertion_success = _input_data_to_expression.emplace(name, value).second;
+const smc_verifiable_plugins::DataExchange& SmcPluginInstance::getInitData() const {
+    STORM_LOG_THROW(_constants_substituted, storm::exceptions::InternalException, "The constants haven't been substituted yet!");
+    return _init_data;
+}
+
+void SmcPluginInstance::appendInputData(const std::string& ref, const storm::expressions::Expression& expr_v, const ExprType& expr_t) {
+    const bool insertion_success = _input_data_to_expression.emplace(ref, std::make_pair(expr_t, expr_v)).second;
     STORM_LOG_THROW(
         insertion_success, storm::exceptions::InvalidModelException,
-        "Input param " + name + " for plugin " + _plugin_id + " of automaton " + _automaton_id + " provided twice.");
+        "Input param " + ref + " for plugin " + _plugin_id + " of automaton " + _automaton_id + " provided twice.");
 }
 
 void SmcPluginInstance::appendOutputData(const storm::expressions::Variable& ref, const std::string& value) {
@@ -73,7 +91,32 @@ void SmcPluginInstance::sortOutputData() {
         });
 }
 
-template void SmcPluginInstance::appendInitData<>(const std::string&, const bool&);
-template void SmcPluginInstance::appendInitData<>(const std::string&, const int64_t&);
-template void SmcPluginInstance::appendInitData<>(const std::string&, const double&);
+void SmcPluginInstance::assignConstantValues(const std::map<storm::expressions::Variable, storm::expressions::Expression>& model_consts) {
+    STORM_LOG_THROW(!_constants_substituted, storm::exceptions::InternalException, "Substituting constant variables twice...");
+    // Update init parameters
+    for (const auto& [init_arg, init_type_val] : _init_data_expressions) {
+        const auto init_expr = init_type_val.second.substitute(model_consts);
+        STORM_LOG_THROW(
+            !init_expr.containsVariables(), storm::exceptions::InvalidModelException,
+            "Init param " + init_arg + " for plugin " + _plugin_id + " contains variables: it should be constant!");
+        std::variant<int64_t, double, bool> evaluated_init;
+        if (init_type_val.first == ExprType::BOOL) {
+            evaluated_init = init_expr.evaluateAsBool();
+        } else if (init_type_val.first == ExprType::INT) {
+            evaluated_init = init_expr.evaluateAsInt();
+        } else {
+            evaluated_init = init_expr.evaluateAsDouble();
+        }
+        const bool insertion_success = _init_data.emplace(init_arg, evaluated_init).second;
+        STORM_LOG_THROW(
+            insertion_success, storm::exceptions::InternalException,
+            "Error processing init param " + init_arg + " for plugin " + _plugin_id);
+    }
+    // Update input expressions
+    for (auto& [_, input_type_expr] : _input_data_to_expression) {
+        input_type_expr.second = input_type_expr.second.substitute(model_consts);
+    }
+    // Done!
+    _constants_substituted = true;
+}
 }  // namespace smc_storm::model_checker

@@ -253,13 +253,13 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     state_generation.resetModel();
     while (path_result == samples::TraceResult::NO_INFO) {
         const auto& current_state = state_generation.getCurrentState();
-        const auto& state_info = state_generation.getStateInfo();
         if constexpr (!CacheData) {
             if (current_state.empty()) {
                 // Invalid state: a plugin reported an error during states expansion, hence we treat the trace as "NO_INFO"
                 break;
             }
         }
+        const auto& state_info = state_generation.getStateInfo();
         if (_traces_exporter_ptr) {
             _traces_exporter_ptr->addNextState(current_state);
         }

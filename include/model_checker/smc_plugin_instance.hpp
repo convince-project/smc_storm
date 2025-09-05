@@ -29,12 +29,15 @@ namespace smc_storm::model_checker {
  */
 class SmcPluginInstance {
   public:
-    // A pair associating a plugin variable name to an expression variable
+    enum class ExprType { BOOL, INT, REAL };
+    // A pair associating a plugin variable name to an expression variable (used for output variables)
     using PluginAndModelVariable = std::pair<std::string, storm::expressions::Variable>;
     // A vector of pairs of plugin and model variables, used to describe the plugin output interface
-    using PluginAndModelVariableVector = std::vector<std::pair<std::string, storm::expressions::Variable>>;
+    using PluginAndModelVariableVector = std::vector<PluginAndModelVariable>;
     // A mapping from the input arg name and the associated expression
-    using PluginToModelExpressionMap = std::unordered_map<std::string, storm::expressions::Expression>;
+    using PluginToModelExpressionMap = std::unordered_map<std::string, std::pair<ExprType, storm::expressions::Expression>>;
+
+    static ExprType getExprType(const std::string& type_str);
 
     SmcPluginInstance() = delete;
 
@@ -78,20 +81,17 @@ class SmcPluginInstance {
     /*!
      * @brief Appends initialization data to the plugin instance.
      *
-     * @tparam T The type of the value to be appended.
      * @param ref The name of the config parameter in the plugin.
-     * @param value The value to assign to the configuration parameter.
+     * @param expr_v The value to assign to the configuration parameter.
+     * @param expr_t The type of the value in the configuration parameter.
      */
-    template <typename T>
-    void appendInitData(const std::string& ref, const T& value);
+    void appendInitData(const std::string& ref, const storm::expressions::Expression& expr_v, const ExprType& expr_t);
 
     /*!
      * @brief Get the initialization data for the plugin.
      * @return The DataExchange object containing all initialization data for the plugin.
      */
-    inline const smc_verifiable_plugins::DataExchange& getInitData() const {
-        return _init_data;
-    }
+    const smc_verifiable_plugins::DataExchange& getInitData() const;
 
     /*!
      * @brief Get the mapping between the plugin input variables and the associated model variables.
@@ -112,11 +112,11 @@ class SmcPluginInstance {
     /*!
      * @brief Appends input data to the plugin instance.
      *
-     * @tparam T The type of the value to be appended.
      * @param ref A reference string to identify the input data in the plugin.
-     * @param value The value to assign to the input data.
+     * @param expr_v The expression to assign to the input data.
+     * @param expr_t The type of the expression to assign to the input data.
      */
-    void appendInputData(const std::string& ref, const storm::expressions::Expression& value);
+    void appendInputData(const std::string& ref, const storm::expressions::Expression& expr_v, const ExprType& expr_t);
 
     /*!
      * @brief Appends output data to the plugin instance.
@@ -131,6 +131,8 @@ class SmcPluginInstance {
      */
     void sortOutputData();
 
+    void assignConstantValues(const std::map<storm::expressions::Variable, storm::expressions::Expression>& user_constants);
+
     /*!
      * @brief Generate a plugin instance related to the loaded plugin information.
      */
@@ -142,6 +144,8 @@ class SmcPluginInstance {
     const std::string _automaton_id;
     const std::string _action_name;
     const uint64_t _action_id;
+    bool _constants_substituted = false;
+    PluginToModelExpressionMap _init_data_expressions = {};
     smc_verifiable_plugins::DataExchange _init_data = {};
 
     // Map between the input data of the plugin and the JANI expression
