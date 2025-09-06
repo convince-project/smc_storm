@@ -30,7 +30,7 @@ struct UserSettings {
     std::string custom_property = "";
     std::string constants{""};
     std::string stat_method{""};
-    std::string traces_file{""};
+    std::string traces_folder{""};
     std::string plugin_paths{""};
     double confidence{0.95};
     double epsilon{0.01};
@@ -38,6 +38,7 @@ struct UserSettings {
     size_t max_n_traces{0U};
     size_t n_threads{1U};
     size_t batch_size{100U};
+    bool traces_add_date{false};
     bool stop_after_failure{false};
     bool store_only_not_verified{false};
     bool cache_explored_states{true};

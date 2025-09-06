@@ -34,7 +34,7 @@ class TracesExporter {
      * @param path_to_file Path to the CSV file to write the traces in
      * @param var_info Reference to the VariableInformation instance related to the loaded model, to expand CompressedStates
      */
-    TracesExporter(const std::filesystem::path& path_to_file);
+    TracesExporter(const std::filesystem::path& path_to_file, const int thread_id);
 
     virtual ~TracesExporter();
 
@@ -48,58 +48,40 @@ class TracesExporter {
      */
     void addCurrentTraceResult(const TraceInformation& result);
 
-  protected:
-    virtual void writeCachedStates() = 0;
-    virtual void clearTraces() = 0;
+    virtual void startNewTrace() = 0;
 
-    std::ofstream _file;
+  protected:
+    void createNewTraceFile();
+    const std::string generateNewFilename(const smc_storm::samples::TraceResult& res);
+
+    std::ofstream _current_file;
+    const std::filesystem::path _traces_folder;
     bool _export_only_failures = false;
     size_t _trace_counter;
     size_t _n_variables;
+    const int _thread_id;
+    const std::string _tmp_filename_path;
 };
 
 class CompressedStateTraceExporter : public TracesExporter {
   public:
-    CompressedStateTraceExporter(const std::filesystem::path& path_to_file, const storm::generator::VariableInformation& var_info);
+    CompressedStateTraceExporter(
+        const std::filesystem::path& path_to_file, const storm::generator::VariableInformation& var_info, const int thread_id);
+    void startNewTrace() override;
     void addNextState(const storm::generator::CompressedState& state);
 
   private:
-    void writeCachedStates() override;
-
-    inline void clearTraces() override {
-        _current_trace_states.clear();
-    }
-
-    /*!
-     * @brief Write the provided state into the loaded file.
-     * @param state The state description to write in the file.
-     */
-    void writeNextState(const storm::generator::CompressedState& state);
-
     const storm::generator::VariableInformation& _var_info;
-    std::vector<storm::generator::CompressedState> _current_trace_states;
 };
 
 class UncompressedStateTraceExporter : public TracesExporter {
   public:
     UncompressedStateTraceExporter(
-        const std::filesystem::path& path_to_file, const state_properties::StateVariableInformation<double>& var_info);
+        const std::filesystem::path& path_to_file, const state_properties::StateVariableInformation<double>& var_info, const int thread_id);
+    void startNewTrace() override;
     void addNextState(const state_properties::StateVariableData<double>& state);
 
   private:
-    void writeCachedStates() override;
-
-    inline void clearTraces() override {
-        _current_trace_states.clear();
-    }
-
-    /*!
-     * @brief Write the provided state into the loaded file.
-     * @param state The state description to write in the file.
-     */
-    void writeNextState(const state_properties::StateVariableData<double>& state);
-
     const state_properties::StateVariableInformation<double>& _var_info;
-    std::vector<state_properties::StateVariableData<double>> _current_trace_states;
 };
 }  // namespace smc_storm::samples

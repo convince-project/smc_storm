@@ -32,7 +32,11 @@ CmdSettings::CmdSettings() : _parser("smc_storm", VERSION) {
         .help("Names of the properties to check, separated by commas. If empty, all properties will be checked.");
     _parser.add_argument("--custom-property").default_value(_loaded_settings.custom_property).help("Custom property to check.");
     _parser.add_argument("--stat-method").default_value(_loaded_settings.stat_method).help("Statistical method to use.");
-    _parser.add_argument("--traces-file").default_value(_loaded_settings.traces_file).help("Path to the traces file.");
+    _parser.add_argument("--traces-folder").default_value(_loaded_settings.traces_folder).help("Path to the traces folder.");
+    _parser.add_argument("--append-date")
+        .default_value(false)
+        .implicit_value(true)
+        .help("Whether to add the current date to the traces folder.");
     _parser.add_argument("--plugin-paths").default_value(_loaded_settings.plugin_paths).help("Where to load the SMC plugins from.");
     _parser.add_argument("--confidence").scan<'g', double>().default_value(_loaded_settings.confidence).help("Confidence level.");
     _parser.add_argument("--epsilon").scan<'g', double>().default_value(_loaded_settings.epsilon).help("Maximum absolute error.");
@@ -75,7 +79,8 @@ void CmdSettings::parse(int argc, char* argv[]) {
         _loaded_settings.properties_names = _parser.get<std::string>("--properties-names");
         _loaded_settings.custom_property = _parser.get<std::string>("--custom-property");
         _loaded_settings.stat_method = _parser.get<std::string>("--stat-method");
-        _loaded_settings.traces_file = _parser.get<std::string>("--traces-file");
+        _loaded_settings.traces_folder = _parser.get<std::string>("--traces-folder");
+        _loaded_settings.traces_add_date = _parser.get<bool>("--append-date");
         _loaded_settings.plugin_paths = _parser.get<std::string>("--plugin-paths");
         _loaded_settings.confidence = _parser.get<double>("--confidence");
         _loaded_settings.epsilon = _parser.get<double>("--epsilon");

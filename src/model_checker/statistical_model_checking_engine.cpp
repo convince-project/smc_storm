@@ -46,6 +46,7 @@
 #include <storm/utility/prism.h>
 #include <storm/utility/random.h>
 
+#include <storm/exceptions/FileIoException.h>
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidOperationException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
@@ -78,7 +79,7 @@ bool StatisticalModelCheckingEngine<ModelType, CacheData>::canHandleStatic(
 
 template <typename ModelType, bool CacheData>
 bool StatisticalModelCheckingEngine<ModelType, CacheData>::traceStorageEnabled() const {
-    return !_settings.get().traces_file.empty();
+    return !_settings.get().traces_folder.empty();
 }
 
 template <typename ModelType, bool CacheData>
@@ -101,6 +102,20 @@ StatisticalModelCheckingEngine<ModelType, CacheData>::StatisticalModelCheckingEn
     // Verify model validity
     STORM_LOG_THROW(verifyModelValid(), storm::exceptions::InvalidModelException, "Invalid model provided: cannot evaluate!");
     STORM_LOG_THROW(verifySettingsValid(), storm::exceptions::InvalidSettingsException, "Invalid settings provided: cannot evaluate!");
+    if (traceStorageEnabled()) {
+        std::stringstream folder_name_stream;
+        folder_name_stream << _settings.get().traces_folder;
+        if (_settings.get().traces_add_date) {
+            const std::time_t now = std::time(nullptr);
+            folder_name_stream << std::put_time(std::localtime(&now), "_%Y-%m-%d-%H-%M-%S");
+        }
+        _traces_folder = folder_name_stream.str();
+        STORM_PRINT("Writing traces to folder " + _traces_folder);
+        STORM_LOG_THROW(
+            !std::filesystem::exists(_traces_folder), storm::exceptions::FileIoException,
+            "The folder " + _traces_folder + " already exists.");
+        std::filesystem::create_directory(_traces_folder);
+    }
 }
 
 template <typename ModelType, bool CacheData>
@@ -131,19 +146,9 @@ bool StatisticalModelCheckingEngine<ModelType, CacheData>::verifySettingsValid()
         STORM_LOG_ERROR("The number of threads must be greater than 0!");
         is_settings_valid = false;
     }
-    if (traceStorageEnabled()) {
-        if (_settings.get().n_threads > 1U) {
-            STORM_LOG_ERROR("Traces can only be stored when using a single thread!");
-            is_settings_valid = false;
-        }
-        STORM_LOG_WARN_COND(
-            _settings.get().max_n_traces > 0U || (_settings.get().stop_after_failure && _settings.get().store_only_not_verified),
-            "The amount of generated traces might be very large if left unbounded. Consider setting `--max-n-traces`.");
-    } else {
-        STORM_LOG_WARN_COND(
-            _settings.get().max_n_traces == 0U && !_settings.get().stop_after_failure,
-            "The amount of generated traces is limited. This might affect reliability of the results.");
-    }
+    STORM_LOG_WARN_COND(
+        _settings.get().max_n_traces == 0U && !_settings.get().stop_after_failure,
+        "The amount of generated traces is limited. This might affect reliability of the results.");
     return is_settings_valid;
 }
 
@@ -214,14 +219,7 @@ void StatisticalModelCheckingEngine<ModelType, CacheData>::performSampling(
     samples::SamplingResults& sampling_results, const size_t thread_id) {
     auto generator_ptr = generateStateGenerator(check_task, rnd_gen);
     state_generation::ActionScheduler<ValueType> action_sampler(rnd_gen);
-
-    if (traceStorageEnabled()) {
-        // Prepare the traces export object
-        instantiateTraceGenerator(*generator_ptr);
-        if (_settings.get().store_only_not_verified) {
-            _traces_exporter_ptr->setExportOnlyFailures();
-        }
-    }
+    auto trace_generator_ptr = instantiateTraceGenerator(*generator_ptr);
     samples::BatchResults batch_results = sampling_results.getBatchResultInstance();
 
     // Now perform the actual sampling
@@ -229,17 +227,18 @@ void StatisticalModelCheckingEngine<ModelType, CacheData>::performSampling(
         batch_results.reset();
         while (batch_results.batchIncomplete()) {
             // Sample a new path
-            const auto result = samplePathFromInitialState(*generator_ptr, action_sampler);
+            const auto result = samplePathFromInitialState(*generator_ptr, action_sampler, trace_generator_ptr);
             batch_results.addResult(result);
         }
         sampling_results.addBatchResults(batch_results, thread_id);
     }
-    _traces_exporter_ptr.reset();
+    trace_generator_ptr.reset();
 }
 
 template <typename ModelType, bool CacheData>
 samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::samplePathFromInitialState(
-    StateGeneratorType& state_generation, const state_generation::ActionScheduler<ValueType>& action_sampler) const {
+    StateGeneratorType& state_generation, const state_generation::ActionScheduler<ValueType>& action_sampler,
+    const std::unique_ptr<TraceExportType>& trace_exporter_ptr) const {
     samples::TraceInformation trace_information;
     trace_information.trace_length = 0U;
     trace_information.outcome = samples::TraceResult::NO_INFO;
@@ -251,6 +250,9 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     // As long as we didn't find a terminal (accepting or rejecting) state in the search, sample a new successor.
     samples::TraceResult path_result = samples::TraceResult::NO_INFO;
     state_generation.resetModel();
+    if (trace_exporter_ptr) {
+        trace_exporter_ptr->startNewTrace();
+    }
     while (path_result == samples::TraceResult::NO_INFO) {
         const auto& current_state = state_generation.getCurrentState();
         if constexpr (!CacheData) {
@@ -260,8 +262,8 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
             }
         }
         const auto& state_info = state_generation.getStateInfo();
-        if (_traces_exporter_ptr) {
-            _traces_exporter_ptr->addNextState(current_state);
+        if (trace_exporter_ptr) {
+            trace_exporter_ptr->addNextState(current_state);
         }
         // Reward calculation pt. 1: Add the state reward
         trace_information.reward += state_generation.getStateReward();
@@ -301,8 +303,8 @@ samples::TraceInformation StatisticalModelCheckingEngine<ModelType, CacheData>::
     }
     trace_information.outcome = path_result;
     // Export the trace results and start a new one, if requested
-    if (_traces_exporter_ptr) {
-        _traces_exporter_ptr->addCurrentTraceResult(trace_information);
+    if (trace_exporter_ptr) {
+        trace_exporter_ptr->addCurrentTraceResult(trace_information);
     }
     return trace_information;
 }
@@ -323,18 +325,6 @@ StatisticalModelCheckingEngine<ModelType, CacheData>::generateStateGenerator(
         return std::make_unique<StateGeneratorType>(_model.get(), formula, reward_model, traceStorageEnabled(), random_generator);
     } else {
         return std::make_unique<StateGeneratorType>(_model.get(), formula, reward_model, random_generator, _loaded_plugins.get());
-    }
-}
-
-template <typename ModelType, bool CacheData>
-void StatisticalModelCheckingEngine<ModelType, CacheData>::instantiateTraceGenerator(
-    const StatisticalModelCheckingEngine<ModelType, CacheData>::StateGeneratorType& state_generator) {
-    if constexpr (CacheData) {
-        _traces_exporter_ptr =
-            std::make_unique<samples::CompressedStateTraceExporter>(_settings.get().traces_file, state_generator.getVariableInformation());
-    } else {
-        _traces_exporter_ptr = std::make_unique<samples::UncompressedStateTraceExporter>(
-            _settings.get().traces_file, state_generator.getVariableInformation());
     }
 }
 
