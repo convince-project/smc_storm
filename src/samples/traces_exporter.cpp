@@ -54,6 +54,7 @@ void TracesExporter::addCurrentTraceResult(const TraceInformation& result) {
         for (size_t i = 0; i < _n_variables + 1U; i++) {
             _current_file << ";";
         }
+        _current_file << "\n";
         _trace_counter++;
         storm::io::closeFile(_current_file);
         std::rename(_tmp_filename_path.c_str(), (_traces_folder / generateNewFilename(result.outcome)).c_str());

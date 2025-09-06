@@ -18,6 +18,7 @@
 #include <gtest/gtest.h>
 
 #include <filesystem>
+#include <regex>
 
 #include <storm/exceptions/NotSupportedException.h>
 
@@ -32,7 +33,7 @@ constexpr char FORBIDDEN_CHAR = ',';
 
 smc_storm::settings::UserSettings getSmcSettings(
     const std::string& traces_folder, const std::filesystem::path& jani_file, const std::string& property,
-    const std::string& constants = "") {
+    const std::string& constants = "", const bool add_date = false) {
     smc_storm::settings::UserSettings settings;
     settings.model_file = jani_file.string();
     settings.properties_names = property;
@@ -41,6 +42,7 @@ smc_storm::settings::UserSettings getSmcSettings(
     settings.stat_method = "chernoff";
     settings.max_n_traces = 10;
     settings.traces_folder = (TEST_TRACES_PATH / traces_folder).string();
+    settings.traces_add_date = add_date;
     return settings;
 }
 
@@ -82,12 +84,8 @@ TEST(ExportTracesCommonCaseTest, TestLeaderSync) {
         while (true) {
             std::getline(traces_file, line);
             EXPECT_TRUE(lineValid(line, n_separators));
-            if (traces_file.peek() != EOF) {
-                traces_file.seekg(1, traces_file.cur);
-                if (traces_file.peek() == EOF) {
-                    break;
-                }
-                traces_file.seekg(-1, traces_file.cur);
+            if (traces_file.peek() == EOF) {
+                break;
             }
         }
         traces_file.close();
@@ -95,16 +93,33 @@ TEST(ExportTracesCommonCaseTest, TestLeaderSync) {
     EXPECT_EQ(n_files, 10u);
 }
 
-// TEST(ExportTracesDeathTest, TestLeaderSync) {
-//     const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
-//     const auto smc_settings = getSmcSettings("leader_sync_death.csv", jani_file, "time");
-//     // Make sure the file already exists
-//     std::ofstream ofs(smc_settings.traces_file);
-//     ofs << "\n";
-//     ofs.close();
-//     // Ensure the code dies in such case
-//     EXPECT_DEATH(getVerificationResult<double>(smc_settings), "");
-// }
+TEST(ExportTracesDeathTest, TestLeaderSync) {
+    const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
+    const auto smc_settings = getSmcSettings("leader_sync_death", jani_file, "time", "");
+    // Make sure the file already exists
+    std::filesystem::create_directory(smc_settings.traces_folder);
+    // Ensure the code dies in such case
+    ASSERT_THROW(getVerificationResult<double>(smc_settings), storm::exceptions::FileIoException);
+}
+
+TEST(ExportTracesWithDate, TestLeaderSync) {
+    const std::string trace_dir_name = "folder_w_date";
+    const std::filesystem::path jani_file = TEST_PATH / "leader_sync.3-2.v1.jani";
+    const auto smc_settings = getSmcSettings(trace_dir_name, jani_file, "time", "", true);
+    const double result = getVerificationResult<double>(smc_settings);
+    bool dir_found = false;
+    for (const auto& folder_name : std::filesystem::directory_iterator(TEST_TRACES_PATH)) {
+        if (folder_name.is_directory()) {
+            std::string name_str = folder_name.path().filename().string();
+            if (name_str.starts_with(trace_dir_name)) {
+                std::regex date_regex(R"(^.+_\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$)");
+                dir_found = std::regex_match(name_str, date_regex);
+                break;
+            }
+        }
+    }
+    EXPECT_TRUE(dir_found);
+}
 
 int main(int argc, char** argv) {
     // Make sure the initial folder status is as expected

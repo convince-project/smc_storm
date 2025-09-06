@@ -46,6 +46,7 @@
 #include <storm/utility/prism.h>
 #include <storm/utility/random.h>
 
+#include <storm/exceptions/FileIoException.h>
 #include <storm/exceptions/InvalidModelException.h>
 #include <storm/exceptions/InvalidOperationException.h>
 #include <storm/exceptions/InvalidPropertyException.h>
@@ -103,10 +104,16 @@ StatisticalModelCheckingEngine<ModelType, CacheData>::StatisticalModelCheckingEn
     STORM_LOG_THROW(verifySettingsValid(), storm::exceptions::InvalidSettingsException, "Invalid settings provided: cannot evaluate!");
     if (traceStorageEnabled()) {
         std::stringstream folder_name_stream;
-        const std::time_t now = std::time(nullptr);
-        folder_name_stream << _settings.get().traces_folder << "_" << std::put_time(std::localtime(&now), "%Y-%m-%d-%H-%M-%S");
+        folder_name_stream << _settings.get().traces_folder;
+        if (_settings.get().traces_add_date) {
+            const std::time_t now = std::time(nullptr);
+            folder_name_stream << std::put_time(std::localtime(&now), "_%Y-%m-%d-%H-%M-%S");
+        }
         _traces_folder = folder_name_stream.str();
         STORM_PRINT("Writing traces to folder " + _traces_folder);
+        STORM_LOG_THROW(
+            !std::filesystem::exists(_traces_folder), storm::exceptions::FileIoException,
+            "The folder " + _traces_folder + " already exists.");
         std::filesystem::create_directory(_traces_folder);
     }
 }
