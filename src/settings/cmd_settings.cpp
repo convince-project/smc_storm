@@ -80,7 +80,7 @@ void CmdSettings::parse(int argc, char* argv[]) {
         _loaded_settings.custom_property = _parser.get<std::string>("--custom-property");
         _loaded_settings.stat_method = _parser.get<std::string>("--stat-method");
         _loaded_settings.traces_folder = _parser.get<std::string>("--traces-folder");
-        _loaded_settings.traces_add_date = _parser.get<bool>("--add-date");
+        _loaded_settings.traces_add_date = _parser.get<bool>("--append-date");
         _loaded_settings.plugin_paths = _parser.get<std::string>("--plugin-paths");
         _loaded_settings.confidence = _parser.get<double>("--confidence");
         _loaded_settings.epsilon = _parser.get<double>("--epsilon");
