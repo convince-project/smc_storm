@@ -75,7 +75,7 @@ const std::string TracesExporter::generateNewFilename(const smc_storm::samples::
         suffix = "_unknown";
     }
     std::stringstream stream;
-    stream << "trace_" << _thread_id << "_" << std::setw(6) << std::setfill('0') << _trace_counter << suffix;
+    stream << "trace_" << _thread_id << "_" << std::setw(6) << std::setfill('0') << _trace_counter << suffix << ".csv";
     return stream.str();
 }
 
