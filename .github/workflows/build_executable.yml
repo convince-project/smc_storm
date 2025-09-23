@@ -89,18 +89,18 @@ jobs:
                     # List all existing dependencies of libstorm
                     echo "libstorm dependencies:"
                     ldd external_dependencies/storm/build/lib/libstorm.so
-                    CARL_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o 'libcarl\.so(\.[0-9]*)+' | head -1)
-                    SPOT_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o 'libspot\.so(\.[0-9]*)+' | head -1)
-                    BDDX_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o 'libbddx\.so(\.[0-9]*)+' | head -1)
+                    CARL_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o '[/a-zA-Z0-9\_\-]+libcarl\.so(\.[0-9]*)+' | head -1)
+                    SPOT_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o '[/a-zA-Z0-9\_\-]+libspot\.so(\.[0-9]*)+' | head -1)
+                    BDDX_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o '[/a-zA-Z0-9\_\-]+libbddx\.so(\.[0-9]*)+' | head -1)
                     mkdir deployment
                     cd deployment
                     # Copy the dependencies
                     mkdir 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm.so 3rd_party
                     cp ../external_dependencies/storm/build/lib/libstorm-parsers.so 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/carl/$CARL_LIB 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/$SPOT_LIB 3rd_party
-                    cp ../external_dependencies/storm/build/resources/3rdparty/spot/lib/$BDDX_LIB 3rd_party
+                    cp $CARL_LIB 3rd_party
+                    cp $SPOT_LIB 3rd_party
+                    cp $BDDX_LIB 3rd_party
                     # Copy the smc_storm lib
                     mkdir lib
                     cp ../build/lib/libsmc_storm_lib.so lib
