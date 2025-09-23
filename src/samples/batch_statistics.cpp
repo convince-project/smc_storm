@@ -26,11 +26,15 @@ BatchStatistics::BatchStatistics() : mean{0.0}, variance{0.0}, dim{0U} {}
 
 BatchStatistics::BatchStatistics(const std::vector<double>& samples) {
     dim = samples.size();
+    min_val = std::numeric_limits<double>::infinity();
+    max_val = -std::numeric_limits<double>::infinity();
     STORM_LOG_THROW(dim > 0U, storm::exceptions::IllegalArgumentValueException, "No samples.");
-    // Compute mean
+    // Compute mean, min and max
     mean = 0.0;
     for (const auto& sample : samples) {
         mean += sample;
+        min_val = std::min(min_val, sample);
+        max_val = std::max(max_val, sample);
     }
     mean /= static_cast<double>(dim);
     // Compute variance from samples and mean
@@ -46,14 +50,14 @@ BatchStatistics::BatchStatistics(const BatchStatistics& other_stats) {
     mean = other_stats.mean;
     variance = other_stats.variance;
     dim = other_stats.dim;
+    min_val = other_stats.min_val;
+    max_val = other_stats.max_val;
 }
 
 void BatchStatistics::updateStats(const BatchStatistics& other_stats) {
     // If the current batch is empty, just copy the other batch
     if (dim == 0U) {
-        mean = other_stats.mean;
-        variance = other_stats.variance;
-        dim = other_stats.dim;
+        *this = BatchStatistics(other_stats);
         return;
     }
     const double total_dim = static_cast<double>(dim + other_stats.dim);
@@ -61,10 +65,12 @@ void BatchStatistics::updateStats(const BatchStatistics& other_stats) {
     const double variance_lin_comb = (dim * variance + other_stats.dim * other_stats.variance) / total_dim;
     const double variance_correction =
         (mean - other_stats.mean) * (mean - other_stats.mean) * dim * other_stats.dim / (total_dim * total_dim);
-    // Update mean and variance
+    // Update current stats
     mean = new_mean;
     variance = variance_lin_comb + variance_correction;
     dim = dim + other_stats.dim;
+    min_val = std::min(min_val, other_stats.min_val);
+    max_val = std::max(max_val, other_stats.max_val);
 }
 
 }  // namespace smc_storm::samples

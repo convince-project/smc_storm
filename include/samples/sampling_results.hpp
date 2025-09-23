@@ -176,9 +176,7 @@ class SamplingResults {
     size_t _n_verified;
     size_t _n_not_verified;
     size_t _n_no_info;
-    // Variables to keep track of rewards (WIP, will need to be extended for different bound methods)
-    double _min_reward;
-    double _max_reward;
+    // Variables to keep track of rewards
     BatchStatistics _reward_stats;
 
     // Variables to keep track of the trace lengths

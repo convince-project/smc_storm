@@ -42,8 +42,6 @@ SamplingResults::SamplingResults(const settings::SmcSettings& settings, const st
     _n_verified = 0U;
     _n_not_verified = 0U;
     _n_no_info = 0U;
-    _min_reward = std::numeric_limits<double>::infinity();
-    _max_reward = -std::numeric_limits<double>::infinity();
     _min_trace_length = std::numeric_limits<size_t>::max();
     _max_trace_length = 0U;
     _progress = 0u;
@@ -270,17 +268,10 @@ void SamplingResults::processBatchResults(const BatchResults& res) {
     _min_trace_length = std::min(_min_trace_length, res.min_trace_length);
     _max_trace_length = std::max(_max_trace_length, res.max_trace_length);
     if (_property_type == state_properties::PropertyType::R) {
+        const double prev_interval_width = _reward_stats.max_val - _reward_stats.min_val;
         _reward_stats.updateStats(res.getBatchStatistics());
-        bool is_interval_changed = false;
-        if (_min_reward > res.min_reward) {
-            is_interval_changed = true;
-            _min_reward = res.min_reward;
-        }
-        if (_max_reward < res.max_reward) {
-            is_interval_changed = true;
-            _max_reward = res.max_reward;
-        }
-        if (is_interval_changed) {
+        const double curr_interval_width = _reward_stats.max_val - _reward_stats.min_val;
+        if (curr_interval_width > prev_interval_width) {
             // Recalculate the Chernoff bounds, since the interval got larger
             updateChernoffBound();
         }
@@ -363,8 +354,8 @@ double SamplingResults::calculateQuantile(const double& confidence) {
 void SamplingResults::updateChernoffBound() {
     // Use Chernoff bound for Bernoullian distribution
     double result_interval_width = 1.0;
-    if (_property_type == state_properties::PropertyType::R && !(std::isinf(_min_reward) && std::isinf(_max_reward))) {
-        result_interval_width = std::max(1.0, _max_reward - _min_reward);
+    if (_property_type == state_properties::PropertyType::R && !(std::isinf(_reward_stats.min_val) && std::isinf(_reward_stats.max_val))) {
+        result_interval_width = std::max(1.0, _reward_stats.max_val - _reward_stats.min_val);
     }
     _required_samples = std::ceil(
         std::log(2.0 / (1.0 - _settings.confidence)) * std::pow(result_interval_width, 2) / (2.0 * std::pow(_settings.epsilon, 2)));
@@ -380,7 +371,7 @@ void SamplingResults::printResults() const {
         STORM_PRINT("\tEstimated success prob.:\t" << getProbabilityVerifiedProperty() << "\n");
     } else {
         STORM_PRINT("\tEstimated average reward.:\t" << getEstimatedReward() << "\n");
-        STORM_PRINT("\tRewards interval: [" << _min_reward << ", " << _max_reward << "]\n");
+        STORM_PRINT("\tRewards interval: [" << _reward_stats.min_val << ", " << _reward_stats.max_val << "]\n");
     }
     STORM_PRINT("\tMin trace length:\t" << _min_trace_length << "\n");
     STORM_PRINT("\tMax trace length:\t" << _max_trace_length << "\n");
