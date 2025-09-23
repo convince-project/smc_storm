@@ -29,7 +29,7 @@ namespace smc_storm::state_properties {
 
 template <typename RealValueType>
 StateVariableInformation<RealValueType>::StateVariableInformation(
-    const storm::jani::Model& model, const std::vector<std::reference_wrapper<storm::jani::Automaton const>>& parallel_automata,
+    const storm::jani::Model& model, const std::vector<std::reference_wrapper<const storm::jani::Automaton>>& parallel_automata,
     bool out_of_bounds_state)
     : _check_bounds{out_of_bounds_state} {
     processVariableSet(model.getGlobalVariables(), true);

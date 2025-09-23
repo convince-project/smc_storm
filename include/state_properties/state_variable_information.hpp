@@ -142,7 +142,7 @@ class StateVariableInformation {
   public:
     StateVariableInformation() = default;
     StateVariableInformation(
-        const storm::jani::Model& model, const std::vector<std::reference_wrapper<storm::jani::Automaton const>>& parallel_automata,
+        const storm::jani::Model& model, const std::vector<std::reference_wrapper<const storm::jani::Automaton>>& parallel_automata,
         bool out_of_bounds_state);
 
     inline bool checkVariableBounds() const {

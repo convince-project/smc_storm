@@ -17,13 +17,15 @@
 
 #pragma once
 
+#include <functional>
+#include <map>
+
 #include <storm/modelchecker/AbstractModelChecker.h>
 
 // This is the generic description able to contain both Jani and Prism models
-#include <storm/storage/SymbolicModelDescription.h>
-
 #include <storm/generator/CompressedState.h>
 #include <storm/generator/VariableInformation.h>
+#include <storm/storage/SymbolicModelDescription.h>
 
 #include <storm/utility/ConstantsComparator.h>
 

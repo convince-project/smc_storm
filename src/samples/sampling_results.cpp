@@ -30,14 +30,13 @@
 namespace smc_storm::samples {
 SamplingResults::SamplingResults(const settings::SmcSettings& settings, const state_properties::PropertyType& prop)
     // TODO: results_buffer has an hardcoded max. n. of buffered results per thread (6)
-    : _settings{settings},
-      _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)},
-      _min_iterations{200U}, _progress_bar{
-                                 indicators::option::BarWidth{50},    indicators::option::Start{"["},
-                                 indicators::option::Fill{"■"},       indicators::option::Lead{"-"},
-                                 indicators::option::Remainder{"-"},  indicators::option::End{"]"},
-                                 indicators::option::PostfixText{""}, indicators::option::ShowPercentage{true},
-                             } {
+    : _settings{settings}, _results_buffer(settings.n_threads, 6U), _property_type{prop},
+      _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{200U},
+      _progress_bar{
+          indicators::option::BarWidth{50},    indicators::option::Start{"["},           indicators::option::Fill{"■"},
+          indicators::option::Lead{"-"},       indicators::option::Remainder{"-"},       indicators::option::End{"]"},
+          indicators::option::PostfixText{""}, indicators::option::ShowPercentage{true},
+      } {
     _keep_sampling = true;
     _n_verified = 0U;
     _n_not_verified = 0U;
