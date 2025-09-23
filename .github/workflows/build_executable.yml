@@ -39,13 +39,13 @@ jobs:
             # Checkout this repository
             - name: Checkout repository
               uses: actions/checkout@v4
-            # Checkout storm dependency (to switch to the official one once support for sin/cos is integrated)
+            # Checkout storm dependency
             - name: Checkout STORM
               uses: actions/checkout@v4
               with:
                 repository: moves-rwth/storm
                 # Master is too active to keep up, stable is too old...
-                ref: 83b9191184e26df272bc698c18bfef3cbfc81874
+                ref: 498ea0cc8c393c04ed2b36510a4eb4e1805d484e
                 path: external_dependencies/storm
             # Enable ccache
             - name: ccache
