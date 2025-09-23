@@ -114,7 +114,7 @@ bool SamplingResults::evaluateWaldBound() {
     }
     const double p_succ = static_cast<double>(_n_verified) / static_cast<double>(n_iterations);
     // Original formulation:
-    // double ci_half_width = _quantile * sqrt(success_proportion * (1 - success_proportion) / iterations);
+    // double ci_half_width = _quantile * sqrt(p_succ * (1.0 - p_succ) / n_iterations);
     // Manipulate the formula to get the min amount of iterations (given the current successes/failures ratio)
     const double eps_over_q = _settings.epsilon / _quantile;
     const size_t req_iterations = static_cast<size_t>(p_succ * (1 - p_succ) / (eps_over_q * eps_over_q));
@@ -140,7 +140,7 @@ bool SamplingResults::evaluateWilsonBound() {
     return ci_half_width > _settings.epsilon;
 }
 
-bool SamplingResults::evaluateWilsonCorrectedBound() {
+double SamplingResults::computeWilsonCorrectedEpsilon() const {
     const double iterations = static_cast<double>(_n_verified + _n_not_verified);
     const double p_success = static_cast<double>(_n_verified) / iterations;
     const double p_failure = 1.0 - p_success;
@@ -160,7 +160,12 @@ bool SamplingResults::evaluateWilsonCorrectedBound() {
     }
     //  NOTE: We do not clamp lower and upper bound on purpose, to keep the CI interval larger.
     const double ci_width = (upper_bound - lower_bound);
-    const double ci_half_width = ((_n_verified * _n_not_verified) > 0u) ? (ci_width * 0.5) : ci_width;
+    // ci_half_width
+    return ((_n_verified * _n_not_verified) > 0u) ? (ci_width * 0.5) : ci_width;
+}
+
+bool SamplingResults::evaluateWilsonCorrectedBound() {
+    const double ci_half_width = computeWilsonCorrectedEpsilon();
     STORM_LOG_THROW(ci_half_width >= 0.0, storm::exceptions::OutOfRangeException, "Expected CI to be a positive number.");
     // TODO: Not really a proper progress bar formulation, need to compute it more properly
     _progress = computeProgress(ci_half_width);
@@ -221,6 +226,11 @@ bool SamplingResults::evaluateArcsineBound() {
     // TODO: Not really a proper progress bar formulation, need to compute it more properly
     _progress = computeProgress(ci_half_width);
     return ci_half_width > _settings.epsilon;
+}
+
+double SamplingResults::computeChowRobbinsEpsilon() const {
+    const double ci_half_width_squared = calculateVariance() * _quantile * _quantile / static_cast<double>(_n_verified + _n_not_verified);
+    return sqrt(ci_half_width_squared);
 }
 
 bool SamplingResults::evaluateChowRobbinsBound() {
@@ -330,10 +340,6 @@ void SamplingResults::updateSamplingStatus() {
             _keep_sampling = false;
         } else if (_settings.stop_after_failure && _n_not_verified > 0U) {
             _keep_sampling = false;
-            // } else if ((_n_verified + _n_not_verified) < _min_iterations) {
-            //     _keep_sampling = true;
-            //     _progress = static_cast<size_t>(100.0 * static_cast<double>(_n_verified + _n_not_verified) /
-            //     static_cast<double>(_min_iterations));
         } else if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
             // Check if we never reached a terminal states
             STORM_LOG_THROW(
@@ -361,6 +367,16 @@ void SamplingResults::updateChernoffBound() {
         std::log(2.0 / (1.0 - _settings.confidence)) * std::pow(result_interval_width, 2) / (2.0 * std::pow(_settings.epsilon, 2)));
 }
 
+std::string SamplingResults::computeEpsilonEstimate() const {
+    std::stringstream output;
+    if (_property_type == state_properties::PropertyType::P) {
+        output << computeWilsonCorrectedEpsilon() << " (Corrected Wilson Method)\n";
+    } else {
+        output << computeChowRobbinsEpsilon() << " (Chow Robbins Method)\n";
+    }
+    return output.str();
+}
+
 void SamplingResults::printResults() const {
     const size_t n_samples = _n_no_info + _n_not_verified + _n_verified;
     STORM_PRINT("\n============= SMC Results =============\n");
@@ -373,6 +389,8 @@ void SamplingResults::printResults() const {
         STORM_PRINT("\tEstimated average reward.:\t" << getEstimatedReward() << "\n");
         STORM_PRINT("\tRewards interval: [" << _reward_stats.min_val << ", " << _reward_stats.max_val << "]\n");
     }
+    STORM_PRINT("\tConfidence score: " << _settings.confidence << "\n");
+    STORM_PRINT("\tEstimated Epsilon: " << computeEpsilonEstimate() << "\n");
     STORM_PRINT("\tMin trace length:\t" << _min_trace_length << "\n");
     STORM_PRINT("\tMax trace length:\t" << _max_trace_length << "\n");
     STORM_PRINT("=========================================\n");
