@@ -148,7 +148,7 @@ bool StatisticalModelCheckingEngine<ModelType, CacheData>::verifySettingsValid()
     }
     STORM_LOG_WARN_COND(
         _settings.get().max_n_traces == 0U && !_settings.get().stop_after_failure,
-        "The amount of generated traces is limited. This might affect reliability of the results.");
+        "The amount of generated traces is limited. The result's error (epsilon) might be higher than requested.");
     return is_settings_valid;
 }
 

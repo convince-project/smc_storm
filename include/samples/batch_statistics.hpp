@@ -27,6 +27,8 @@ namespace smc_storm::samples {
 struct BatchStatistics {
     double mean;
     double variance;
+    double min_val;
+    double max_val;
     size_t dim;
 
     /*!

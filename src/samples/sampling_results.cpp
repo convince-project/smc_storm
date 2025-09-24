@@ -30,20 +30,17 @@
 namespace smc_storm::samples {
 SamplingResults::SamplingResults(const settings::SmcSettings& settings, const state_properties::PropertyType& prop)
     // TODO: results_buffer has an hardcoded max. n. of buffered results per thread (6)
-    : _settings{settings},
-      _results_buffer(settings.n_threads, 6U), _property_type{prop}, _quantile{calculateQuantile(_settings.confidence)},
-      _min_iterations{200U}, _progress_bar{
-                                 indicators::option::BarWidth{50},    indicators::option::Start{"["},
-                                 indicators::option::Fill{"■"},       indicators::option::Lead{"-"},
-                                 indicators::option::Remainder{"-"},  indicators::option::End{"]"},
-                                 indicators::option::PostfixText{""}, indicators::option::ShowPercentage{true},
-                             } {
+    : _settings{settings}, _results_buffer(settings.n_threads, 6U), _property_type{prop},
+      _quantile{calculateQuantile(_settings.confidence)}, _min_iterations{200U},
+      _progress_bar{
+          indicators::option::BarWidth{50},    indicators::option::Start{"["},           indicators::option::Fill{"■"},
+          indicators::option::Lead{"-"},       indicators::option::Remainder{"-"},       indicators::option::End{"]"},
+          indicators::option::PostfixText{""}, indicators::option::ShowPercentage{true},
+      } {
     _keep_sampling = true;
     _n_verified = 0U;
     _n_not_verified = 0U;
     _n_no_info = 0U;
-    _min_reward = std::numeric_limits<double>::infinity();
-    _max_reward = -std::numeric_limits<double>::infinity();
     _min_trace_length = std::numeric_limits<size_t>::max();
     _max_trace_length = 0U;
     _progress = 0u;
@@ -116,7 +113,7 @@ bool SamplingResults::evaluateWaldBound() {
     }
     const double p_succ = static_cast<double>(_n_verified) / static_cast<double>(n_iterations);
     // Original formulation:
-    // double ci_half_width = _quantile * sqrt(success_proportion * (1 - success_proportion) / iterations);
+    // double ci_half_width = _quantile * sqrt(p_succ * (1.0 - p_succ) / n_iterations);
     // Manipulate the formula to get the min amount of iterations (given the current successes/failures ratio)
     const double eps_over_q = _settings.epsilon / _quantile;
     const size_t req_iterations = static_cast<size_t>(p_succ * (1 - p_succ) / (eps_over_q * eps_over_q));
@@ -142,7 +139,7 @@ bool SamplingResults::evaluateWilsonBound() {
     return ci_half_width > _settings.epsilon;
 }
 
-bool SamplingResults::evaluateWilsonCorrectedBound() {
+double SamplingResults::computeWilsonCorrectedEpsilon() const {
     const double iterations = static_cast<double>(_n_verified + _n_not_verified);
     const double p_success = static_cast<double>(_n_verified) / iterations;
     const double p_failure = 1.0 - p_success;
@@ -162,7 +159,12 @@ bool SamplingResults::evaluateWilsonCorrectedBound() {
     }
     //  NOTE: We do not clamp lower and upper bound on purpose, to keep the CI interval larger.
     const double ci_width = (upper_bound - lower_bound);
-    const double ci_half_width = ((_n_verified * _n_not_verified) > 0u) ? (ci_width * 0.5) : ci_width;
+    // ci_half_width
+    return ((_n_verified * _n_not_verified) > 0u) ? (ci_width * 0.5) : ci_width;
+}
+
+bool SamplingResults::evaluateWilsonCorrectedBound() {
+    const double ci_half_width = computeWilsonCorrectedEpsilon();
     STORM_LOG_THROW(ci_half_width >= 0.0, storm::exceptions::OutOfRangeException, "Expected CI to be a positive number.");
     // TODO: Not really a proper progress bar formulation, need to compute it more properly
     _progress = computeProgress(ci_half_width);
@@ -225,6 +227,11 @@ bool SamplingResults::evaluateArcsineBound() {
     return ci_half_width > _settings.epsilon;
 }
 
+double SamplingResults::computeChowRobbinsEpsilon() const {
+    const double ci_half_width_squared = calculateVariance() * _quantile * _quantile / static_cast<double>(_n_verified + _n_not_verified);
+    return sqrt(ci_half_width_squared);
+}
+
 bool SamplingResults::evaluateChowRobbinsBound() {
     // This method can be used only after a min. amount of samples has been extracted
     const size_t n_iterations = _n_verified + _n_not_verified;
@@ -270,17 +277,10 @@ void SamplingResults::processBatchResults(const BatchResults& res) {
     _min_trace_length = std::min(_min_trace_length, res.min_trace_length);
     _max_trace_length = std::max(_max_trace_length, res.max_trace_length);
     if (_property_type == state_properties::PropertyType::R) {
+        const double prev_interval_width = _reward_stats.max_val - _reward_stats.min_val;
         _reward_stats.updateStats(res.getBatchStatistics());
-        bool is_interval_changed = false;
-        if (_min_reward > res.min_reward) {
-            is_interval_changed = true;
-            _min_reward = res.min_reward;
-        }
-        if (_max_reward < res.max_reward) {
-            is_interval_changed = true;
-            _max_reward = res.max_reward;
-        }
-        if (is_interval_changed) {
+        const double curr_interval_width = _reward_stats.max_val - _reward_stats.min_val;
+        if (curr_interval_width > prev_interval_width) {
             // Recalculate the Chernoff bounds, since the interval got larger
             updateChernoffBound();
         }
@@ -339,10 +339,6 @@ void SamplingResults::updateSamplingStatus() {
             _keep_sampling = false;
         } else if (_settings.stop_after_failure && _n_not_verified > 0U) {
             _keep_sampling = false;
-            // } else if ((_n_verified + _n_not_verified) < _min_iterations) {
-            //     _keep_sampling = true;
-            //     _progress = static_cast<size_t>(100.0 * static_cast<double>(_n_verified + _n_not_verified) /
-            //     static_cast<double>(_min_iterations));
         } else if (n_samples > _min_iterations && _n_no_info > n_samples * 0.5) {
             // Check if we never reached a terminal states
             STORM_LOG_THROW(
@@ -363,11 +359,21 @@ double SamplingResults::calculateQuantile(const double& confidence) {
 void SamplingResults::updateChernoffBound() {
     // Use Chernoff bound for Bernoullian distribution
     double result_interval_width = 1.0;
-    if (_property_type == state_properties::PropertyType::R && !(std::isinf(_min_reward) && std::isinf(_max_reward))) {
-        result_interval_width = std::max(1.0, _max_reward - _min_reward);
+    if (_property_type == state_properties::PropertyType::R && !(std::isinf(_reward_stats.min_val) && std::isinf(_reward_stats.max_val))) {
+        result_interval_width = std::max(1.0, _reward_stats.max_val - _reward_stats.min_val);
     }
     _required_samples = std::ceil(
         std::log(2.0 / (1.0 - _settings.confidence)) * std::pow(result_interval_width, 2) / (2.0 * std::pow(_settings.epsilon, 2)));
+}
+
+std::string SamplingResults::computeEpsilonEstimate() const {
+    std::stringstream output;
+    if (_property_type == state_properties::PropertyType::P) {
+        output << computeWilsonCorrectedEpsilon() << " (Corrected Wilson Method)\n";
+    } else {
+        output << computeChowRobbinsEpsilon() << " (Chow Robbins Method)\n";
+    }
+    return output.str();
 }
 
 void SamplingResults::printResults() const {
@@ -380,8 +386,10 @@ void SamplingResults::printResults() const {
         STORM_PRINT("\tEstimated success prob.:\t" << getProbabilityVerifiedProperty() << "\n");
     } else {
         STORM_PRINT("\tEstimated average reward.:\t" << getEstimatedReward() << "\n");
-        STORM_PRINT("\tRewards interval: [" << _min_reward << ", " << _max_reward << "]\n");
+        STORM_PRINT("\tRewards interval: [" << _reward_stats.min_val << ", " << _reward_stats.max_val << "]\n");
     }
+    STORM_PRINT("\tConfidence score: " << _settings.confidence << "\n");
+    STORM_PRINT("\tEstimated Epsilon: " << computeEpsilonEstimate() << "\n");
     STORM_PRINT("\tMin trace length:\t" << _min_trace_length << "\n");
     STORM_PRINT("\tMax trace length:\t" << _max_trace_length << "\n");
     STORM_PRINT("=========================================\n");

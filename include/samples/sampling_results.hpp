@@ -159,13 +159,21 @@ class SamplingResults {
     // The following iteration bounds work only on P properties
     bool evaluateWaldBound();
     bool evaluateWilsonBound();
+    double computeWilsonCorrectedEpsilon() const;
     bool evaluateWilsonCorrectedBound();
     bool evaluateClopperPearsonBound();
     bool evaluateAdaptiveBound();
     bool evaluateArcsineBound();
-    // The following iteration bounds work R properties, too
+    // The following iteration bounds work for R properties, too
     bool evaluateChernoffBound();
+    double computeChowRobbinsEpsilon() const;
     bool evaluateChowRobbinsBound();
+
+    /*!
+     * @brief Estimate the Half CI interval
+     * @return The estimated value and the method used to compute it.
+     */
+    std::string computeEpsilonEstimate() const;
 
     mutable std::mutex _mtx;
     // The kind of property we need to evaluate
@@ -176,9 +184,7 @@ class SamplingResults {
     size_t _n_verified;
     size_t _n_not_verified;
     size_t _n_no_info;
-    // Variables to keep track of rewards (WIP, will need to be extended for different bound methods)
-    double _min_reward;
-    double _max_reward;
+    // Variables to keep track of rewards
     BatchStatistics _reward_stats;
 
     // Variables to keep track of the trace lengths
