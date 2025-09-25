@@ -92,12 +92,14 @@ jobs:
                     CARL_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o '[/a-zA-Z0-9\_\-]+libcarl\.so(\.[0-9]*)+' | head -1)
                     SPOT_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o '[/a-zA-Z0-9\_\-]+libspot\.so(\.[0-9]*)+' | head -1)
                     BDDX_LIB=$(ldd external_dependencies/storm/build/lib/libstorm.so | grep -E -o '[/a-zA-Z0-9\_\-]+libbddx\.so(\.[0-9]*)+' | head -1)
+                    STORM_PARSERS_LIB=$(ldd build/bin/smc_storm | grep -E -o '[/a-zA-Z0-9\_\-]+libstorm-parsers\.so(\.[0-9]*)+' | head -1)
+                    STORM_LIB=$(ldd build/bin/smc_storm | grep -E -o '[/a-zA-Z0-9\_\-]+libstorm\.so(\.[0-9]*)+' | head -1)
                     mkdir deployment
                     cd deployment
                     # Copy the dependencies
                     mkdir 3rd_party
-                    cp ../external_dependencies/storm/build/lib/libstorm.so 3rd_party
-                    cp ../external_dependencies/storm/build/lib/libstorm-parsers.so 3rd_party
+                    cp $STORM_LIB 3rd_party
+                    cp $STORM_PARSERS_LIB 3rd_party
                     cp $CARL_LIB 3rd_party
                     cp $SPOT_LIB 3rd_party
                     cp $BDDX_LIB 3rd_party
@@ -141,8 +143,22 @@ jobs:
                     retention-days: 10
                     overwrite: true
 
-    release:
+    test_artifact:
         needs: build
+        runs-on: ubuntu-latest
+        steps:
+            - name: Download artifact
+              id: download-artifact
+              uses: actions/download-artifact@v4
+              with:
+                name: smc_storm_executable
+            - name: Install SMC Storm
+              run: |
+                    bash install.sh
+                    ./bin/smc_storm --help
+
+    release:
+        needs: test_artifact
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         runs-on: ubuntu-latest
         permissions:
