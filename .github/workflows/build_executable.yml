@@ -154,7 +154,7 @@ jobs:
                 name: smc_storm_executable
             - name: Install SMC Storm
               run: |
-                    bash install.sh
+                    bash install.sh --install-dependencies
                     ./bin/smc_storm --help
 
     release:
