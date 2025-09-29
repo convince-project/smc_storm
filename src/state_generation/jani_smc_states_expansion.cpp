@@ -34,10 +34,10 @@ template <typename ValueType>
 JaniSmcStatesExpansion<ValueType>::JaniSmcStatesExpansion(
     const storm::jani::Model& jani_model, const std::optional<std::string>& reward_name,
     const std::vector<model_checker::SmcPluginInstance>& external_plugins, std::default_random_engine& random_generator)
-    : _random_generator{random_generator},
-      _jani_model(jani_model), _reward{
-                                   storm::builder::RewardModelInformation("", false, false, false), storm::expressions::Expression(),
-                                   storm::utility::zero<ValueType>()} {
+    : _random_generator{random_generator}, _jani_model(jani_model),
+      _reward{
+          storm::builder::RewardModelInformation("", false, false, false), storm::expressions::Expression(),
+          storm::utility::zero<ValueType>()} {
     loadReward(reward_name);
     checkSupportedFeatures();
     loadPlugins(external_plugins);
