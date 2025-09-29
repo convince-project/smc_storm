@@ -34,19 +34,19 @@ template <typename ValueType>
 JaniSmcStatesExpansion<ValueType>::JaniSmcStatesExpansion(
     const storm::jani::Model& jani_model, const std::optional<std::string>& reward_name,
     const std::vector<model_checker::SmcPluginInstance>& external_plugins, std::default_random_engine& random_generator)
-    : _random_generator{random_generator}, _jani_model(jani_model), _external_plugins_desc{external_plugins},
-      _reward{
-          storm::builder::RewardModelInformation("", false, false, false), storm::expressions::Expression(),
-          storm::utility::zero<ValueType>()} {
+    : _random_generator{random_generator},
+      _jani_model(jani_model), _reward{
+                                   storm::builder::RewardModelInformation("", false, false, false), storm::expressions::Expression(),
+                                   storm::utility::zero<ValueType>()} {
     loadReward(reward_name);
     checkSupportedFeatures();
-    loadPlugins();
+    loadPlugins(external_plugins);
     // This ensures an automaton appears only once in the model composition
     _jani_model.simplifyComposition();
     // For now, always execute edge assignments at destination.
     // Keep optimization from NextStateGenerator for later (the one for trivial reward expressions)
     // _jani_model.pushEdgeAssignmentsToDestinations();
-    _model_build_ptr = std::make_unique<const JaniSmcModelBuild>(_jani_model, _external_plugins_desc);
+    _model_build_ptr = std::make_unique<const JaniSmcModelBuild>(_jani_model, external_plugins);
     checkUndefinedConstants();
     const auto& expanded_automata = _model_build_ptr->getAutomata();
     // For now the out of bounds config is set to the default value (32 bits + false out of bounds state)
@@ -87,14 +87,22 @@ void JaniSmcStatesExpansion<ValueType>::checkUndefinedConstants() const {
 }
 
 template <typename ValueType>
-void JaniSmcStatesExpansion<ValueType>::loadPlugins() {
-    _loaded_plugin_ptrs.clear();
-    _loaded_plugin_ptrs.reserve(_external_plugins_desc.get().size());
-    for (const auto& plugin_description : _external_plugins_desc.get()) {
-        _loaded_plugin_ptrs.emplace_back(plugin_description.generatePluginInstance());
-        STORM_LOG_THROW(_loaded_plugin_ptrs.back(), storm::exceptions::UnexpectedException, "Cannot load the requested plugin.");
-        _loaded_plugin_ptrs.back()->setRandomSeed(_random_generator.get()());
-        _loaded_plugin_ptrs.back()->loadParameters(plugin_description.getInitData());
+void JaniSmcStatesExpansion<ValueType>::loadPlugins(const std::vector<model_checker::SmcPluginInstance>& external_plugins) {
+    _loaded_plugins.clear();
+    _loaded_plugins.reserve(external_plugins.size());
+    for (const auto& plugin_description : external_plugins) {
+        auto plugin_instance_ptr = plugin_description.generatePluginInstance();
+        STORM_LOG_THROW(
+            plugin_instance_ptr, storm::exceptions::UnexpectedException, "Cannot load the plugin " << plugin_description.getPluginId());
+        plugin_instance_ptr->setRandomSeed(_random_generator.get()());
+        plugin_instance_ptr->loadParameters(plugin_description.getInitData());
+        model_checker::SmcPluginInstance::PluginToModelExpressionMap input_mapping = plugin_description.getInputVariablesMap();
+        model_checker::SmcPluginInstance::PluginAndModelVariableVector output_mapping = plugin_description.getOutputVariablesMap();
+        for (auto& entry : input_mapping) {
+            entry.second.second.changeManager(_jani_model.getManager());
+        }
+        PluginHolder plugin_holder = {std::move(plugin_instance_ptr), std::move(input_mapping), std::move(output_mapping)};
+        _loaded_plugins.emplace_back(std::move(plugin_holder));
     }
 }
 
@@ -200,13 +208,10 @@ const state_properties::StateVariableData<ValueType>& JaniSmcStatesExpansion<Val
         }
     }
     // Resetting all external plugins to the initial state
-    const auto& plugins_desc = _external_plugins_desc.get();
-    for (size_t plugin_id = 0u; plugin_id < plugins_desc.size(); plugin_id++) {
-        const auto& plugin_desc = plugins_desc[plugin_id];
-        const auto& plugin_ptr = _loaded_plugin_ptrs[plugin_id];
-        const auto reset_result = plugin_ptr->reset();
+    for (PluginHolder& single_plugin : _loaded_plugins) {
+        const auto reset_result = single_plugin.instance_ptr->reset();
         if (reset_result.has_value()) {
-            assignPluginResultToState(_initial_state, *reset_result, plugin_desc);
+            assignPluginResultToState(_initial_state, *reset_result, single_plugin.output_mapping);
         } else {
             // If the reset of plugin fails, then return the empty state.
             return _empty_state;
@@ -681,10 +686,9 @@ bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
     // Check if this automaton relates to a plugin
     const uint64_t plugin_id = _model_build_ptr->getPluginFromAutomatonAction(automaton_id, action_id);
     if (plugin_id != JaniSmcModelBuild::NO_PLUGIN_ID) {
-        smc_verifiable_plugins::SmcPluginBase& plugin_instance = *_loaded_plugin_ptrs[plugin_id];
-        const auto& plugin_description = _external_plugins_desc.get()[plugin_id];
+        PluginHolder& single_plugin = _loaded_plugins[plugin_id];
         smc_verifiable_plugins::DataExchange input_data = {};
-        for (const auto& [input_arg_name, input_arg_info] : plugin_description.getInputVariablesMap()) {
+        for (const auto& [input_arg_name, input_arg_info] : single_plugin.input_mapping) {
             const auto& expression_type = input_arg_info.first;
             const auto& expression_value = input_arg_info.second;
             if (expression_type == model_checker::SmcPluginInstance::ExprType::BOOL) {
@@ -697,14 +701,14 @@ bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
                 STORM_LOG_THROW(
                     false, storm::exceptions::InvalidModelException,
                     "Cannot determine what data type to use for the input " + input_arg_name + " of " +
-                        plugin_description.getAutomatonName() + " plugin.");
+                        _jani_model.getAutomaton(automaton_id).getName() + " plugin.");
             }
         }
-        const auto opt_plugin_result = plugin_instance.nextStep(input_data);
+        const auto opt_plugin_result = single_plugin.instance_ptr->nextStep(input_data);
         if (!opt_plugin_result.has_value()) {
             return false;
         }
-        assignPluginResultToState(state, *opt_plugin_result, plugin_description);
+        assignPluginResultToState(state, *opt_plugin_result, single_plugin.output_mapping);
     } else {
         // This orders the assignments to be booleans first, then integers and then arrays. Variables are ordered as in the var_info
         const auto& all_assignments = destination.getOrderedAssignments().getNonTransientAssignments(assignment_level);
@@ -760,9 +764,9 @@ bool JaniSmcStatesExpansion<ValueType>::executeNonTransientDestinationAssignment
 template <typename ValueType>
 void JaniSmcStatesExpansion<ValueType>::assignPluginResultToState(
     state_properties::StateVariableData<ValueType>& state, const smc_verifiable_plugins::DataExchange& plugin_out_data,
-    const model_checker::SmcPluginInstance& plugin_description) {
-    auto plugin_output_desc_it = plugin_description.getOutputVariablesMap().begin();
-    const auto plugin_output_desc_ite = plugin_description.getOutputVariablesMap().end();
+    const model_checker::SmcPluginInstance::PluginAndModelVariableVector output_mapping) {
+    auto plugin_output_desc_it = output_mapping.begin();
+    const auto plugin_output_desc_ite = output_mapping.end();
     auto bool_vars_it = _variable_information.booleanVariables().begin();
     auto int_vars_it = _variable_information.integerVariables().begin();
     auto real_vars_it = _variable_information.realVariables().begin();
