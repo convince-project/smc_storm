@@ -54,6 +54,10 @@ class SmcPluginInstance {
         const std::vector<std::filesystem::path>& available_paths, const std::string& plugin_name, const std::string& automaton_id,
         const std::string& action_name, const uint64_t action_id);
 
+    inline const std::string& getPluginId() const {
+        return _plugin_id;
+    }
+
     /*!
      * @brief Get the name of the automaton associated to this plugin instance description.
      * @return The string describing the automaton name.
