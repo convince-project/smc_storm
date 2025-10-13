@@ -34,7 +34,7 @@ jobs:
               run: |
                     apt install -y build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Install linters
-              if: ${{ matrix.container == 'ubuntu-24.04' }}
+              if: ${{ matrix.container == 'ubuntu:24.04' }}
               run: |
                     apt install -y clang clang-tidy clang-format g++-12 gcc-12
                     echo "---- Print info about clang ----"
@@ -44,7 +44,7 @@ jobs:
                     echo "---- Print info about clang-tidy ----"
                     clang-tidy --version
             - name: Install newer cmake
-              if: ${{ matrix.container == 'ubuntu-22.04' }}
+              if: ${{ matrix.container == 'ubuntu:22.04' }}
               run: |
                     wget https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9.tar.gz
                     tar -xvf cmake-3.31.9.tar.gz
@@ -91,7 +91,7 @@ jobs:
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
             - name: Run linters
-              if: ${{ matrix.container == 'ubuntu-24.04' }}
+              if: ${{ matrix.container == 'ubuntu:24.04' }}
               run: |
                     ./scripts/check-clang-style.bash
             - name: Run tests
@@ -100,7 +100,7 @@ jobs:
                     # Repeat the failing tests up to 3 times, due to statistical possible failures
                     ctest --repeat until-pass:3
             - name: Copy lib and executables in deploy folder
-              if: ${{ matrix.container == 'ubuntu-22.04' }}
+              if: ${{ matrix.container == 'ubuntu:22.04' }}
               run: |
                     # List all existing dependencies of libstorm
                     echo "libstorm dependencies:"
@@ -125,7 +125,7 @@ jobs:
                     mkdir bin
                     cp ../build/bin/smc_storm bin
             - name: Generate install script
-              if: ${{ matrix.container == 'ubuntu-22.04' }}
+              if: ${{ matrix.container == 'ubuntu:22.04' }}
               run: |
                     cd deployment
                     cat << EOF > install.sh
@@ -152,7 +152,7 @@ jobs:
                     chmod a+x \$SOURCE/bin/smc_storm
                     EOF
             - name: Upload artifact
-              if: ${{ matrix.container == 'ubuntu-22.04' }}
+              if: ${{ matrix.container == 'ubuntu:22.04' }}
               uses: actions/upload-artifact@v4
               with:
                     name: smc_storm_executable
