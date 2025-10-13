@@ -32,7 +32,7 @@ jobs:
               # install the dependencies
             - name: Install dependencies
               run: |
-                    apt install -y build-essential git wget libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
+                    apt install -y build-essential git wget cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Install linters
               if: ${{ matrix.container == 'ubuntu:24.04' }}
               run: |
@@ -44,6 +44,7 @@ jobs:
                     echo "---- Print info about clang-tidy ----"
                     clang-tidy --version
             - name: Install cmake
+              if: ${{ matrix.container == 'ubuntu:22.04' }}
               run: |
                     wget https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9.tar.gz
                     tar -xvf cmake-3.31.9.tar.gz
