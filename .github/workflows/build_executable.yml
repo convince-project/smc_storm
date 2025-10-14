@@ -22,13 +22,13 @@ jobs:
           matrix:
             include:
               - container: ubuntu:24.04
-                shall_lint: ${{ true }}
-                build_cmake: ${{ false }}
-                upload_binary: ${{ false }}
+                shall_lint: true
+                build_cmake: false
+                upload_binary: false
               - container: ubuntu:22.04
-                shall_lint: ${{ false }}
-                build_cmake: ${{ true }}
-                upload_binary: ${{ true }}
+                shall_lint: false
+                build_cmake: true
+                upload_binary: true
         runs-on: ubuntu-latest
         container: ${{matrix.container}}
         steps:
@@ -40,7 +40,7 @@ jobs:
               run: |
                     apt install -y build-essential git wget cmake libssl-dev libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Install linters
-              if: ${{ matrix.shall_lint == 'true' }}
+              if: ${{ matrix.shall_lint }}
               run: |
                     apt install -y clang clang-tidy clang-format g++-12 gcc-12
                     echo "---- Print info about clang ----"
@@ -50,21 +50,21 @@ jobs:
                     echo "---- Print info about clang-tidy ----"
                     clang-tidy --version
             - name: Get cached cmake build
-              if: ${{ matrix.build_cmake == 'true' }}
+              if: ${{ matrix.build_cmake }}
               id: get-cmake-cache
               uses: actions/cache@v4
               with:
                     path: cmake-3.31.9
                     key: cmake-3.31.9
             - name: Build cmake
-              if: ${{ matrix.build_cmake == 'true' && steps.get-cmake-cache.outputs.cache-hit != 'true' }}
+              if: ${{ matrix.build_cmake && steps.get-cmake-cache.outputs.cache-hit != 'true' }}
               run: |
                     wget https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9.tar.gz
                     tar -xvf cmake-3.31.9.tar.gz
                     cd cmake-3.31.9
                     ./bootstrap && make
             - name: Install cmake
-              if: ${{ matrix.build_cmake == 'true' }}
+              if: ${{ matrix.build_cmake }}
               run: |
                     cd cmake-3.31.9
                     make install
@@ -109,7 +109,7 @@ jobs:
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
             - name: Run linters
-              if: ${{ matrix.shall_lint == 'true' }}
+              if: ${{ matrix.shall_lint }}
               run: |
                     ./scripts/check-clang-style.bash
             - name: Run tests
@@ -118,7 +118,7 @@ jobs:
                     # Repeat the failing tests up to 3 times, due to statistical possible failures
                     ctest --repeat until-pass:3
             - name: Copy lib and executables in deploy folder
-              if: ${{ matrix.upload_binary == 'true' }}
+              if: ${{ matrix.upload_binary }}
               run: |
                     # List all existing dependencies of libstorm
                     echo "libstorm dependencies:"
@@ -143,7 +143,7 @@ jobs:
                     mkdir bin
                     cp ../build/bin/smc_storm bin
             - name: Generate install script
-              if: ${{ matrix.upload_binary == 'true' }}
+              if: ${{ matrix.upload_binary }}
               run: |
                     cd deployment
                     cat << EOF > install.sh
@@ -170,7 +170,7 @@ jobs:
                     chmod a+x \$SOURCE/bin/smc_storm
                     EOF
             - name: Upload artifact
-              if: ${{ matrix.upload_binary == 'true' }}
+              if: ${{ matrix.upload_binary }}
               uses: actions/upload-artifact@v4
               with:
                     name: smc_storm_executable
