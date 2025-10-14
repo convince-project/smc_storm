@@ -49,15 +49,16 @@ jobs:
                     clang-format --version
                     echo "---- Print info about clang-tidy ----"
                     clang-tidy --version
-            - name: Get cached cmake build
-              if: ${{ matrix.build_cmake }}
-              id: get-cmake-cache
-              uses: actions/cache@v4
-              with:
-                    path: cmake-3-31-9
-                    key: cmake-3-31-9
+            # This seems not to work...
+            # - name: Get cached cmake build
+            #   if: ${{ matrix.build_cmake }}
+            #   id: get-cmake-cache
+            #   uses: actions/cache@v4
+            #   with:
+            #         path: cmake-3-31-9
+            #         key: cmake-3-31-9
             - name: Build cmake
-              if: ${{ matrix.build_cmake && steps.get-cmake-cache.outputs.cache-hit != 'true' }}
+              if: ${{ matrix.build_cmake }}
               run: |
                     wget https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9.tar.gz
                     tar -xvf cmake-3.31.9.tar.gz
