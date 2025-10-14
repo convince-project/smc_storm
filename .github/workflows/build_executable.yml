@@ -54,19 +54,20 @@ jobs:
               id: get-cmake-cache
               uses: actions/cache@v4
               with:
-                    path: cmake-3.31.9
-                    key: cmake-3.31.9
+                    path: cmake-3-31-9
+                    key: cmake-3-31-9
             - name: Build cmake
               if: ${{ matrix.build_cmake && steps.get-cmake-cache.outputs.cache-hit != 'true' }}
               run: |
                     wget https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9.tar.gz
                     tar -xvf cmake-3.31.9.tar.gz
-                    cd cmake-3.31.9
+                    mv cmake-3.31.9 cmake-3-31-9
+                    cd cmake-3-31-9
                     ./bootstrap && make
             - name: Install cmake
               if: ${{ matrix.build_cmake }}
               run: |
-                    cd cmake-3.31.9
+                    cd cmake-3-31-9
                     make install
             # Checkout this repository
             - name: Checkout repository
