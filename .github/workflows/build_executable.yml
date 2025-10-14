@@ -17,8 +17,20 @@ concurrency:
 
 jobs:
     build:
+        strategy:
+          fail-fast: false
+          matrix:
+            include:
+              - container: ubuntu:24.04
+                shall_lint: true
+                build_cmake: false
+                upload_binary: false
+              - container: ubuntu:22.04
+                shall_lint: false
+                build_cmake: true
+                upload_binary: true
         runs-on: ubuntu-latest
-        container: ubuntu:24.04
+        container: ${{matrix.container}}
         steps:
             - name: Update apt
               run: |
@@ -26,8 +38,9 @@ jobs:
               # install the dependencies
             - name: Install dependencies
               run: |
-                    apt install -y build-essential git cmake libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
+                    apt install -y build-essential git wget cmake libssl-dev libboost-all-dev libcln-dev libgmp-dev libginac-dev automake libglpk-dev libhwloc-dev libz3-dev libxerces-c-dev libeigen3-dev libgtest-dev
             - name: Install linters
+              if: ${{ matrix.shall_lint }}
               run: |
                     apt install -y clang clang-tidy clang-format g++-12 gcc-12
                     echo "---- Print info about clang ----"
@@ -36,6 +49,27 @@ jobs:
                     clang-format --version
                     echo "---- Print info about clang-tidy ----"
                     clang-tidy --version
+            # This seems not to work...
+            # - name: Get cached cmake build
+            #   if: ${{ matrix.build_cmake }}
+            #   id: get-cmake-cache
+            #   uses: actions/cache@v4
+            #   with:
+            #         path: cmake-3-31-9
+            #         key: cmake-3-31-9
+            - name: Build cmake
+              if: ${{ matrix.build_cmake }}
+              run: |
+                    wget https://github.com/Kitware/CMake/releases/download/v3.31.9/cmake-3.31.9.tar.gz
+                    tar -xvf cmake-3.31.9.tar.gz
+                    mv cmake-3.31.9 cmake-3-31-9
+                    cd cmake-3-31-9
+                    ./bootstrap && make
+            - name: Install cmake
+              if: ${{ matrix.build_cmake }}
+              run: |
+                    cd cmake-3-31-9
+                    make install
             # Checkout this repository
             - name: Checkout repository
               uses: actions/checkout@v4
@@ -60,9 +94,9 @@ jobs:
               uses: actions/cache@v4
               with:
                     path: external_dependencies/storm/build
-                    key: storm-build-${{ steps.get-storm-commit.outputs.storm_hash }}
+                    key: storm-build-${{ steps.get-storm-commit.outputs.storm_hash }}-${{ matrix.container }}
             - name: Build Storm
-              if: steps.get-storm-cache.outputs.cache-hit != 'true'
+              if: ${{ steps.get-storm-cache.outputs.cache-hit != 'true' }}
               run: |
                     export PATH="/usr/lib/ccache:/usr/local/opt/ccache/libexec:$PATH"
                     mkdir external_dependencies/storm/build
@@ -77,6 +111,7 @@ jobs:
                     cmake .. -DCMAKE_BUILD_TYPE=Release -Dstorm_DIR=$STORM_BUILD_DIR
                     make
             - name: Run linters
+              if: ${{ matrix.shall_lint }}
               run: |
                     ./scripts/check-clang-style.bash
             - name: Run tests
@@ -85,6 +120,7 @@ jobs:
                     # Repeat the failing tests up to 3 times, due to statistical possible failures
                     ctest --repeat until-pass:3
             - name: Copy lib and executables in deploy folder
+              if: ${{ matrix.upload_binary }}
               run: |
                     # List all existing dependencies of libstorm
                     echo "libstorm dependencies:"
@@ -109,6 +145,7 @@ jobs:
                     mkdir bin
                     cp ../build/bin/smc_storm bin
             - name: Generate install script
+              if: ${{ matrix.upload_binary }}
               run: |
                     cd deployment
                     cat << EOF > install.sh
@@ -135,6 +172,7 @@ jobs:
                     chmod a+x \$SOURCE/bin/smc_storm
                     EOF
             - name: Upload artifact
+              if: ${{ matrix.upload_binary }}
               uses: actions/upload-artifact@v4
               with:
                     name: smc_storm_executable
@@ -146,6 +184,13 @@ jobs:
     test_artifact:
         needs: build
         runs-on: ubuntu-latest
+        strategy:
+          fail-fast: false
+          matrix:
+            include:
+              - container: ubuntu:24.04
+              - container: ubuntu:22.04
+        container: ${{matrix.container}}
         steps:
             - name: Download artifact
               id: download-artifact
