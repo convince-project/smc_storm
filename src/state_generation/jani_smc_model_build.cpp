@@ -139,7 +139,7 @@ void JaniSmcModelBuild::computePluginAssociations(const std::vector<model_checke
         // Sort it in order to have the action id in ascending order
         std::sort(
             _automata_plugins[aut_idx].begin(), _automata_plugins[aut_idx].end(),
-            [](const EdgeToPluginId& var_l, const EdgeToPluginId& var_r) { return var_l.first < var_l.second; });
+            [](const EdgeToPluginId& var_l, const EdgeToPluginId& var_r) { return var_l.first < var_r.first; });
         // Make sure no action is repeated twice
         if (_automata_plugins[aut_idx].size() >= 2u) {
             for (uint64_t curr_idx = 1u; curr_idx < _automata_plugins[aut_idx].size(); curr_idx++) {
